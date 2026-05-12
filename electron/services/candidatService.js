@@ -1,4 +1,4 @@
-import { prisma } from './prismaClient.js'
+import { prisma } from './prisma.client.js'
 import { mapCandidat } from './prismaMappers.js'
 
 const candidatInclude = {

@@ -1,5 +1,5 @@
-import { prisma } from './prismaClient.js'
-import { mapLecon } from './prismaMappers.js'
+import { prisma } from './prisma.client.js';
+import { mapLecon } from './prismaMappers.js';
 
 const planningInclude = {
   candidat: {
@@ -11,15 +11,15 @@ const planningInclude = {
   vehicule: {
     select: { id: true, modele: true, immatriculation: true },
   },
-}
+};
 
 export async function getPlanning() {
   const lessons = await prisma.lecon.findMany({
     include: planningInclude,
     orderBy: [{ date: 'asc' }, { id: 'asc' }],
-  })
+  });
 
-  return lessons.map(mapLecon)
+  return lessons.map(mapLecon);
 }
 
 export async function saveLesson(payload) {
@@ -35,9 +35,9 @@ export async function saveLesson(payload) {
       vehiculeId: payload.vehiculeId ? Number(payload.vehiculeId) : null,
     },
     include: planningInclude,
-  })
+  });
 
-  return mapLecon(lesson)
+  return mapLecon(lesson);
 }
 
 export async function updateLesson(id, payload) {
@@ -54,15 +54,15 @@ export async function updateLesson(id, payload) {
       vehiculeId: payload.vehiculeId ? Number(payload.vehiculeId) : null,
     },
     include: planningInclude,
-  })
+  });
 
-  return mapLecon(lesson)
+  return mapLecon(lesson);
 }
 
 export async function deleteLesson(id) {
   await prisma.lecon.delete({
     where: { id: Number(id) },
-  })
+  });
 
-  return { success: true }
+  return { success: true };
 }

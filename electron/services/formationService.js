@@ -1,4 +1,4 @@
-import { prisma } from './prismaClient.js'
+import { prisma } from './prisma.client.js';
 
 function mapFormation(formation) {
   return {
@@ -12,7 +12,7 @@ function mapFormation(formation) {
     actif: formation.actif,
     createdAt: formation.createdAt,
     candidatsCount: formation._count?.candidats || 0,
-  }
+  };
 }
 
 export async function getAll() {
@@ -25,9 +25,9 @@ export async function getAll() {
       },
     },
     orderBy: [{ actif: 'desc' }, { nom: 'asc' }],
-  })
+  });
 
-  return formations.map(mapFormation)
+  return formations.map(mapFormation);
 }
 
 export async function create(data) {
@@ -48,9 +48,9 @@ export async function create(data) {
         },
       },
     },
-  })
+  });
 
-  return mapFormation(formation)
+  return mapFormation(formation);
 }
 
 export async function update(id, data) {
@@ -72,29 +72,29 @@ export async function update(id, data) {
         },
       },
     },
-  })
+  });
 
-  return mapFormation(formation)
+  return mapFormation(formation);
 }
 
 export async function remove(id) {
-  const formationId = Number(id)
+  const formationId = Number(id);
 
   const linked = await prisma.formationCandidat.count({
     where: { formationId },
-  })
+  });
 
   if (linked > 0) {
     await prisma.formation.update({
       where: { id: formationId },
       data: { actif: false },
-    })
-    return { success: true, archived: true }
+    });
+    return { success: true, archived: true };
   }
 
   await prisma.formation.delete({
     where: { id: formationId },
-  })
+  });
 
-  return { success: true, archived: false }
+  return { success: true, archived: false };
 }

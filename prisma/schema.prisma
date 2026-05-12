@@ -1,3 +1,4 @@
+// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,39 +8,217 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ===============================
+// ÉNUMÉRATIONS
+// ===============================
+
+enum Role {
+  ADMIN
+  SECRETAIRE
+  MONITEUR
+}
+
+enum NiveauAcces {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  STANDARD
+  GUEST
+}
+
+enum CategoriePermis {
+  A
+  B
+  C
+  D
+  BE
+}
+
+enum StatutCandidat {
+  EN_COURS
+  RECU
+  ECHOUE
+  ABANDONNE
+  EN_ATTENTE
+}
+
+enum StatutVehicule {
+  DISPONIBLE
+  EN_LECON
+  EN_ENTRETIEN
+  HORS_SERVICE
+}
+
+enum TypeLecon {
+  CODE
+  CONDUITE
+  CONDUITE_ACCOMPAGNEE
+}
+
+enum StatutLecon {
+  PLANIFIEE
+  EFFECTUEE
+  ANNULEE
+  ABSENCE
+}
+
+enum TypeExamen {
+  CODE
+  CONDUIT
+}
+
+enum ResultatExamen {
+  EN_ATTENTE
+  RECU
+  AJOURNE
+}
+
+enum ModePaiement {
+  ESPECES
+  CHEQUE
+  VIREMENT
+  CARTE
+  MOBILE_MONEY
+}
+
+enum CategorieDepense {
+  CARBURANT
+  ENTRETIEN_VEHICULE
+  SALAIRE
+  LOYER
+  ELECTRICITE
+  TELEPHONE
+  ASSURANCE
+  PUBLICITE
+  FOURNITURES
+  TAXES
+  AUTRE
+}
+
+enum TypeMouvement {
+  ENTREE
+  SORTIE
+}
+
+enum StatutFacture {
+  EN_ATTENTE
+  PARTIELLEMENT_PAYEE
+  PAYEE
+  ANNULEE
+}
+
+// ===============================
+// MODÈLES PRINCIPAUX
+// ===============================
+
 model Utilisateur {
-  id           Int      @id @default(autoincrement())
-  nom          String
-  prenom       String
-  email        String   @unique
-  passwordHash String
-  role         Role     @default(ADMIN)
-  actif        Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                 Int                 @id @default(autoincrement())
+  nom                String
+  prenom             String
+  email              String              @unique
+  passwordHash       String
+  role               Role                @default(SECRETAIRE)
+  niveau             NiveauAcces         @default(STANDARD)
+  actif              Boolean             @default(true)
+  creeParId          Int?
+  creePar            Utilisateur?        @relation("UtilisateurCreepar", fields: [creeParId], references: [id])
+  utilisateurs       Utilisateur[]       @relation("UtilisateurCreepar")
+  sessions           Session[]
+  auditLogs          AuditLog[]
+  permissions        Permission[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  passwordResetCodes PasswordResetCode[]
 
   @@map("utilisateurs")
 }
 
+model Session {
+  id            Int         @id @default(autoincrement())
+  utilisateurId Int
+  token         String      @unique
+  refreshToken  String?     @unique
+  userAgent     String?
+  ipAddress     String?
+  expiresAt     DateTime
+  dernierAcces  DateTime    @default(now())
+  actif         Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  utilisateur   Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  @@index([utilisateurId])
+  @@index([token])
+  @@map("sessions")
+}
+
+model Permission {
+  id            Int         @id @default(autoincrement())
+  utilisateurId Int
+  ressource     String
+  action        String
+  actif         Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  utilisateur   Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+
+  @@unique([utilisateurId, ressource, action])
+  @@index([utilisateurId])
+  @@map("permissions")
+}
+
+model PasswordResetCode {
+  id            Int         @id @default(autoincrement())
+  code          String      @unique
+  utilisateurId Int
+  utilisateur   Utilisateur @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  expiresAt     DateTime
+  used          Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+
+  @@index([code])
+  @@index([expiresAt])
+  @@map("password_reset_codes")
+}
+
+model AuditLog {
+  id            Int          @id @default(autoincrement())
+  utilisateurId Int?
+  action        String
+  ressource     String?
+  ressourceId   Int?
+  description   String?
+  details       String? // JSON
+  ipAddress     String?
+  statut        String       @default("SUCCESS")
+  createdAt     DateTime     @default(now())
+  utilisateur   Utilisateur? @relation(fields: [utilisateurId], references: [id], onDelete: SetNull)
+
+  @@index([utilisateurId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
 model Candidat {
-  id              Int                 @id @default(autoincrement())
+  id              Int                @id @default(autoincrement())
   nom             String
   prenom          String
-  email           String?             @unique
+  email           String?            @unique
   telephone       String?
   dateNaissance   DateTime?
   adresse         String?
-  numeroPermis    String?             @unique
-  categorie       CategoriePermis     @default(B)
-  statut          StatutCandidat      @default(EN_COURS)
-  dateInscription DateTime            @default(now())
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  numeroPermis    String?            @unique
+  categorie       CategoriePermis    @default(B)
+  statut          StatutCandidat     @default(EN_COURS)
+  dateInscription DateTime           @default(now())
+  notes           String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  deletedAt       DateTime?
   paiements       Paiement[]
   lecons          Lecon[]
   examens         Examen[]
   factures        Facture[]
   formation       FormationCandidat?
+  documents       Document[]
 
   @@map("candidats")
 }
@@ -56,6 +235,7 @@ model Formation {
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
   candidats      FormationCandidat[]
+  tarifs         Tarif[]
 
   @@map("formations")
 }
@@ -101,7 +281,7 @@ model Vehicule {
   kilometrage          Int             @default(0)
   dateAcquisition      DateTime?
   dateDerniereRevision DateTime?
-  prochaineRevision    Int?
+  prochaineRevisionKm  Int? // kilométrage recommandé pour la prochaine révision
   statut               StatutVehicule  @default(DISPONIBLE)
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
@@ -115,7 +295,7 @@ model Vehicule {
 model Lecon {
   id         Int         @id @default(autoincrement())
   date       DateTime
-  duree      Int         @default(60)
+  duree      Int         @default(60) // minutes
   type       TypeLecon   @default(CONDUITE)
   statut     StatutLecon @default(PLANIFIEE)
   notes      String?
@@ -128,6 +308,9 @@ model Lecon {
   moniteur   Moniteur    @relation(fields: [moniteurId], references: [id])
   vehicule   Vehicule?   @relation(fields: [vehiculeId], references: [id])
 
+  @@index([date])
+  @@index([candidatId])
+  @@index([moniteurId])
   @@map("lecons")
 }
 
@@ -143,6 +326,8 @@ model Examen {
   candidatId Int
   candidat   Candidat       @relation(fields: [candidatId], references: [id])
 
+  @@index([date])
+  @@index([candidatId])
   @@map("examens")
 }
 
@@ -159,21 +344,25 @@ model Paiement {
   candidat   Candidat     @relation(fields: [candidatId], references: [id])
   facture    Facture?     @relation(fields: [factureId], references: [id])
 
+  @@index([candidatId])
+  @@index([date])
   @@map("paiements")
 }
 
 model Depense {
-  id          Int               @id @default(autoincrement())
+  id          Int              @id @default(autoincrement())
   categorie   CategorieDepense
   montant     Float
   description String?
-  date        DateTime          @default(now())
+  date        DateTime         @default(now())
   fournisseur String?
   reference   String?
-  createdAt   DateTime          @default(now())
+  createdAt   DateTime         @default(now())
   vehiculeId  Int?
-  vehicule    Vehicule?         @relation(fields: [vehiculeId], references: [id])
+  vehicule    Vehicule?        @relation(fields: [vehiculeId], references: [id])
 
+  @@index([date])
+  @@index([categorie])
   @@map("depenses")
 }
 
@@ -187,124 +376,88 @@ model Caisse {
   date        DateTime      @default(now())
   createdAt   DateTime      @default(now())
 
+  @@index([date])
   @@map("caisse")
 }
 
 model Facture {
-  id           Int            @id @default(autoincrement())
-  numero       String         @unique
+  id           Int           @id @default(autoincrement())
+  numero       String        @unique
   montantTotal Float
-  statut       StatutFacture  @default(EN_ATTENTE)
-  dateEmission DateTime       @default(now())
+  statut       StatutFacture @default(EN_ATTENTE)
+  dateEmission DateTime      @default(now())
   dateEcheance DateTime?
   pdfPath      String?
   notes        String?
-  createdAt    DateTime       @default(now())
+  createdAt    DateTime      @default(now())
   candidatId   Int
-  candidat     Candidat       @relation(fields: [candidatId], references: [id])
+  candidat     Candidat      @relation(fields: [candidatId], references: [id])
   paiements    Paiement[]
 
+  @@index([candidatId])
+  @@index([statut])
   @@map("factures")
 }
 
 model Entretien {
   id          Int      @id @default(autoincrement())
-  type        String
+  type        String // ex: "vidange", "freins", "révision générale"
   description String?
   cout        Float?
-  kilometre   Int?
+  kilometre   Int? // kilométrage au moment de l'entretien
   date        DateTime @default(now())
-  prochainKm  Int?
+  prochainKm  Int? // kilométrage recommandé pour le prochain entretien
   createdAt   DateTime @default(now())
   vehiculeId  Int
   vehicule    Vehicule @relation(fields: [vehiculeId], references: [id])
 
+  @@index([vehiculeId])
+  @@index([date])
   @@map("entretiens")
 }
 
-enum Role {
-  ADMIN
-  SECRETAIRE
-  MONITEUR
+// ===============================
+// NOUVEAUX MODÈLES POUR COMPLÉTUDE
+// ===============================
+
+model CompanyConfig {
+  id           Int      @id @default(autoincrement())
+  nom          String
+  adresse      String?
+  telephone    String?
+  email        String?
+  siteWeb      String?
+  numeroFiscal String?
+  logoPath     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("company_config")
 }
 
-enum CategoriePermis {
-  A
-  B
-  C
-  D
-  BE
+model Tarif {
+  id          Int       @id @default(autoincrement())
+  formationId Int
+  prix        Float
+  dateDebut   DateTime  @default(now())
+  dateFin     DateTime?
+  formation   Formation @relation(fields: [formationId], references: [id])
+
+  @@unique([formationId, dateDebut])
+  @@map("tarifs")
 }
 
-enum StatutCandidat {
-  EN_COURS
-  RECU
-  ECHOUE
-  ABANDONNE
-  EN_ATTENTE
-}
+model Document {
+  id         Int      @id @default(autoincrement())
+  candidatId Int
+  type       String // "permis", "carte_identite", "facture", "recu"
+  nomFichier String
+  chemin     String
+  taille     Int?
+  mimeType   String?
+  uploadedAt DateTime @default(now())
+  candidat   Candidat @relation(fields: [candidatId], references: [id])
 
-enum StatutVehicule {
-  DISPONIBLE
-  EN_LECON
-  EN_ENTRETIEN
-  HORS_SERVICE
-}
-
-enum TypeLecon {
-  CODE
-  CONDUITE
-  CONDUITE_ACCOMPAGNEE
-}
-
-enum StatutLecon {
-  PLANIFIEE
-  EFFECTUEE
-  ANNULEE
-  ABSENCE
-}
-
-enum TypeExamen {
-  CODE
-  CONDUITE
-}
-
-enum ResultatExamen {
-  EN_ATTENTE
-  RECU
-  AJOURNE
-}
-
-enum ModePaiement {
-  ESPECES
-  CHEQUE
-  VIREMENT
-  CARTE
-  MOBILE_MONEY
-}
-
-enum CategorieDepense {
-  CARBURANT
-  ENTRETIEN_VEHICULE
-  SALAIRE
-  LOYER
-  ELECTRICITE
-  TELEPHONE
-  ASSURANCE
-  PUBLICITE
-  FOURNITURES
-  TAXES
-  AUTRE
-}
-
-enum TypeMouvement {
-  ENTREE
-  SORTIE
-}
-
-enum StatutFacture {
-  EN_ATTENTE
-  PARTIELLEMENT_PAYEE
-  PAYEE
-  ANNULEE
+  @@index([candidatId])
+  @@map("documents")
 }

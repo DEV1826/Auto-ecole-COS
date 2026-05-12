@@ -1,5 +1,5 @@
-import { prisma } from './prismaClient.js'
-import { mapFacture } from './prismaMappers.js'
+import { prisma } from './prisma.client.js';
+import { mapFacture } from './prismaMappers.js';
 
 const factureInclude = {
   candidat: {
@@ -14,12 +14,12 @@ const factureInclude = {
       id: true,
     },
   },
-}
+};
 
 function generateNumero() {
-  const year = new Date().getFullYear()
-  const random = String(Date.now()).slice(-4)
-  return `FAC-${year}-${random}`
+  const year = new Date().getFullYear();
+  const random = String(Date.now()).slice(-4);
+  return `FAC-${year}-${random}`;
 }
 
 export async function syncFactureStatus(client, factureId) {
@@ -30,36 +30,35 @@ export async function syncFactureStatus(client, factureId) {
         select: { montant: true },
       },
     },
-  })
+  });
 
   if (!facture) {
-    return null
+    return null;
   }
 
-  const totalPaye = facture.paiements.reduce((sum, paiement) => sum + Number(paiement.montant || 0), 0)
-  const montantTotal = Number(facture.montantTotal || 0)
+  const totalPaye = facture.paiements.reduce(
+    (sum, paiement) => sum + Number(paiement.montant || 0),
+    0
+  );
+  const montantTotal = Number(facture.montantTotal || 0);
 
   const statut =
-    totalPaye <= 0
-      ? 'EN_ATTENTE'
-      : totalPaye >= montantTotal
-        ? 'PAYEE'
-        : 'PARTIELLEMENT_PAYEE'
+    totalPaye <= 0 ? 'EN_ATTENTE' : totalPaye >= montantTotal ? 'PAYEE' : 'PARTIELLEMENT_PAYEE';
 
   return client.facture.update({
     where: { id: facture.id },
     data: { statut },
     include: factureInclude,
-  })
+  });
 }
 
 export async function getAll() {
   const factures = await prisma.facture.findMany({
     include: factureInclude,
     orderBy: [{ dateEmission: 'desc' }, { id: 'desc' }],
-  })
+  });
 
-  return factures.map(mapFacture)
+  return factures.map(mapFacture);
 }
 
 export async function create(data) {
@@ -74,9 +73,9 @@ export async function create(data) {
       candidatId: Number(data.candidatId),
     },
     include: factureInclude,
-  })
+  });
 
-  return mapFacture(facture)
+  return mapFacture(facture);
 }
 
 export async function update(id, data) {
@@ -92,22 +91,22 @@ export async function update(id, data) {
       candidatId: data.candidatId ? Number(data.candidatId) : undefined,
     },
     include: factureInclude,
-  })
+  });
 
-  return mapFacture(facture)
+  return mapFacture(facture);
 }
 
 export async function remove(id) {
-  const factureId = Number(id)
+  const factureId = Number(id);
 
   await prisma.paiement.updateMany({
     where: { factureId },
     data: { factureId: null },
-  })
+  });
 
   await prisma.facture.delete({
     where: { id: factureId },
-  })
+  });
 
-  return { success: true }
+  return { success: true };
 }

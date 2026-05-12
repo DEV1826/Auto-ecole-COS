@@ -1,5 +1,5 @@
-import { prisma } from './prismaClient.js'
-import { mapExamen } from './prismaMappers.js'
+import { prisma } from './prisma.client.js';
+import { mapExamen } from './prismaMappers.js';
 
 const examenInclude = {
   candidat: {
@@ -9,15 +9,15 @@ const examenInclude = {
       prenom: true,
     },
   },
-}
+};
 
 export async function getAll() {
   const examens = await prisma.examen.findMany({
     include: examenInclude,
     orderBy: [{ date: 'asc' }, { id: 'asc' }],
-  })
+  });
 
-  return examens.map(mapExamen)
+  return examens.map(mapExamen);
 }
 
 export async function create(data) {
@@ -32,9 +32,9 @@ export async function create(data) {
       candidatId: Number(data.candidatId),
     },
     include: examenInclude,
-  })
+  });
 
-  return mapExamen(examen)
+  return mapExamen(examen);
 }
 
 export async function update(id, data) {
@@ -50,15 +50,15 @@ export async function update(id, data) {
       candidatId: data.candidatId ? Number(data.candidatId) : undefined,
     },
     include: examenInclude,
-  })
+  });
 
-  return mapExamen(examen)
+  return mapExamen(examen);
 }
 
 export async function remove(id) {
   await prisma.examen.delete({
     where: { id: Number(id) },
-  })
+  });
 
-  return { success: true }
+  return { success: true };
 }

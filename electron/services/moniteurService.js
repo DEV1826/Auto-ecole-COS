@@ -1,12 +1,12 @@
-import { prisma } from './prismaClient.js'
-import { mapMoniteur } from './prismaMappers.js'
+import { prisma } from './prisma.client.js';
+import { mapMoniteur } from './prismaMappers.js';
 
 export async function getAll() {
   const moniteurs = await prisma.moniteur.findMany({
     orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
-  })
+  });
 
-  return moniteurs.map(mapMoniteur)
+  return moniteurs.map(mapMoniteur);
 }
 
 export async function create(data) {
@@ -20,9 +20,9 @@ export async function create(data) {
       dateEmbauche: data.dateEmbauche ? new Date(data.dateEmbauche) : null,
       actif: data.actif ?? true,
     },
-  })
+  });
 
-  return mapMoniteur(moniteur)
+  return mapMoniteur(moniteur);
 }
 
 export async function update(id, data) {
@@ -37,21 +37,21 @@ export async function update(id, data) {
       dateEmbauche: data.dateEmbauche ? new Date(data.dateEmbauche) : undefined,
       actif: data.actif,
     },
-  })
+  });
 
-  return mapMoniteur(moniteur)
+  return mapMoniteur(moniteur);
 }
 
 export async function remove(id) {
-  const moniteurId = Number(id)
+  const moniteurId = Number(id);
 
   await prisma.lecon.deleteMany({
     where: { moniteurId },
-  })
+  });
 
   await prisma.moniteur.delete({
     where: { id: moniteurId },
-  })
+  });
 
-  return { success: true }
+  return { success: true };
 }

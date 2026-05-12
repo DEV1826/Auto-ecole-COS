@@ -1,12 +1,12 @@
-import { prisma } from './prismaClient.js'
-import { mapVehicule } from './prismaMappers.js'
+import { prisma } from './prisma.client.js';
+import { mapVehicule } from './prismaMappers.js';
 
 export async function getAll() {
   const vehicules = await prisma.vehicule.findMany({
     orderBy: [{ immatriculation: 'asc' }],
-  })
+  });
 
-  return vehicules.map(mapVehicule)
+  return vehicules.map(mapVehicule);
 }
 
 export async function create(data) {
@@ -23,9 +23,9 @@ export async function create(data) {
       prochaineRevision: data.prochaineRevision ? Number(data.prochaineRevision) : null,
       statut: data.statut || 'DISPONIBLE',
     },
-  })
+  });
 
-  return mapVehicule(vehicule)
+  return mapVehicule(vehicule);
 }
 
 export async function update(id, data) {
@@ -39,43 +39,46 @@ export async function update(id, data) {
       categorie: data.categorie,
       kilometrage: data.kilometrage != null ? Number(data.kilometrage) : undefined,
       dateAcquisition: data.dateAcquisition ? new Date(data.dateAcquisition) : undefined,
-      dateDerniereRevision: data.dateDerniereRevision ? new Date(data.dateDerniereRevision) : undefined,
-      prochaineRevision: data.prochaineRevision != null ? Number(data.prochaineRevision) : undefined,
+      dateDerniereRevision: data.dateDerniereRevision
+        ? new Date(data.dateDerniereRevision)
+        : undefined,
+      prochaineRevision:
+        data.prochaineRevision != null ? Number(data.prochaineRevision) : undefined,
       statut: data.statut,
     },
-  })
+  });
 
-  return mapVehicule(vehicule)
+  return mapVehicule(vehicule);
 }
 
 export async function getVehicules() {
-  return getAll()
+  return getAll();
 }
 
 export async function updateVehiculeStatus({ id, statut }) {
-  return update(id, { statut })
+  return update(id, { statut });
 }
 
 export async function remove(id) {
-  const vehiculeId = Number(id)
+  const vehiculeId = Number(id);
 
   await prisma.lecon.updateMany({
     where: { vehiculeId },
     data: { vehiculeId: null },
-  })
+  });
 
   await prisma.depense.updateMany({
     where: { vehiculeId },
     data: { vehiculeId: null },
-  })
+  });
 
   await prisma.entretien.deleteMany({
     where: { vehiculeId },
-  })
+  });
 
   await prisma.vehicule.delete({
     where: { id: vehiculeId },
-  })
+  });
 
-  return { success: true }
+  return { success: true };
 }

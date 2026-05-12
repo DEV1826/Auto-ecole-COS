@@ -1,13 +1,13 @@
-import { prisma } from './prismaClient.js'
-import { mapDepense } from './prismaMappers.js'
-import { annulerSortieTransaction, sortieTransaction } from './caisseService.js'
+import { prisma } from './prisma.client.js';
+import { mapDepense } from './prismaMappers.js';
+import { annulerSortieTransaction, sortieTransaction } from './caisseService.js';
 
 export async function getAll() {
   const depenses = await prisma.depense.findMany({
     orderBy: [{ date: 'desc' }, { id: 'desc' }],
-  })
+  });
 
-  return depenses.map(mapDepense)
+  return depenses.map(mapDepense);
 }
 
 export async function create(data) {
@@ -22,36 +22,36 @@ export async function create(data) {
         vehiculeId: data.vehiculeId ? Number(data.vehiculeId) : null,
         date: data.date ? new Date(data.date) : new Date(),
       },
-    })
+    });
 
     await sortieTransaction(tx, {
       montant: depense.montant,
       description: depense.description || `Depense ${depense.categorie}`,
       reference: depense.reference || `DEP-${depense.id}`,
       date: depense.date,
-    })
+    });
 
-    return depense
-  })
+    return depense;
+  });
 
-  return mapDepense(result)
+  return mapDepense(result);
 }
 
 export async function remove(id) {
   const depense = await prisma.$transaction(async (tx) => {
     const deleted = await tx.depense.delete({
       where: { id: Number(id) },
-    })
+    });
 
     await annulerSortieTransaction(tx, {
       montant: deleted.montant,
       description: `Annulation depense - ${deleted.description || deleted.categorie}`,
       reference: `ANN-DEP-${deleted.id}`,
       date: new Date(),
-    })
+    });
 
-    return deleted
-  })
+    return deleted;
+  });
 
-  return { success: true, depense: mapDepense(depense) }
+  return { success: true, depense: mapDepense(depense) };
 }
