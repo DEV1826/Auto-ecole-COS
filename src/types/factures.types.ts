@@ -237,11 +237,11 @@ export interface FacturesTableActions {
  * @property {(facture: Facture) => number} [getMontantPaye] - Montant déjà payé (somme des paiements)
  */
 export interface FacturesEnrichments {
-  getCandidatNomComplet?: (facture: Facture) => string;
-  getCandidatEmail?: (facture: Facture) => string;
-  getCandidatTelephone?: (facture: Facture) => string;
-  getCandidatAvatarUrl?: (facture: Facture) => string;
-  getCandidatInitials?: (facture: Facture) => string;
+  getCandidatNomComplet?: () => string;
+  getCandidatEmail?: () => string;
+  getCandidatTelephone?: () => string;
+  getCandidatAvatarUrl?: () => string;
+  getCandidatInitials?: () => string;
   getMontantPaye?: (facture: Facture) => number;
 }
 

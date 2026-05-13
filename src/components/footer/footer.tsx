@@ -47,7 +47,7 @@ export interface FooterProps {
   /** Classes additionnelles */
   className?: string;
   /** Variante d'affichage : 'default', 'simple' ou 'form' */
-  variant?: 'default' | 'simple' | 'form';
+  variant?: 'default' | 'simple' | 'form' | 'minim';
 }
 
 /**
@@ -148,6 +148,15 @@ export function Footer({
   const isForm = variant === 'form';
   const isMobile = useIsMobile();
 
+  if (variant === 'minim') {
+    return (
+      <p className='flex items-center justify-center gap-2 py-2 text-center text-xs text-muted-foreground flex-row sm:gap-4'>
+        &copy; {new Date().getFullYear()} {appConfig.name}. Tous droits réservés.
+      </p>
+    )
+  }
+
+
   if (isForm) {
     return (
       <div className="flex items-center bg-blue-50/70 dark:bg-blue-50/5 justify-center gap-2 py-6 text-center text-xs text-muted-foreground flex-row sm:gap-4">
@@ -202,7 +211,7 @@ export function Footer({
             {sections.map((section) => (
               <div key={section.title} className="space-y-4">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
-                  <span className="p-1.5 bg-blue-800 rounded-xs text-white">{section.icon}</span>
+                  <span className="p-1.5 bg-blue-800 rounded-md text-white">{section.icon}</span>
                   {section.title}
                 </h3>
                 <ul className="space-y-2.5">
@@ -228,7 +237,7 @@ export function Footer({
           <div className="lg:col-span-3 space-y-6">
             <div className="space-y-4">
               <h3 className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                <span className="p-1.5 bg-blue-800 rounded-xs text-white">
+                <span className="p-1.5 bg-blue-800 rounded-md text-white">
                   <Phone className="size-4" />
                 </span>
                 Contact
@@ -254,7 +263,7 @@ export function Footer({
                         key={social.name}
                         variant="secondary"
                         size="icon"
-                        className="size-9 rounded-xl hover:bg-blue-600 hover:text-white transition-all duration-300"
+                        className="size-9 rounded-md hover:bg-blue-600 hover:text-white transition-all duration-300"
                         asChild
                       >
                         <a
@@ -285,7 +294,7 @@ export function Footer({
             <p>
               © {new Date().getFullYear()} {appConfig.name}. Tous droits réservés.
             </p>
-            <div className="hidden md:block w-1 h-1 bg-muted-foreground/30 rounded-xs" />
+            <div className="hidden md:block w-1 h-1 bg-muted-foreground/30 rounded-md" />
           </div>
 
           <div className="flex items-center gap-4">

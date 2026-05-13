@@ -28,7 +28,7 @@
  *   title="Informations personnelles"
  *   description="Nom, email et téléphone"
  *   icon={<User className="h-5 w-5" />}
- *   iconBg="bg-emerald-500"
+ *   iconBg="bg-blue-500"
  *   iconSize="lg"
  *   editTitle="Modifier mes informations"
  *   editContent={<PersonalInfoForm />}
@@ -74,10 +74,10 @@ export type IconSize = 'sm' | 'default' | 'lg' | 'xl';
  * Mapping des tailles d'icônes vers les classes Tailwind.
  */
 const iconSizeClasses: Record<IconSize, string> = {
-  sm: 'h-8 w-8 rounded-lg',
-  default: 'h-10 w-10 rounded-xl',
-  lg: 'h-12 w-12 rounded-2xl',
-  xl: 'h-14 w-14 rounded-2xl',
+  sm: 'h-8 w-8 rounded-md',
+  default: 'h-10 w-10 rounded-md',
+  lg: 'h-12 w-12 rounded-md',
+  xl: 'h-14 w-14 rounded-md',
 };
 
 /**
@@ -266,7 +266,7 @@ export function ProfileSectionCard({
     <>
       <Card
         className={cn(
-          'relative transition-all duration-200 border-0  py-4 ring-0',
+          'relative transition-all duration-200 border-0 rounded-md  py-4 ',
           editable && 'group/section',
           className
         )}
@@ -289,7 +289,7 @@ export function ProfileSectionCard({
             {icon && (
               <div
                 className={cn(
-                  'flex items-center justify-center shrink-0 bg-emerald-800 text-white! dark:bg-emerald-700 dark:text-emerald-400  ',
+                  'flex items-center justify-center shrink-0 bg-blue-800 text-white! dark:bg-blue-700 dark:text-blue-400  ',
                   iconSizeClasses[iconSize],
                   iconColor
                 )}

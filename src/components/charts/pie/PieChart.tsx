@@ -229,15 +229,15 @@ export function VitaPieChart({
       {showSliceSelector && isInteractive && (
         <div className="flex justify-end">
           <Select value={activeName} onValueChange={setActiveName}>
-            <SelectTrigger className="h-8 w-40 rounded-xs text-xs">
+            <SelectTrigger className="h-8 w-40 rounded-md text-xs">
               <SelectValue placeholder="Secteur" />
             </SelectTrigger>
-            <SelectContent className="rounded-xl">
+            <SelectContent className="rounded-md">
               {data.map((slice) => (
-                <SelectItem key={slice.name} value={slice.name} className="rounded-xs text-xs">
+                <SelectItem key={slice.name} value={slice.name} className="rounded-md text-xs">
                   <div className="flex items-center gap-2">
                     <span
-                      className="h-2.5 w-2.5 rounded-xs shrink-0"
+                      className="h-2.5 w-2.5 rounded-md shrink-0"
                       style={{ backgroundColor: slice.color }}
                     />
                     {slice.name}
@@ -278,8 +278,8 @@ export function VitaPieChart({
             onClick={
               isInteractive
                 ? (entry) => {
-                    if (entry?.name) setActiveName(entry.name as string);
-                  }
+                  if (entry?.name) setActiveName(entry.name as string);
+                }
                 : undefined
             }
           >

@@ -179,7 +179,7 @@ export function NotificationCard({
     return (
       <div
         className={cn(
-          'flex items-start gap-3 p-3 rounded-xs cursor-pointer transition-colors hover:bg-muted/50',
+          'flex items-start gap-3 p-3 rounded-md cursor-pointer transition-colors hover:bg-muted/50',
           isUnread && 'bg-primary/5',
           className
         )}

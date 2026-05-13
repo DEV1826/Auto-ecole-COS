@@ -30,7 +30,7 @@ export interface DataTableSkeletonProps {
  */
 export function DataTableSkeleton({ columns, rows = 5, className }: DataTableSkeletonProps) {
   return (
-    <div className={cn('rounded-xs border', className)}>
+    <div className={cn('rounded-md border', className)}>
       <Table>
         <TableHeader>
           <TableRow>

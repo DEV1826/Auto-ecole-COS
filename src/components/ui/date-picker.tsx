@@ -70,8 +70,8 @@ const datePickerVariants = cva('', {
 
 export interface DatePickerProps
   extends
-    Omit<React.HTMLAttributes<HTMLDivElement>, 'onSelect'>,
-    VariantProps<typeof datePickerVariants> {
+  Omit<React.HTMLAttributes<HTMLDivElement>, 'onSelect'>,
+  VariantProps<typeof datePickerVariants> {
   /** Mode de sélection : 'single' ou 'range' */
   mode?: 'single' | 'range';
   /** Date sélectionnée (mode single) */
@@ -251,7 +251,7 @@ export function DatePicker({
             variant="outline"
             data-empty={!internalDate && !internalRange}
             className={cn(
-              'w-[212px] justify-between text-left font-normal data-[empty=true]:text-muted-foreground',
+              'w-53 justify-between text-left font-normal data-[empty=true]:text-muted-foreground',
               className
             )}
             disabled={disabled}

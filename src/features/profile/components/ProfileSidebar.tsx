@@ -47,6 +47,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Card } from '@/components/ui/card';
 
 /**
  * Définition d'une section de navigation (simple ou avec sous-sections).
@@ -149,10 +150,10 @@ function SectionItem({
       <Button
         variant="ghost"
         className={cn(
-          'w-full justify-start gap-3 font-normal  rounded-lg ',
+          'w-full justify-start gap-3 font-normal  rounded-md ',
           styles.button,
           isActive
-            ? 'bg-emerald-800 text-white! dark:bg-emerald-750 dark:text-emerald-400 hover:bg-emerald-800 dark:hover:bg-emerald-800'
+            ? 'bg-blue-800 text-white! dark:bg-blue-750 dark:text-blue-400 hover:bg-blue-800 dark:hover:bg-blue-800'
             : 'text-muted-foreground hover:bg-muted',
           section.disabled && 'pointer-events-none opacity-50'
         )}
@@ -194,7 +195,7 @@ function SectionItem({
                       'w-full justify-start gap-3 font-normal transition-all duration-200 rounded-lg',
                       styles.childButton,
                       activeSection === child.id
-                        ? 'bg-emerald-800 text-white! dark:bg-emerald-700 dark:text-emerald-400 hover:bg-emerald-800 dark:hover:bg-emerald-900/50'
+                        ? 'bg-blue-800 text-white! dark:bg-blue-700 dark:text-blue-400 hover:bg-blue-800 dark:hover:bg-blue-900/50'
                         : 'text-muted-foreground hover:bg-muted'
                     )}
                     onClick={() => onSectionChange(child.id)}
@@ -238,7 +239,7 @@ export function ProfileSidebar({
   const styles = sizeClasses[size];
 
   return (
-    <div className={cn('flex h-full flex-col bg-card rounded-xl py-2', className)}>
+    <Card className={cn('flex h-full flex-col bg-card  rounded-md py-2', className)}>
       <ScrollArea className="flex-1 px-2 py-0">
         <nav className="flex flex-col gap-1.5 " aria-label="Sections du profil">
           {normalSections.map((section) => (
@@ -255,7 +256,7 @@ export function ProfileSidebar({
         {dangerSection && showDangerSeparator && (
           <>
             <nav
-              className="flex flex-col gap-1.5 mr-2 "
+              className="flex flex-col gap-1.5 py-2"
               title="Section dangereuse"
               aria-label="Section dangereuse"
             >
@@ -269,6 +270,6 @@ export function ProfileSidebar({
           </>
         )}
       </ScrollArea>
-    </div>
+    </Card>
   );
 }

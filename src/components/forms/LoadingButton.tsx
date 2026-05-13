@@ -83,7 +83,7 @@ export function LoadingButton({
       variant={variant}
       size={size}
       className={cn(
-        'relative transition-all duration-200 px-6 shadow-lg bg-blue-600 hover:bg-blue-900!  hover:shadow-xl rounded-xs h-12 w-full sm:w-auto text-base text-white',
+        'relative transition-all duration-200 px-6 shadow-lg bg-blue-600 hover:bg-blue-900!  hover:shadow-xl rounded-md h-12 w-full sm:w-auto text-base text-white',
         className
       )}
       {...props}

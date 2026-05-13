@@ -123,11 +123,7 @@ export function ThemeToggle({
   ...props
 }: ThemeToggleProps) {
   const { theme, setTheme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
 
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const isDark = resolvedTheme === 'dark';
   const animationClass = disableAnimation ? 'transition-none' : toggleIconVariants({ animation });
@@ -135,29 +131,12 @@ export function ThemeToggle({
 
   // Gestion de l'arrondi
   const roundedClass = cn(
-    rounded === 'full' && 'rounded-xs',
-    rounded === 'xl' && 'rounded-xl',
-    rounded === 'default' && 'rounded-xs'
+    rounded === 'full' && 'rounded-md',
+    rounded === 'xl' && 'rounded-md',
+    rounded === 'default' && 'rounded-md'
   );
 
-  /**
-   * Rendu du squelette pendant le chargement côté client
-   */
-  if (!mounted) {
-    return (
-      <div className={cn('flex items-center', className)} {...props}>
-        <Button
-          variant="outline"
-          size={variant === 'icon-only' ? 'icon' : sizeMap[size]}
-          disabled
-          className="opacity-40 shadow-none"
-        >
-          <Loader2 className={cn(iconSize, 'animate-spin')} />
-          {showText && variant !== 'icon-only' && <span className="ml-2">{text}</span>}
-        </Button>
-      </div>
-    );
-  }
+
 
   // ============================================================
   // VARIANTE : ICON-ONLY (Version Corrigée)
@@ -274,7 +253,7 @@ export function ThemeToggle({
             variant="outline"
             size={sizeMap[size]}
             className={cn(
-              'gap-2 bg-background rounded-xs  shadow-sm hover:bg-accent transition-all',
+              'gap-2 bg-background rounded-md  shadow-sm hover:bg-accent transition-all',
 
               className
             )}
@@ -287,7 +266,7 @@ export function ThemeToggle({
             )}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-56 rounded-xs shadow-xl backdrop-blur-md">
+        <DropdownMenuContent align="end" className="min-w-56 rounded-md shadow-xl backdrop-blur-md">
           <DropdownMenuGroup>
             <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
               {text}
@@ -295,21 +274,21 @@ export function ThemeToggle({
             <DropdownMenuRadioGroup value={theme || 'light'} onValueChange={setTheme}>
               <DropdownMenuRadioItem
                 value="light"
-                className="flex items-center gap-2 cursor-pointer rounded-xs py-2 focus:bg-primary/10 focus:text-primary transition-colors"
+                className="flex items-center gap-2 cursor-pointer rounded-md py-2 focus:bg-primary/10 focus:text-primary transition-colors"
               >
                 <Sun className="size-4" />
                 <span className="flex-1">Clair</span>
               </DropdownMenuRadioItem>
               <DropdownMenuRadioItem
                 value="dark"
-                className="flex items-center gap-2 cursor-pointer rounded-xs py-2 focus:bg-primary/10 focus:text-primary transition-colors"
+                className="flex items-center gap-2 cursor-pointer rounded-md py-2 focus:bg-primary/10 focus:text-primary transition-colors"
               >
                 <Moon className="size-4" />
                 <span className="flex-1">Sombre</span>
               </DropdownMenuRadioItem>
               <DropdownMenuRadioItem
                 value="system"
-                className="flex items-center gap-2 cursor-pointer rounded-xs py-2 focus:bg-primary/10 focus:text-primary transition-colors"
+                className="flex items-center gap-2 cursor-pointer rounded-md py-2 focus:bg-primary/10 focus:text-primary transition-colors"
               >
                 <Laptop className="size-4" />
                 <span className="flex-1">Système</span>

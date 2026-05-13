@@ -131,9 +131,9 @@ export function UserNav({ user, onProfile, className }: UserNavProps) {
                 size="lg"
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
               >
-                <Avatar className="h-8 w-8 rounded-xs">
+                <Avatar className="h-8 w-8 rounded-md">
                   <AvatarImage src={getAvatarUrl(`${user?.nom} ${user?.prenom}`)} alt={user?.nom} />
-                  <AvatarFallback className="rounded-xs">{getInitials()}</AvatarFallback>
+                  <AvatarFallback className="rounded-md">{getInitials()}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user?.nom || 'Invité'}</span>
@@ -146,7 +146,7 @@ export function UserNav({ user, onProfile, className }: UserNavProps) {
               </SidebarMenuButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-xs"
+              className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-md"
               side={isMobile ? 'bottom' : 'right'}
               align="end"
               sideOffset={4}
@@ -190,9 +190,9 @@ export function UserNav({ user, onProfile, className }: UserNavProps) {
                         key={item.value}
                         onClick={() => setTheme(item.value)}
                         className={cn(
-                          'gap-3 px-3 py-2.5 cursor-pointer rounded-xs',
+                          'gap-3 px-3 py-2.5 cursor-pointer rounded-md',
                           theme === item.value &&
-                            'bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300'
+                          'bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300'
                         )}
                       >
                         {item.icon}

@@ -285,7 +285,7 @@ const WeekEventChip = React.memo(function WeekEventChip({
         <TooltipTrigger asChild>
           <div
             className={cn(
-              'absolute left-0.75 right-0.75 rounded-xs overflow-hidden',
+              'absolute left-0.75 right-0.75 rounded-md overflow-hidden',
               cfg.bgColor,
               'shadow-sm',
               'transition-opacity duration-100 cursor-pointer select-none',
@@ -372,7 +372,7 @@ const WeekEventChip = React.memo(function WeekEventChip({
           sideOffset={8}
           align="start"
           className={cn(
-            'p-3 rounded-xs shadow-lg',
+            'p-3 rounded-md shadow-lg',
             'bg-white dark:bg-neutral-900',
             'text-neutral-900 dark:text-neutral-100',
             'border border-neutral-200 dark:border-neutral-800'
@@ -586,7 +586,7 @@ export function CalendarWeekView({
               </span>
               <div
                 className={cn(
-                  'flex items-center justify-center h-8 w-8 rounded-xs text-sm font-semibold select-none transition-colors',
+                  'flex items-center justify-center h-8 w-8 rounded-md text-sm font-semibold select-none transition-colors',
                   today && 'bg-primary text-primary-foreground shadow-sm',
                   selected && !today && 'bg-primary/15 text-primary',
                   !today && !selected && 'text-foreground'
@@ -713,7 +713,7 @@ export function CalendarWeekView({
                       event={evt}
                       topPx={dateToPx(evt.startDate)}
                       heightPx={durationToPx(evt.startDate, evt.endDate)}
-                      onClick={onEventClick ?? (() => {})}
+                      onClick={onEventClick ?? (() => { })}
                       onResizeStart={onResizeStart}
                       isResizing={resizingEvent?.event.id === evt.id}
                     />

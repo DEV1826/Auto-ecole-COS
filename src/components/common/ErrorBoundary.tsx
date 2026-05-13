@@ -105,7 +105,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                 {/* Colonne droite : détails techniques (uniquement en debug) */}
                 {isDebug && (
                   <div className="w-full lg:flex-1">
-                    <div className="rounded-xs border border-destructive/20 bg-destructive/5 p-3 sm:p-4 text-left">
+                    <div className="rounded-md border border-destructive/20 bg-destructive/5 p-3 sm:p-4 text-left">
                       <h2 className="mb-2 font-mono text-xs font-semibold text-destructive sm:text-sm">
                         Détails techniques
                       </h2>

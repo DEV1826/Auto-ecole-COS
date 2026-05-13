@@ -161,6 +161,26 @@ function colHeures(getDureeFormatee?: (f: Formation) => string): ColumnDef<Forma
 }
 
 /**
+ * Colonne "Nombre d’inscriptions" – personnalisable via enrichissement
+ * @param getNbInscriptions - Fonction pour obtenir le nombre d’inscriptions
+ * @internal
+ */
+function colNbInscriptions(getNbInscriptions?: (f: Formation) => number): ColumnDef<Formation> {
+    return {
+        id: 'nbInscriptions',
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Inscriptions" />,
+        cell: ({ row }) => {
+            const f = row.original;
+            const nb = getNbInscriptions ? getNbInscriptions(f) : 0;
+            return <span className="text-sm font-medium">{nb}</span>;
+        },
+        enableSorting: true,
+        size: 120,
+    };
+}
+
+
+/**
  * Colonne "Actif" – badge Actif / Inactif
  * @internal
  */
@@ -257,11 +277,12 @@ export function getFormationsColumns({
         showCategorie = true,
         showPrix = true,
         showHeures = true,
+        showNbInscriptions = true,
         showActif = true,
         showActions = true,
     } = columnConfig;
 
-    const { getDureeFormatee } = enrichments;
+    const { getDureeFormatee, getNbInscriptions } = enrichments;
 
     const cols: ColumnDef<Formation>[] = [];
 
@@ -269,6 +290,7 @@ export function getFormationsColumns({
     if (showCategorie) cols.push(colCategorie());
     if (showPrix) cols.push(colPrix());
     if (showHeures && variant === 'admin') cols.push(colHeures(getDureeFormatee));
+    if (showNbInscriptions) cols.push(colNbInscriptions(getNbInscriptions));
     if (showActif) cols.push(colActif());
     if (showActions && actions && Object.keys(actions).length > 0) cols.push(colActions(actions, variant));
 
@@ -293,6 +315,7 @@ export function getAdminFormationsColumns(
         enrichments,
         columnConfig: {
             showNom: true,
+            showNbInscriptions: true,
             showCategorie: true,
             showPrix: true,
             showHeures: true,
@@ -317,6 +340,7 @@ export function getSecretaireFormationsColumns(
             showNom: true,
             showCategorie: true,
             showPrix: true,
+            showNbInscriptions: true,
             showHeures: false,
             showActif: true,
             showActions: true,

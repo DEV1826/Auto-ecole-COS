@@ -145,7 +145,7 @@ export function QRCode({
     return (
       <div
         className={cn(
-          'flex items-center justify-center rounded-xs bg-muted p-1 text-center text-xs text-destructive',
+          'flex items-center justify-center rounded-md bg-muted p-1 text-center text-xs text-destructive',
           className
         )}
       >

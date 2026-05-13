@@ -1,6 +1,12 @@
 // src/features/rapports/components/index.ts
 
-export { RapportStatsCards } from './RapportStatsCards';
-export type { RapportStatsCardsProps, RapportType } from './RapportStatsCards';
+/**
+ * @module features/rapports/components
+ * @description
+ * Composants pour l’affichage des rapports : tableau générique et cartes statistiques (si nécessaire).
+ */
 
-// Plus tard, vous pourrez exporter d’autres composants comme RapportDetails, etc.
+export { RapportStatsCards } from './RapportStatsCards';
+export { RapportsTable } from './RapportsTable';
+export type { RapportsTableProps, RapportsTableData } from './RapportsTable';
+export type { RapportStatsCardsProps } from './RapportStatsCards';

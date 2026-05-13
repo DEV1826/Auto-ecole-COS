@@ -63,7 +63,7 @@ export function LogoutDialog({ open, onOpenChange, onConfirm, className }: Logou
         <AlertDialogFooter>
           <AlertDialogCancel
             className={cn(
-              'rounded-xs h-10 text-base font-semibold',
+              'rounded-md h-10 text-base font-semibold',
               'bg-transparent border border-input'
             )}
           >
@@ -72,7 +72,7 @@ export function LogoutDialog({ open, onOpenChange, onConfirm, className }: Logou
           <AlertDialogAction
             onClick={onConfirm}
             className={cn(
-              'rounded-xs h-10 text-base font-semibold text-white',
+              'rounded-md h-10 text-base font-semibold text-white',
               'bg-red-700 hover:bg-red-800'
             )}
           >

@@ -269,7 +269,9 @@ function colLeconsCount(getLeconsCount: (c: Candidat) => number): ColumnDef<Cand
     ),
     cell: ({ row }) => {
       const count = getLeconsCount(row.original);
-      return <span className="text-xs tabular-nums">{count}</span>;
+      return (<span className="text-xs tabular-nums">{count}</span>);
+
+
     },
     enableSorting: true,
     sortingFn: (a, b) => getLeconsCount(a.original) - getLeconsCount(b.original),

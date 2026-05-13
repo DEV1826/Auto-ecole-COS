@@ -141,7 +141,7 @@ export const MAIN_NAV_ITEMS: Record<Role, NavItem[]> = {
     },
     {
       title: 'Véhicules',
-      url: PROTECTED_ROUTES.VEHICULES.LIST,
+      url: '',
       icon: Car,
       items: [
         {
@@ -185,7 +185,7 @@ export const MAIN_NAV_ITEMS: Record<Role, NavItem[]> = {
     },
     {
       title: 'Examens',
-      url: PROTECTED_ROUTES.EXAMENS.LIST,
+      url: '',
       icon: ClipboardList,
       items: [
         {
@@ -207,7 +207,7 @@ export const MAIN_NAV_ITEMS: Record<Role, NavItem[]> = {
     },
     {
       title: 'Finances',
-      url: PROTECTED_ROUTES.PAIEMENTS.LIST,
+      url: '',
       icon: CreditCard,
       items: [
         {
@@ -290,14 +290,9 @@ export const MAIN_NAV_ITEMS: Record<Role, NavItem[]> = {
           icon: ClipboardList,
         },
         {
-          title: 'Configuration',
+          title: "L'entreprise",
           url: PROTECTED_ROUTES.ADMIN.COMPANY_CONFIG,
           icon: Settings,
-        },
-        {
-          title: 'Sessions actives',
-          url: PROTECTED_ROUTES.ADMIN.SESSIONS,
-          icon: Calendar,
         },
       ],
     },

@@ -7,4 +7,3 @@ export { default as AdminUserEditPage } from './pages/AdminUserEditPage';
 export { default as AdminUserPermissionsPage } from './pages/AdminUserPermissionsPage';
 export { default as AdminAuditLogsPage } from './pages/AdminAuditLogsPage';
 export { default as AdminCompanyConfigPage } from './pages/AdminCompanyConfigPage';
-export { default as AdminSessionsPage } from './pages/AdminSessionsPage';

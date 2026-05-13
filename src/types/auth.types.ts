@@ -574,12 +574,5 @@ export interface WindowApi {
   enums: {
     Role: Record<string, Role>;
     NiveauAcces: Record<string, NiveauAcces>;
-    // Les autres enums sont optionnels mais peuvent être exposés si nécessaire
   };
-}
-
-declare global {
-  interface Window {
-    api: WindowApi;
-  }
 }

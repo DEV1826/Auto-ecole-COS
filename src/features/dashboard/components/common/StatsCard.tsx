@@ -8,7 +8,7 @@
  * Carte de statistique pour les tableaux de bord  Auto-École COS.
  *
  * Design inspiré du maquette Figma (Frame 121) :
- * - Icône colorée à gauche (fond coloré, rx modéré "rounded-xl")
+ * - Icône colorée à gauche (fond coloré, rx modéré "rounded-md")
  * - Colonne droite : titre (description grisée), valeur principale en large,
  *   tendance inline en bas (icône + valeur colorée + label)
  * - Badge trend compact en haut à droite (CardAction)
@@ -308,6 +308,35 @@ function Sparkline({ data, trendDirection }: SparklineProps): React.JSX.Element 
   );
 }
 
+
+/**
+ * Fonction utilitaire pour séparer la valeur de son unité
+ * et appliquer le design hiérarchisé.
+ */
+const RenderFormattedValue = ({ value, className }: { value: string | number, className?: string }) => {
+  const strValue = String(value);
+  // Regex pour séparer les chiffres des symboles/unités (ex: "12,5%" -> ["12,5", "%"])
+  const parts = strValue.match(/([\d\s,.]+)|([^\d\s,.]+)/g);
+
+  if (!parts) return <span className={className}>{strValue}</span>;
+
+  return (
+    <span className={cn("font-stats tracking-tighter", className)}>
+      {parts.map((part, i) => {
+        const isUnit = /[^\d\s,.]/.test(part);
+        return (
+          <span
+            key={i}
+            className={isUnit ? "text-[0.55em] font-medium ml-0.5 opacity-70 uppercase" : "font-extrabold"}
+          >
+            {part}
+          </span>
+        );
+      })}
+    </span>
+  );
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Composant principal
 // ─────────────────────────────────────────────────────────────────────────────
@@ -336,9 +365,9 @@ export function StatsCard({
   // ── Squelette ────────────────────────────────────────────
   if (isLoading) {
     return (
-      <Card className={cn('overflow-hidden @container/card flex flex-col rounded-xs ', className)}>
+      <Card className={cn('overflow-hidden @container/card flex flex-col rounded-md ', className)}>
         <CardHeader className="flex flex-row items-center gap-4 p-2">
-          <Skeleton className="size-12 rounded-xl shrink-0" />
+          <Skeleton className="size-12 rounded-md shrink-0" />
           <div className="flex flex-col gap-2 flex-1 min-w-0">
             <Skeleton className="h-3.5 w-28" />
             <Skeleton className="h-7 w-20" />
@@ -365,15 +394,17 @@ export function StatsCard({
   return (
     <Card
       className={cn(
-        '@container/card rounded-xs p-5! ',
-        'flex flex-col justify-between ',
-        'group relative overflow-hidden h-full transition-all duration-300',
-        'backdrop-blur-2xl',
-        onClick && 'cursor-pointer hover:shadow-md hover:border-border/80 gap-1',
+        'group relative overflow-hidden h-full transition-all duration-500',
+        'rounded-md border-border/50 bg-card/60 backdrop-blur-xl p-6',
+        'hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:border-border/80',
+        'flex flex-col justify-between gap-6',
+        onClick && 'cursor-pointer active:scale-[0.98]',
         className
       )}
       onClick={onClick}
     >
+      {/* Background Decorator (Futuristic Touch) */}
+      <div className="absolute -right-4 -top-4 size-24 bg-primary/5 blur-3xl rounded-full group-hover:bg-primary/10 transition-colors" />
       {/* En-tête : infos + icône */}
       <div className="mb-2 flex items-center justify-between">
         {/* Bloc texte (titre + tendance) */}
@@ -399,8 +430,8 @@ export function StatsCard({
         {icon && (
           <div
             className={cn(
-              'flex size-12 shrink-0 items-center justify-center rounded-xs',
-              iconBg,
+              'flex size-12 shrink-0 items-center justify-center rounded-md',
+              `${iconBg}`,
               iconColor
             )}
             aria-hidden="true"
@@ -420,7 +451,10 @@ export function StatsCard({
               ClassValue
             )}
           >
-            {value}
+            <RenderFormattedValue
+              value={value}
+              className={cn("text-3xl text-foreground", ClassValue)}
+            />
           </h2>
         )}
 
@@ -455,6 +489,8 @@ export interface StatsGridProps {
    * Défaut : adaptatif (1 → 2 → 4 selon la largeur du conteneur).
    */
   cols?: 2 | 3 | 4;
+
+  classGrid?: string;
 }
 
 /**
@@ -499,6 +535,7 @@ export function StatsGrid({
   className,
   cols = 4,
   isLoading = false,
+  classGrid,
 }: StatsGridProps): React.JSX.Element {
   const isMobile = useIsMobile();
 
@@ -511,14 +548,14 @@ export function StatsGrid({
         : 'md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
 
   return (
-    <Card className="rounded-xs bg-blue-500/10 p-1 dark:bg-white/3 h-full">
+    <Card className={cn("rounded-md bg-blue-500/5 p-1 dark:bg-white/3 h-full", classGrid)}>
       {/* ═══ Desktop : grille standard ═══ */}
       <div
         className={cn(
           'grid gap-2 ',
           desktopColsClass,
           !isLoading &&
-            '*:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs dark:*:data-[slot=card]:bg-card',
+          '*:data-[slot=card]:bg-linear-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs dark:*:data-[slot=card]:bg-card',
           className
         )}
       >

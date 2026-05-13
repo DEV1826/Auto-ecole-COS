@@ -3,58 +3,55 @@
 /**
  * @module features/candidats/components/CandidatsTable
  * @description
- * Tableau des candidats récents – version optimisée pour les dashboards (admin, secrétaire, moniteur).
+ * Tableau des candidats – version complète avec filtres, pagination, actions et enrichissements.
+ * Permet de gérer les élèves de l’auto‑école avec une expérience riche.
  *
- * ## Caractéristiques
- * - Colonnes adaptées : identité (avatar + nom + email), catégorie, statut, date d’inscription, solde, leçons, examens
- * - Pas de barre d’outils (recherche/filtres) par défaut, mais peut être activée via `enableToolbar`
- * - Pagination active (configurable) avec contrôle de taille
- * - Wrapper `Card` optionnel (`asCard`)
- * - État de chargement (skeleton personnalisé) et état vide avec action de rafraîchissement
- * - Bouton « Rafraîchir » et « Voir tout » optionnels
- * - Utilise les colonnes `getCandidatsColumns` avec pré‑set selon le rôle
- * - Actions de ligne configurables : voir détail, modifier, ajouter paiement, leçon, examen, documents
+ * ## Fonctionnalités
+ * - Colonnes adaptées selon la variante (admin / secretaire / moniteur)
+ * - Filtres facettés intégrés (catégorie de permis, statut) via barre d’outils
+ * - Recherche textuelle (nom, prénom, email)
+ * - Pagination configurable ou limitation simple (`maxItems`)
+ * - Bouton « Actualiser » et « Voir tout » optionnels
+ * - Enrichissements pour afficher solde, leçons, examens
+ * - Badges récapitulatifs : total candidats, actifs, nouvelles inscriptions ce mois
+ * - État de chargement (skeleton), état vide avec action
+ * - Entièrement responsive via conteneur `@container`
  *
  * @see {@link getCandidatsColumns} – Définition des colonnes
  * @see {@link CandidatsTableActions} – Callbacks d’actions
- * @see {@link CandidatsEnrichments} – Données calculées (solde, leçons, examens)
+ * @see {@link CandidatsEnrichments} – Enrichissements (solde, leçons, examens)
+ *
+ * @author Stive Junior
+ * @version 2.0.0
  *
  * @example
  * ```tsx
- * // Dashboard admin
  * <CandidatsTable
  *   candidats={candidats}
- *   isLoading={loading}
- *   onRefresh={refetchCandidats}
- *   onView={(c) => navigate(`/candidats/${c.id}`)}
- *   onEdit={(c) => navigate(`/candidats/${c.id}/edit`)}
- *   onAddPayment={(c) => navigate(`/paiements/create?candidatId=${c.id}`)}
- *   title="Derniers candidats"
- *   showViewAll
- *   onViewAll={() => navigate('/candidats')}
  *   variant="admin"
- * />
- *
- * // Dashboard secretaire (avec colonnes adaptées)
- * <CandidatsTable
- *   candidats={candidats}
- *   variant="secretaire"
- *   enrichments={{ getSolde: (c) => c.solde }}
+ *   enrichments={{
+ *     getSolde: (c) => c.solde,
+ *     getLeconsCount: (c) => c.lecons?.length,
+ *     getExamensCount: (c) => c.examens?.length,
+ *   }}
  *   actions={{
  *     onView: (c) => navigate(`/candidats/${c.id}`),
+ *     onEdit: (c) => navigate(`/candidats/${c.id}/edit`),
  *     onAddPayment: (c) => navigate(`/paiements/create?candidatId=${c.id}`),
+ *     onAddLesson: (c) => navigate(`/planning/create?candidatId=${c.id}`),
+ *     onRegisterExam: (c) => navigate(`/examens/create?candidatId=${c.id}`),
+ *     onViewDocuments: (c) => navigate(`/documents?candidatId=${c.id}`),
  *   }}
- *   title="Nouveaux inscrits"
- *   maxItems={5}
+ *   showViewAll
+ *   onViewAll={() => navigate('/candidats')}
+ *   enableToolbar
+ *   title="Gestion des candidats"
  * />
  * ```
- *
- * @author Stive Junior
- * @version 1.0.0
  */
 
 import * as React from 'react';
-import { Users, RefreshCw, ChevronRight, PlusCircle } from 'lucide-react';
+import { Users, RefreshCw, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { DataTable } from '@/components/tables/data-table';
@@ -70,6 +67,7 @@ import type {
   CandidatsEnrichments,
 } from '@/types/candidats.types';
 import type { Candidat } from '@/types/candidats.types';
+import { CATEGORIE_PERMIS_CONFIG, STATUT_CANDIDAT_CONFIG } from '@/types/enums';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -112,7 +110,7 @@ export interface CandidatsTableProps {
   /** Options de taille de page disponibles */
   pageSizeOptions?: number[];
 
-  /** Activer la barre d’outils (recherche/filtres) – défaut: false */
+  /** Activer la barre d’outils (recherche + filtres facettés) – défaut: false */
   enableToolbar?: boolean;
 
   /** Encapsuler dans une `Card` (défaut: true) */
@@ -129,9 +127,6 @@ export interface CandidatsTableProps {
 
   /** Callback du bouton « Voir tout » */
   onViewAll?: () => void;
-
-  /** Afficher le bouton « Ajouter candidat » */
-  showAddButton?: boolean;
 
   /** Callback du bouton « Ajouter candidat » */
   onAddClick?: () => void;
@@ -176,10 +171,7 @@ function countNewThisMonth(candidats: Candidat[]): number {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Tableau des candidats récents (ou paginé) pour les dashboards admin/secrétaire.
- *
- * Affiche les colonnes essentielles, avec la possibilité de paginer, de rafraîchir,
- * de voir tout, et d’ajouter un candidat. Les colonnes s’adaptent au rôle.
+ * Tableau des candidats – version complète avec filtres, pagination, actions.
  */
 export function CandidatsTable({
   candidats,
@@ -197,7 +189,6 @@ export function CandidatsTable({
   description,
   showViewAll = false,
   onViewAll,
-  showAddButton = false,
   onAddClick,
   variant = 'admin',
   columnConfig,
@@ -214,6 +205,7 @@ export function CandidatsTable({
   );
 
   // Métriques de résumé
+  const totalCount = candidats.length;
   const actifsCount = React.useMemo(() => countActifs(candidats), [candidats]);
   const newThisMonthCount = React.useMemo(() => countNewThisMonth(candidats), [candidats]);
 
@@ -231,7 +223,24 @@ export function CandidatsTable({
     }
   }, [variant, actions, enrichments, columnConfig]);
 
-  // Rafraîchissement
+  // ── Options pour les filtres facettés (catégorie, statut) ────────────────
+  const categorieOptions = React.useMemo(() => {
+    return Object.entries(CATEGORIE_PERMIS_CONFIG).map(([value, cfg]) => ({
+      label: cfg.label,
+      value,
+      icon: cfg.icon,
+    }));
+  }, []);
+
+  const statutOptions = React.useMemo(() => {
+    return Object.entries(STATUT_CANDIDAT_CONFIG).map(([value, cfg]) => ({
+      label: cfg.label,
+      value,
+      icon: cfg.icon,
+    }));
+  }, []);
+
+  // ── Rafraîchissement ──────────────────────────────────────────────────────
   const handleRefresh = React.useCallback(async () => {
     if (!onRefresh) return;
     setRefreshing(true);
@@ -245,7 +254,7 @@ export function CandidatsTable({
     }
   }, [onRefresh]);
 
-  // Actions extra dans la toolbar
+  // ── Actions extra dans la toolbar (boutons refresh et voir tout) ──────────
   const extraActions = React.useMemo(
     () => (
       <div className="flex items-center gap-1.5 flex-wrap">
@@ -272,27 +281,24 @@ export function CandidatsTable({
     [onRefresh, handleRefresh, refreshing, showViewAll, onViewAll]
   );
 
-  // En-tête de la carte
+  // ── En‑tête de la carte ───────────────────────────────────────────────────
   const header = (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="flex items-center gap-2.5">
-        {/* Icône */}
-        <div className="flex items-center justify-center h-9 w-9 rounded-xs bg-blue-700 text-white shrink-0">
+        <div className="flex items-center justify-center h-9 w-9 rounded-md bg-blue-700 text-white shrink-0">
           <Users className="h-4.5 w-4.5" />
         </div>
-        {/* Titre + badges */}
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className={cn('font-semibold leading-tight', asCard ? 'text-base' : 'text-lg')}>
               {title}
             </h3>
-            {/* Badge total */}
-            {candidats.length > 0 && (
+            {totalCount > 0 && (
               <Badge
                 variant="outline"
                 className="text-[10px] h-4 px-1.5 border-0 bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300"
               >
-                {candidats.length} candidat{candidats.length > 1 ? 's' : ''}
+                {totalCount} candidat{totalCount > 1 ? 's' : ''}
               </Badge>
             )}
             {!isMobile && (
@@ -320,18 +326,13 @@ export function CandidatsTable({
         </div>
       </div>
       <div className="flex items-center gap-1">
-        {showAddButton && onAddClick && (
-          <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={onAddClick}>
-            <PlusCircle className="h-3.5 w-3.5" />
-            Ajouter
-          </Button>
-        )}
+
         {extraActions}
       </div>
     </div>
   );
 
-  // Contenu du tableau
+  // ── Contenu du tableau (intégration des filtres facettés) ─────────────────
   const tableContent = (
     <div
       className={cn('transition-all duration-100', refreshing && 'opacity-60 pointer-events-none')}
@@ -346,6 +347,7 @@ export function CandidatsTable({
         defaultPageSize={defaultPageSize}
         pageSizeOptions={enablePagination ? pageSizeOptions : undefined}
         searchColumn="nom"
+        onAddClick={onAddClick}
         searchPlaceholder="Rechercher un candidat…"
         extraActions={undefined}
         onRowClick={actions.onView}
@@ -353,15 +355,31 @@ export function CandidatsTable({
         onEmptyActionLabel="Actualiser"
         onEmptyClick={handleRefresh}
         EmptyActionIcon={RefreshCw}
+        facetedFilters={
+          enableToolbar
+            ? [
+              {
+                columnId: 'categorie',
+                title: 'Catégorie de permis',
+                options: categorieOptions,
+              },
+              {
+                columnId: 'statut',
+                title: 'Statut',
+                options: statutOptions,
+              },
+            ]
+            : []
+        }
         className="border-0 shadow-none"
       />
     </div>
   );
 
-  // Rendu final
+  // ── Rendu final ───────────────────────────────────────────────────────────
   if (asCard) {
     return (
-      <Card className={cn('overflow-hidden shadow-sm rounded-xs', className)}>
+      <Card className={cn('overflow-hidden shadow-sm rounded-md', className)}>
         <CardHeader className="pb-3 border-b">{header}</CardHeader>
         <CardContent className="pt-4">{tableContent}</CardContent>
       </Card>

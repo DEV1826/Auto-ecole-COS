@@ -1,7 +1,7 @@
-// src/features/dashboard/components/admin/AuthStatsCards.tsx
+// src/features/admin/components/AuthStatsCards.tsx
 
 /**
- * @module features/dashboard/components/admin/AuthStatsCards
+ * @module features/admin/components/AuthStatsCards
  * @description
  * Grille de cartes statistiques pour l’administration système – affiche 4 métriques relatives aux utilisateurs et sessions.
  *
@@ -161,14 +161,15 @@ export function AuthStatsCards({
       title: 'Utilisateurs actifs',
       value: formatCompactNumber(totalUsers),
       icon: <Users className="size-5" />,
-      iconBg: 'bg-blue-500',
+      iconBg: 'bg-blue-500/10',
+      iconColor: 'text-blue-600',
       description: 'Tous rôles confondus',
       trend: totalUsersTrend,
       sparklineData: totalUsersSparkline
         ? {
-            values: totalUsersSparkline.values,
-            labels: totalUsersSparkline.labels,
-          }
+          values: totalUsersSparkline.values,
+          labels: totalUsersSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('total-users'),
     },
@@ -177,14 +178,15 @@ export function AuthStatsCards({
       title: 'Administrateurs',
       value: formatCompactNumber(totalAdmins),
       icon: <ShieldCheck className="size-5" />,
-      iconBg: 'bg-purple-500',
+      iconBg: 'bg-purple-500/10',
+      iconColor: 'text-purple-600',
       description: 'Gestion système',
       trend: totalAdminsTrend,
       sparklineData: totalAdminsSparkline
         ? {
-            values: totalAdminsSparkline.values,
-            labels: totalAdminsSparkline.labels,
-          }
+          values: totalAdminsSparkline.values,
+          labels: totalAdminsSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('total-admins'),
     },
@@ -193,14 +195,15 @@ export function AuthStatsCards({
       title: 'Secrétaires',
       value: formatCompactNumber(totalSecretaires),
       icon: <CalendarCheck className="size-5" />,
-      iconBg: 'bg-emerald-500',
+      iconBg: 'bg-emerald-500/10',
+      iconColor: 'text-emerald-600',
       description: 'Gestion quotidienne',
       trend: totalSecretairesTrend,
       sparklineData: totalSecretairesSparkline
         ? {
-            values: totalSecretairesSparkline.values,
-            labels: totalSecretairesSparkline.labels,
-          }
+          values: totalSecretairesSparkline.values,
+          labels: totalSecretairesSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('total-secretaires'),
     },
@@ -209,14 +212,15 @@ export function AuthStatsCards({
       title: 'Moniteurs',
       value: formatCompactNumber(totalMoniteurs),
       icon: <UserRound className="size-5" />,
-      iconBg: 'bg-amber-500',
+      iconBg: 'bg-amber-500/10',
+      iconColor: 'text-amber-600',
       description: 'Instructeurs',
       trend: totalMoniteursTrend,
       sparklineData: totalMoniteursSparkline
         ? {
-            values: totalMoniteursSparkline.values,
-            labels: totalMoniteursSparkline.labels,
-          }
+          values: totalMoniteursSparkline.values,
+          labels: totalMoniteursSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('total-moniteurs'),
     },

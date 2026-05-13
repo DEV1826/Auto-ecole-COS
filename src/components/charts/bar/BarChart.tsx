@@ -387,12 +387,12 @@ export function VitaBarChart({
       {showPeriodFilter && !isInteractive && (
         <div className="flex justify-end">
           <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="h-8 w-35 rounded-xs text-xs">
+            <SelectTrigger className="h-8 w-35 rounded-md text-xs">
               <SelectValue placeholder="Période" />
             </SelectTrigger>
-            <SelectContent className="rounded-xl">
+            <SelectContent className="rounded-md">
               {periodOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value} className="rounded-xs text-xs">
+                <SelectItem key={opt.value} value={opt.value} className="rounded-md text-xs">
                   {opt.label}
                 </SelectItem>
               ))}
@@ -405,12 +405,12 @@ export function VitaBarChart({
       {showPeriodFilter && isInteractive && (
         <div className="flex justify-end px-2">
           <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="h-8 w-35 rounded-xs text-xs">
+            <SelectTrigger className="h-8 w-35 rounded-md text-xs">
               <SelectValue placeholder="Période" />
             </SelectTrigger>
-            <SelectContent className="rounded-xl">
+            <SelectContent className="rounded-md">
               {periodOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value} className="rounded-xs text-xs">
+                <SelectItem key={opt.value} value={opt.value} className="rounded-md text-xs">
                   {opt.label}
                 </SelectItem>
               ))}

@@ -210,7 +210,7 @@ function EventDetailContent({
   return (
     <div className="space-y-4">
       {/* En‑tête coloré selon le type */}
-      <div className={cn('rounded-xs p-3 border-l-4', config.bgColor, config.borderColor)}>
+      <div className={cn('rounded-md p-3 border-l-4', config.bgColor, config.borderColor)}>
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">

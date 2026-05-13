@@ -38,16 +38,23 @@ import {
 } from './services/auth.service.js';
 
 import {
-  create,
   createCandidat,
   getAll as getAllCandidats,
-  getById,
-  getCandidats,
+  getById as getCandidatById,
+  updateCandidat,
   remove as removeCandidat,
-  search,
-  update,
-  updateCandidatStatus,
-} from './services/candidatService.js';
+  search as searchCandidats,
+  updateStatus as updateCandidatStatus,
+  getStats as getCandidatsStats,
+  getPaiements as getCandidatPaiements,
+  getLecons as getCandidatLecons,
+  getExamens as getCandidatExamens,
+  getFactures as getCandidatFactures,
+  getDocuments as getCandidatDocuments,
+  addDocument as addCandidatDocument,
+  deleteDocument as deleteCandidatDocument,
+} from './services/candidat.service.js';
+
 import { deleteLesson, getPlanning, saveLesson, updateLesson } from './services/planningService.js';
 import {
   create as createPaiement,
@@ -285,20 +292,68 @@ function registerIpcHandlers() {
   });
 
   // =============================
-  // AUTRES MODULES (Candidats, Planning, etc.)
+  // CANDIDATS
   // =============================
-  ipcMain.handle('candidat:list', async () => getAllCandidats());
-  ipcMain.handle('candidat:get', async (_event, id) => getById(id));
-  ipcMain.handle('candidat:create', async (_event, payload) => create(payload));
-  ipcMain.handle('candidat:update', async (_event, payload) => update(payload.id, payload.data));
-  ipcMain.handle('candidat:delete', async (_event, id) => removeCandidat(id));
-  ipcMain.handle('candidat:search', async (_event, query) => search(query));
 
-  ipcMain.handle('candidats:list', async () => getCandidats());
-  ipcMain.handle('candidats:create', async (_event, payload) => createCandidat(payload));
-  ipcMain.handle('candidats:updateStatus', async (_event, payload) =>
-    updateCandidatStatus(payload)
-  );
+  ipcMain.handle('candidats:getAll', async (event, params) => {
+    return getAllCandidats(params);
+  });
+
+  ipcMain.handle('candidats:getById', async (event, id) => {
+    return getCandidatById(id);
+  });
+
+  ipcMain.handle('candidats:create', async (event, data) => {
+    return createCandidat(data);
+  });
+
+  ipcMain.handle('candidats:update', async (event, { id, data }) => {
+    return updateCandidat(id, data);
+  });
+
+  ipcMain.handle('candidats:delete', async (event, id) => {
+    return removeCandidat(id);
+  });
+
+  ipcMain.handle('candidats:search', async (event, query) => {
+    return searchCandidats(query);
+  });
+
+  ipcMain.handle('candidats:updateStatus', async (event, params) => {
+    return updateCandidatStatus(params);
+  });
+
+  ipcMain.handle('candidats:getStats', async () => {
+    return getCandidatsStats();
+  });
+
+  ipcMain.handle('candidats:getPaiements', async (event, candidatId) => {
+    return getCandidatPaiements(candidatId);
+  });
+
+  ipcMain.handle('candidats:getLecons', async (event, candidatId) => {
+    return getCandidatLecons(candidatId);
+  });
+
+  ipcMain.handle('candidats:getExamens', async (event, candidatId) => {
+    return getCandidatExamens(candidatId);
+  });
+
+  ipcMain.handle('candidats:getFactures', async (event, candidatId) => {
+    return getCandidatFactures(candidatId);
+  });
+
+  ipcMain.handle('candidats:getDocuments', async (event, candidatId) => {
+    return getCandidatDocuments(candidatId);
+  });
+
+  ipcMain.handle('candidats:addDocument', async (event, data) => {
+    return addCandidatDocument(data);
+  });
+
+  ipcMain.handle('candidats:deleteDocument', async (event, docId) => {
+    return deleteCandidatDocument(docId);
+  });
 
   ipcMain.handle('planning:list', async () => getPlanning());
   ipcMain.handle('planning:saveLesson', async (_event, payload) => saveLesson(payload));

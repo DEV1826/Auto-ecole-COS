@@ -6,7 +6,7 @@
  * Carte de vue d'ensemble financière pour l'administrateur de l'auto‑école COS.
  *
  * **Design system** : cohérent avec `StatsCard` — thème bleu primaire,
- * `rounded-xs`, `ring-0`, gradient `from-primary/5 to-card`, shadow subtile,
+ * `rounded-md`, `ring-0`, gradient `from-primary/5 to-card`, shadow subtile,
  * `backdrop-blur-2xl`. Aucune bordure visible.
  *
  * ## Métriques affichées
@@ -244,9 +244,9 @@ function buildRadialSlice(tauxSante: number, color: string): RadialSlice[] {
 function MetricSkeleton(): React.JSX.Element {
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <Skeleton className="h-3 w-14 rounded-xs" />
-      <Skeleton className="h-6 w-18 rounded-xs" />
-      <Skeleton className="h-2.5 w-10 rounded-xs" />
+      <Skeleton className="h-3 w-14 rounded-md" />
+      <Skeleton className="h-6 w-18 rounded-md" />
+      <Skeleton className="h-2.5 w-10 rounded-md" />
     </div>
   );
 }
@@ -261,7 +261,7 @@ function TrendBadge({ value }: { value: number }): React.JSX.Element {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 ml-1 rounded-xs px-2 py-0.5 text-[10px] font-semibold align-middle',
+        'inline-flex items-center gap-1 ml-1 rounded-md px-2 py-0.5 text-[10px] font-semibold align-middle',
         'shadow-sm backdrop-blur-sm',
         isNeutral
           ? 'bg-muted text-muted-foreground'
@@ -433,12 +433,12 @@ export function FinanceOverviewCard({
   // ── Rendu ───────────────────────────────────────────────────────────────
   return (
     <div className={cn('col-span-12 xl:col-span-5', className)}>
-      <Card className={cn('rounded-xs overflow-hidden flex flex-col h-full', 'backdrop-blur-2xl')}>
+      <Card className={cn('rounded-md overflow-hidden flex flex-col h-full', 'backdrop-blur-2xl')}>
         {/* ════ EN-TÊTE ════════════════════════════════════════════════════ */}
         <div className="px-5 pt-5 sm:px-6 sm:pt-6">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xs bg-blue-600 text-white">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-blue-600 text-white">
                 <BarChart3 className="size-5" />
               </div>
               <div>
@@ -457,7 +457,7 @@ export function FinanceOverviewCard({
                 aria-haspopup="listbox"
                 aria-expanded={showDropdown}
                 className={cn(
-                  'flex items-center gap-1.5 rounded-xs px-2.5 py-1.5',
+                  'flex items-center gap-1.5 rounded-md px-2.5 py-1.5',
                   'text-xs font-medium text-muted-foreground',
                   'border border-border/50 hover:bg-muted/50 transition-colors'
                 )}
@@ -472,7 +472,7 @@ export function FinanceOverviewCard({
               </button>
 
               {showDropdown && (
-                <div className="absolute right-0 z-20 mt-1.5 w-32 rounded-xs border border-border bg-card shadow-lg py-1">
+                <div className="absolute right-0 z-20 mt-1.5 w-32 rounded-md border border-border bg-card shadow-lg py-1">
                   {PERIODE_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
@@ -496,12 +496,12 @@ export function FinanceOverviewCard({
           <div className="mt-4 flex flex-wrap gap-2">
             {isLoading ? (
               <>
-                <Skeleton className="h-7 w-28 rounded-xs" />
-                <Skeleton className="h-7 w-24 rounded-xs" />
+                <Skeleton className="h-7 w-28 rounded-md" />
+                <Skeleton className="h-7 w-24 rounded-md" />
               </>
             ) : (
               <>
-                <div className="flex items-center gap-1.5 rounded-xs bg-emerald-500/10 px-2.5 py-1">
+                <div className="flex items-center gap-1.5 rounded-md bg-emerald-500/10 px-2.5 py-1">
                   <ArrowDownLeft className="size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
                     +{formatCompact(entrees)} FCFA
@@ -510,7 +510,7 @@ export function FinanceOverviewCard({
                     entrées
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 rounded-xs bg-red-500/10 px-2.5 py-1">
+                <div className="flex items-center gap-1.5 rounded-md bg-red-500/10 px-2.5 py-1">
                   <ArrowUpRight className="size-3.5 text-red-600 dark:text-red-400 shrink-0" />
                   <span className="text-xs font-bold text-red-700 dark:text-red-400">
                     −{formatCompact(sorties)} FCFA
@@ -601,7 +601,7 @@ export function FinanceOverviewCard({
                 <MetricFooterItem
                   label="Auj."
                   value={formatCompact(entreesJour)}
-                  subValue={entreesJour > 0 ? 'FCFA' : '—'}
+                  subValue={entreesJour > 0 ? 'FCFA' : 'Aucune'}
                   icon={<Activity className="size-3.5" />}
                 />
               </>

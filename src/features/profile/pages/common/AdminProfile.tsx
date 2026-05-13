@@ -173,7 +173,7 @@ export default function AdminProfile({ session, user }: ProfilePageProps): React
                 email,
               }}
               onSubmit={handleUpdatePersonal}
-              onCancel={() => {}}
+              onCancel={() => { }}
             />
           }
         >
@@ -222,8 +222,8 @@ export default function AdminProfile({ session, user }: ProfilePageProps): React
                 editContent={
                   <ChangePasswordForm
                     onSubmit={handleChangePassword}
-                    onCancel={() => {}}
-                    onSuccess={() => {}}
+                    onCancel={() => { }}
+                    onSuccess={() => { }}
                   />
                 }
                 editModalTitle="Changer le mot de passe"
@@ -282,7 +282,7 @@ export default function AdminProfile({ session, user }: ProfilePageProps): React
       )}
 
       {/* Sous-sections des préférences */}
-      {activeSection === 'preferences-notifications' && (
+      {activeSection === 'preferences' && (
         <ProfileSectionCard
           title="Notifications"
           description="Gérez vos préférences de notification"

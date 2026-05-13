@@ -399,7 +399,7 @@ export function DepensesTable({
     const header = (
         <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-2.5">
-                <div className="flex items-center justify-center h-9 w-9 rounded-xs bg-blue-700 text-white shrink-0">
+                <div className="flex items-center justify-center h-9 w-9 rounded-md bg-blue-700 text-white shrink-0">
                     <Wallet className="h-4.5 w-4.5" />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -484,7 +484,7 @@ export function DepensesTable({
     // ── Rendu final ──────────────────────────────────────────────────────
     if (asCard) {
         return (
-            <Card className={cn('@container/dep overflow-hidden shadow-sm rounded-xs', className)}>
+            <Card className={cn('@container/dep overflow-hidden shadow-sm rounded-md', className)}>
                 <CardHeader className="pb-3 border-b">{header}</CardHeader>
                 <CardContent className="pt-4">{tableContent}</CardContent>
             </Card>

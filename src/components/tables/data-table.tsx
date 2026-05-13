@@ -107,6 +107,7 @@ export function DataTable<TData, TValue>({
   dragIdKey = 'id' as keyof TData,
 }: DataTableProps<TData, TValue>) {
   const [localData, setLocalData] = React.useState(data);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   React.useEffect(() => setLocalData(data), [data]);
 
   const enhancedColumns = React.useMemo(() => {
@@ -255,7 +256,7 @@ export function DataTable<TData, TValue>({
       sensors={sensors}
       id={sortableId}
     >
-      <div className="overflow-hidden rounded-xs border">
+      <div className="overflow-hidden rounded-md border">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-muted">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -324,7 +325,7 @@ export function DataTable<TData, TValue>({
       </div>
     </DndContext>
   ) : (
-    <div className="overflow-hidden rounded-xs border">
+    <div className="overflow-hidden rounded-md border">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (

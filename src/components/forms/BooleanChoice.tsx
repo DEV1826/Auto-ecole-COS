@@ -79,20 +79,20 @@ export function BooleanChoice({
       )}
 
       {/* 2. SELECTEUR SEGMENTÉ (Section Droite) */}
-      <div className="relative flex p-0.5 bg-muted/50 dark:bg-muted/20 rounded-xs border border-border/40 w-30">
+      <div className="relative flex p-0.5 bg-muted/50 dark:bg-muted/20 rounded-md border border-border/40 w-30">
         {/* Bouton "NON" */}
         <button
           type="button"
           onClick={() => onChange(false)}
           className={cn(
-            'relative z-10 flex-1 flex items-center justify-center gap-1.5 py-1 rounded-xs text-[11px] font-bold transition-colors',
+            'relative z-10 flex-1 flex items-center justify-center gap-1.5 py-1 rounded-md text-[11px] font-bold transition-colors',
             !value ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
           )}
         >
           {!value && (
             <motion.div
               layoutId={layoutId}
-              className="absolute inset-0 bg-background dark:bg-muted-foreground/10 border border-border/50 shadow-sm rounded-xs z-[-1]"
+              className="absolute inset-0 bg-background dark:bg-muted-foreground/10 border border-border/50 shadow-sm rounded-md z-[-1]"
               transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
             />
           )}
@@ -105,14 +105,14 @@ export function BooleanChoice({
           type="button"
           onClick={() => onChange(true)}
           className={cn(
-            'relative z-10 flex-1 flex items-center justify-center gap-1.5 py-1 rounded-xs text-[11px] font-bold transition-colors',
+            'relative z-10 flex-1 flex items-center justify-center gap-1.5 py-1 rounded-md text-[11px] font-bold transition-colors',
             value ? 'text-white' : 'text-muted-foreground hover:text-foreground'
           )}
         >
           {value && (
             <motion.div
               layoutId={layoutId}
-              className="absolute inset-0 bg-blue-800 dark:bg-blue-800 border border-blue-200/50 dark:border-blue-500/20 shadow-sm rounded-xs z-[-1]"
+              className="absolute inset-0 bg-blue-800 dark:bg-blue-800 border border-blue-200/50 dark:border-blue-500/20 shadow-sm rounded-md z-[-1]"
               transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
             />
           )}

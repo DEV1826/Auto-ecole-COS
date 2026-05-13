@@ -75,7 +75,7 @@ function formatKm(km: number): string {
  * Icône par défaut pour les véhicules (fallback).
  * @internal
  */
-const DEFAULT_VEHICLE_ICON = '/images/icons/car-placeholder.svg';
+const DEFAULT_VEHICLE_ICON = '/images/brand/brand-00.svg';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COLONNES FIXES
@@ -121,6 +121,7 @@ function colMarqueModele(enrichments: VehiculesEnrichments, variant: 'admin' | '
       avatarSize: 'md',
       enableSorting: true,
       size: 240,
+      cellClassName: 'text-sm font-medium',
     });
   }
   // Version simplifiée (secrétaire)

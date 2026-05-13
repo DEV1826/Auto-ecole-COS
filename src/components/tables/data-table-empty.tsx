@@ -59,7 +59,7 @@ export function DataTableEmpty<TData>({
     <div
       className={cn('flex flex-col items-center justify-center py-12 px-4 text-center', className)}
     >
-      <div className="flex items-center justify-center h-16 w-16 rounded-xs bg-blue-50 dark:bg-blue-950/30 mb-4">
+      <div className="flex items-center justify-center h-16 w-16 rounded-md bg-blue-50 dark:bg-blue-950/30 mb-4">
         <DisplayIcon className="h-7 w-7 text-blue-700 dark:text-blue-400" />
       </div>
 

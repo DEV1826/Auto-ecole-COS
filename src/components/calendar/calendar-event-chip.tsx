@@ -230,7 +230,7 @@ function AdaptiveTooltipContent({
       sideOffset={sideOffset}
       align={align}
       className={cn(
-        'p-3 rounded-xs shadow-lg border',
+        'p-3 rounded-md shadow-lg border',
         'bg-white text-neutral-900 border-neutral-200',
         'dark:bg-neutral-900 dark:text-neutral-50 dark:border-neutral-800'
       )}

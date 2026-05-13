@@ -107,6 +107,9 @@ export const PROTECTED_ROUTES = {
     /** Formulaire d'édition d'un candidat */
     EDIT: (id: number | string) => `/candidats/${id}/edit`,
     /** Suppression (désactivation) – généralement via action, pas de route dédiée */
+    DOCUMENTS(id: number | string) {
+      return `/candidats/${id}/documents`;
+    },
   } as const,
 
   // ========== GESTION DES FORMATIONS ==========
@@ -204,7 +207,6 @@ export const PROTECTED_ROUTES = {
     /** Liste des paiements (tous, filtrables) */
     LIST: '/paiements',
     /** Paiements d'un candidat */
-    PAR_CANDIDAT: (candidatId: number | string) => `/paiements/candidat/${candidatId}`,
     /** Enregistrement d'un paiement */
     CREATE: '/paiements/create',
     /** Détail d'un paiement */
@@ -241,12 +243,6 @@ export const PROTECTED_ROUTES = {
   CAISSE: {
     /** État de la caisse (solde actuel, historique des mouvements) */
     INDEX: '/caisse',
-    /** Enregistrement d'une entrée manuelle */
-    ENTREE: '/caisse/entree',
-    /** Enregistrement d'une sortie manuelle */
-    SORTIE: '/caisse/sortie',
-    /** Relevé détaillé sur une période */
-    RELEVE: '/caisse/releve',
   } as const,
 
   // ========== RAPPORTS ET STATISTIQUES ==========
@@ -285,8 +281,6 @@ export const PROTECTED_ROUTES = {
     AUDIT_LOGS: '/admin/audit-logs',
     /** Configuration de l'entreprise (nom, adresse, logo, etc.) */
     COMPANY_CONFIG: '/admin/company',
-    /** Gestion des sessions actives (révocation à distance) */
-    SESSIONS: '/admin/sessions',
   } as const,
 
   // ========== UTILITAIRES ==========

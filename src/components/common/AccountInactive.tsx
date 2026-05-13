@@ -21,7 +21,7 @@ export function AccountInactive() {
       <div className="flex min-h-[60vh] items-center justify-center p-6">
         <Card className="max-w-md text-center">
           <CardHeader>
-            <div className="mx-auto mb-4 flex size-20 items-center justify-center rounded-xs bg-destructive/10">
+            <div className="mx-auto mb-4 flex size-20 items-center justify-center rounded-md bg-destructive/10">
               <Ban className="size-10 text-destructive" />
             </div>
             <CardTitle className="text-2xl">Compte inactif</CardTitle>

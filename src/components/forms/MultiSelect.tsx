@@ -8,7 +8,7 @@
  * ## Fonctionnalités
  * - Recherche textuelle instantanée via `Command`
  * - Sélection / désélection par clic ou Entrée
- * - **Badges intégrés dans le déclencheur** (coins `rounded-xs`)
+ * - **Badges intégrés dans le déclencheur** (coins `rounded-md`)
  * - Suppression individuelle via bouton `✕`
  * - Résumé ``+x`` quand le nombre de badges dépasse `maxDisplayed`
  * - Bouton «Effacer tout» dans le popover
@@ -120,7 +120,7 @@ export function MultiSelect({
           aria-disabled={disabled}
           tabIndex={0}
           className={cn(
-            'flex flex-wrap items-center gap-1.5 min-h-10 w-full  rounded-xs border border-input  p-1 text-sm',
+            'flex flex-wrap items-center gap-1.5 min-h-10 w-full  rounded-md border border-input  p-1 text-sm',
 
             disabled && 'opacity-50 cursor-not-allowed bg-muted',
             ' transition-colors',
@@ -134,7 +134,7 @@ export function MultiSelect({
                 <Badge
                   key={opt.value}
                   variant="secondary"
-                  className="gap-1 py-4 rounded-xs bg-blue-50  dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800"
+                  className="gap-1 py-4 rounded-md bg-blue-50  dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-200 dark:border-blue-800"
                 >
                   {opt.label}
                   <button
@@ -143,7 +143,7 @@ export function MultiSelect({
                       e.stopPropagation();
                       handleRemove(opt.value);
                     }}
-                    className="ml-1 rounded-xs hover:bg-blue-200 dark:hover:bg-blue-800 "
+                    className="ml-1 rounded-md hover:bg-blue-200 dark:hover:bg-blue-800 "
                     aria-label={`Supprimer ${opt.label}`}
                   >
                     <X className="h-3 w-3" />
@@ -151,7 +151,7 @@ export function MultiSelect({
                 </Badge>
               ))}
               {remaining > 0 && (
-                <Badge variant="outline" className="rounded-xs text-xs">
+                <Badge variant="outline" className="rounded-md text-xs">
                   +{remaining}
                 </Badge>
               )}

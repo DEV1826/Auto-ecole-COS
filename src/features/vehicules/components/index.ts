@@ -11,3 +11,6 @@ export type { VehiculesStatsCardsProps, VehiculesSparklineData } from './Vehicul
 
 export { VehiculesTable } from './VehiculesTable';
 export type { VehiculesTableProps, VehiculesPeriodFilter } from './VehiculesTable';
+
+export { VehiculesEnLeconCard } from './VehiculesEnLeconCard';
+export type { VehiculesEnLeconCardProps } from './VehiculesEnLeconCard';

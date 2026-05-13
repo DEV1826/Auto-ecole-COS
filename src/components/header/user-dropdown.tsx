@@ -17,7 +17,7 @@
  *
  * ## Design
  * - Largeur fixe `w-72` (288px)
- * - Coins `rounded-xl`, bordures émeraude légères
+ * - Coins `rounded-md`, bordures émeraude légères
  * - Animation fluide lors du changement de niveau
  * - Thème émeraude cohérent, mode sombre pris en charge
  *
@@ -137,7 +137,7 @@ export function MainMenuView({
       {/* Bloc utilisateur */}
       <DropdownMenuLabel className="font-normal p-3">
         <div className="flex items-center gap-3">
-          <Avatar className="h-12 w-12 rounded-xs">
+          <Avatar className="h-12 w-12 rounded-md">
             <AvatarImage src={getAvatarUrl(fullName)} alt={fullName} />
             <AvatarFallback className="bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 text-lg font-semibold">
               {getInitials()}
@@ -256,7 +256,7 @@ export function UserDropdown({ user, onProfile, className }: UserDropdownProps) 
     <>
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className={cn('h-auto gap-2 rounded-xs border p-1.5', className)}>
+          <Button variant="ghost" className={cn('h-auto gap-2 rounded-md border p-1.5', className)}>
             <Avatar className="size-8">
               <AvatarImage
                 src={getAvatarUrl(`${user?.nom} ${user?.prenom}`)}
@@ -280,7 +280,7 @@ export function UserDropdown({ user, onProfile, className }: UserDropdownProps) 
         </DropdownMenuTrigger>
 
         <DropdownMenuContent
-          className="w-72 rounded-xs shadow-lg dark:border-blue-900/30 p-1 max-h-[85vh] overflow-y-auto"
+          className="w-72 rounded-md shadow-lg dark:border-blue-900/30 p-1 max-h-[85vh] overflow-y-auto"
           align="end"
           sideOffset={8}
         >
@@ -323,9 +323,9 @@ export function UserDropdown({ user, onProfile, className }: UserDropdownProps) 
                     key={item.value}
                     onClick={() => setTheme(item.value)}
                     className={cn(
-                      'gap-3 px-3 py-2.5 cursor-pointer rounded-xs',
+                      'gap-3 px-3 py-2.5 cursor-pointer rounded-md',
                       theme === item.value &&
-                        'bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300'
+                      'bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300'
                     )}
                   >
                     {item.icon}

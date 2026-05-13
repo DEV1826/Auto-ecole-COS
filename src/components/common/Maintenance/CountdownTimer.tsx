@@ -62,7 +62,7 @@ export function CountdownTimer({ targetDate, onComplete, className }: CountdownT
       {timeUnits.map((unit, idx) => (
         <React.Fragment key={unit.label}>
           <div className="flex flex-col items-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-xl font-bold text-primary shadow-sm md:h-20 md:w-20 md:text-3xl lg:h-24 lg:w-24 lg:text-4xl">
+            <div className="flex h-14 w-14 items-center justify-center rounded-md bg-primary/10 text-xl font-bold text-primary shadow-sm md:h-20 md:w-20 md:text-3xl lg:h-24 lg:w-24 lg:text-4xl">
               {String(unit.value).padStart(2, '0')}
             </div>
             <span className="mt-1 text-[10px] font-medium text-muted-foreground md:mt-2 md:text-xs">

@@ -53,7 +53,7 @@
  * @see {@link VehiculesTrends} – Tendances évolutives
  */
 
-import { Car, CheckCircle, Clock, Wrench, AlertTriangle, Gauge, Calendar } from 'lucide-react';
+import { Car, CheckCircle, Clock, Gauge } from 'lucide-react';
 import {
   StatsGrid,
   type StatsCardProps,
@@ -122,7 +122,6 @@ export function VehiculesStatsCards({
   disponiblesSparkline,
   enLeconSparkline,
   kilometrageSparkline,
-  entretiensSparkline,
   isLoading = false,
   onCardClick,
   className,
@@ -136,7 +135,8 @@ export function VehiculesStatsCards({
       title: 'Total véhicules',
       value: formatCompact(stats.totalVehicules),
       icon: <Car className="size-5" />,
-      iconBg: 'bg-blue-500',
+      iconBg: 'bg-blue-500/10',
+      iconColor: 'text-blue-500',
       description: 'Parc total',
       trend: buildTrend(trends.totalVehicules),
       sparklineData: totalSparkline
@@ -149,7 +149,8 @@ export function VehiculesStatsCards({
       title: 'Disponibles',
       value: formatCompact(stats.disponibles),
       icon: <CheckCircle className="size-5" />,
-      iconBg: 'bg-emerald-500',
+      iconBg: 'bg-emerald-500/10',
+      iconColor: 'text-emerald-500',
       description: 'Prêts à rouler',
       trend: buildTrend(trends.disponibles),
       sparklineData: disponiblesSparkline
@@ -162,7 +163,8 @@ export function VehiculesStatsCards({
       title: 'En leçon',
       value: formatCompact(stats.enLecon),
       icon: <Clock className="size-5" />,
-      iconBg: 'bg-amber-500',
+      iconBg: 'bg-amber-500/10',
+      iconColor: 'text-amber-500',
       description: 'Actuellement utilisés',
       sparklineData: enLeconSparkline
         ? { values: enLeconSparkline.values, labels: enLeconSparkline.labels }
@@ -170,47 +172,18 @@ export function VehiculesStatsCards({
       onClick: () => handleClick('en-lecon'),
     },
     {
-      id: 'en-entretien',
-      title: 'En entretien',
-      value: formatCompact(stats.enEntretien),
-      icon: <Wrench className="size-5" />,
-      iconBg: 'bg-purple-500',
-      description: 'Maintenance',
-      onClick: () => handleClick('en-entretien'),
-    },
-    {
-      id: 'hors-service',
-      title: 'Hors service',
-      value: formatCompact(stats.horsService),
-      icon: <AlertTriangle className="size-5" />,
-      iconBg: 'bg-red-500',
-      description: 'Indisponibles',
-      onClick: () => handleClick('hors-service'),
-    },
-    {
       id: 'kilometrage-moyen',
       title: 'Kilométrage moyen',
       value: formatKm(stats.kilometrageMoyen),
       icon: <Gauge className="size-5" />,
-      iconBg: 'bg-indigo-500',
+      iconBg: 'bg-indigo-500/10',
+      iconColor: 'text-indigo-500',
       description: 'Moyenne du parc',
       trend: buildTrend(trends.kilometrageMoyen),
       sparklineData: kilometrageSparkline
         ? { values: kilometrageSparkline.values, labels: kilometrageSparkline.labels }
         : undefined,
       onClick: () => handleClick('kilometrage-moyen'),
-    },
-    {
-      id: 'entretiens-annee',
-      title: 'Entretiens (année)',
-      value: formatCompact(stats.entretiensAnnee),
-      icon: <Calendar className="size-5" />,
-      iconBg: 'bg-rose-500',
-      description: 'Interventions',
-      sparklineData: entretiensSparkline
-        ? { values: entretiensSparkline.values, labels: entretiensSparkline.labels }
-        : undefined,
-      onClick: () => handleClick('entretiens-annee'),
     },
   ];
 

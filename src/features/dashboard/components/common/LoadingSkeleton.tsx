@@ -171,10 +171,10 @@ export function LoadingSkeleton({
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Skeleton className="h-24 w-full rounded-xs" />
-          <Skeleton className="h-24 w-full rounded-xs" />
-          <Skeleton className="h-24 w-full rounded-xs" />
-          <Skeleton className="h-24 w-full rounded-xs" />
+          <Skeleton className="h-24 w-full rounded-md" />
+          <Skeleton className="h-24 w-full rounded-md" />
+          <Skeleton className="h-24 w-full rounded-md" />
+          <Skeleton className="h-24 w-full rounded-md" />
         </div>
         <div className="space-y-2">
           <Skeleton className="h-5 w-1/4" />
@@ -182,7 +182,7 @@ export function LoadingSkeleton({
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-3/4" />
         </div>
-        <Skeleton className="h-32 w-full rounded-xs" />
+        <Skeleton className="h-32 w-full rounded-md" />
       </div>
     );
   };
@@ -190,7 +190,7 @@ export function LoadingSkeleton({
   // Squelette de type statistiques (cartes de stats)
   const renderStatsSkeleton = () => {
     return Array.from({ length: count }).map((_, idx) => (
-      <div key={idx} className={cn('rounded-xs border p-4', itemClassName)}>
+      <div key={idx} className={cn('rounded-md border p-4', itemClassName)}>
         <Skeleton className="h-4 w-1/2" />
         <Skeleton className="mt-2 h-8 w-2/3" />
         <Skeleton className="mt-2 h-3 w-full" />

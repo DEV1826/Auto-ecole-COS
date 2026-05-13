@@ -65,7 +65,7 @@ export interface Permission {
 /**
  * Entrée de log d’audit – correspond au modèle Prisma `AuditLog`.
  *
- * @interface AuditLogEntry
+ * @interface AuditLog
  * @description
  * Enregistre toute action sensible effectuée par un utilisateur (connexion,
  * création, modification, suppression) avec son adresse IP et le résultat.
@@ -83,7 +83,7 @@ export interface Permission {
  *
  * @example
  * ```ts
- * const log: AuditLogEntry = {
+ * const log: AuditLog = {
  *   id: 100,
  *   utilisateurId: 5,
  *   action: 'LOGIN_SUCCESS',
@@ -97,7 +97,7 @@ export interface Permission {
  * };
  * ```
  */
-export interface AuditLogEntry {
+export interface AuditLog {
   id: number;
   utilisateurId: number | null;
   action: string;
@@ -194,8 +194,29 @@ export interface AuditLogsColumnConfig {
  * @property {(userId: number) => void} [onFilterByUser] - Filtrer par cet utilisateur
  */
 export interface AuditLogsTableActions {
-  onViewDetails?: (log: AuditLogEntry) => void;
+  onViewDetails?: (log: AuditLog) => void;
   onFilterByUser?: (userId: number) => void;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENRICHISSEMENTS POUR LES LOGS D’AUDIT
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Enrichissements optionnels pour injecter les données de l’utilisateur
+ * (avatar, nom complet, email) sans modifier le modèle `AuditLog`.
+ *
+ * @interface AuditLogsEnrichments
+ * @property {(log: AuditLog) => string} [getAvatarUrl] - URL de l’avatar de l’utilisateur
+ * @property {(log: AuditLog) => string} [getInitials] - Initiales (fallback)
+ * @property {(log: AuditLog) => string} [getNomComplet] - Nom complet de l’utilisateur
+ * @property {(log: AuditLog) => string} [getEmail] - Email de l’utilisateur
+ */
+export interface AuditLogsEnrichments {
+  getAvatarUrl?: (log: AuditLog) => string;
+  getInitials?: (log: AuditLog) => string;
+  getNomComplet?: (log: AuditLog) => string;
+  getEmail?: (log: AuditLog) => string;
 }
 
 /**
@@ -210,6 +231,7 @@ export interface AuditLogsTableActions {
  */
 export interface AuditLogsColumnsOptions {
   columnConfig?: AuditLogsColumnConfig;
+  enrichments?: AuditLogsEnrichments;
   actions?: AuditLogsTableActions;
   variant?: 'admin' | 'auditor';
 }

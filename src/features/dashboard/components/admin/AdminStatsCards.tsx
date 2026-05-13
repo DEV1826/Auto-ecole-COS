@@ -175,14 +175,15 @@ export function AdminStatsCards({
       title: 'Candidats actifs',
       value: formatCompactNumber(totalCandidats),
       icon: <Users className="size-5" />,
-      iconBg: 'bg-blue-500',
+      iconBg: 'bg-blue-800/80',
+
       description: 'En cours de formation',
       trend: totalCandidatsTrend,
       sparklineData: totalCandidatsSparkline
         ? {
-            values: totalCandidatsSparkline.values,
-            labels: totalCandidatsSparkline.labels,
-          }
+          values: totalCandidatsSparkline.values,
+          labels: totalCandidatsSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('total-candidats'),
     },
@@ -191,14 +192,14 @@ export function AdminStatsCards({
       title: 'Moniteurs actifs',
       value: formatCompactNumber(totalMoniteurs),
       icon: <UserRound className="size-5" />,
-      iconBg: 'bg-emerald-500',
+      iconBg: 'bg-emerald-800/80',
       description: 'Instructeurs disponibles',
       trend: totalMoniteursTrend,
       sparklineData: totalMoniteursSparkline
         ? {
-            values: totalMoniteursSparkline.values,
-            labels: totalMoniteursSparkline.labels,
-          }
+          values: totalMoniteursSparkline.values,
+          labels: totalMoniteursSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('total-moniteurs'),
     },
@@ -207,14 +208,14 @@ export function AdminStatsCards({
       title: 'Véhicules disponibles',
       value: formatCompactNumber(totalVehiculesDisponibles),
       icon: <Car className="size-5" />,
-      iconBg: 'bg-amber-500',
+      iconBg: 'bg-amber-600/90',
       description: 'Parc opérationnel',
       trend: totalVehiculesDisponiblesTrend,
       sparklineData: totalVehiculesDisponiblesSparkline
         ? {
-            values: totalVehiculesDisponiblesSparkline.values,
-            labels: totalVehiculesDisponiblesSparkline.labels,
-          }
+          values: totalVehiculesDisponiblesSparkline.values,
+          labels: totalVehiculesDisponiblesSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('total-vehicules'),
     },
@@ -223,14 +224,14 @@ export function AdminStatsCards({
       title: 'Chiffre d’affaires (mois)',
       value: formatCurrencyCompact(totalRevenusMois),
       icon: <TrendingUp className="size-5" />,
-      iconBg: 'bg-purple-500',
+      iconBg: 'bg-purple-800/80',
       description: 'Paiements encaissés',
       trend: totalRevenusMoisTrend,
       sparklineData: totalRevenusMoisSparkline
         ? {
-            values: totalRevenusMoisSparkline.values,
-            labels: totalRevenusMoisSparkline.labels,
-          }
+          values: totalRevenusMoisSparkline.values,
+          labels: totalRevenusMoisSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('total-revenus'),
     },

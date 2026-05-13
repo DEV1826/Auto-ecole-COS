@@ -297,7 +297,7 @@ export function SecretaireWelcomeHeader({
       showDate={showDate}
       contextMessage={contextMessage.length > 0 ? contextMessage : undefined}
       mainActions={mainActions}
-      className={cn('rounded-xs border border-border/60 shadow-xs', className)}
+      className={cn('rounded-md border border-border/60 shadow-xs', className)}
       extra={extraContent}
     />
   );

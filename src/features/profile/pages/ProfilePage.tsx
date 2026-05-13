@@ -81,10 +81,10 @@ function ProfileLoadingSkeleton(): React.JSX.Element {
 
       {/* Sections */}
       <aside className="w-64 shrink-0">
-        <Skeleton className="h-36 w-full rounded-xl" />
+        <Skeleton className="h-36 w-full rounded-md" />
       </aside>
       <main className="flex-1 min-w-0">
-        <Skeleton className="h-36 w-full rounded-xl" />
+        <Skeleton className="h-36 w-full rounded-md" />
       </main>
     </div>
   );

@@ -33,7 +33,7 @@ export function AppLayout() {
         className={cn('bg-[#FFFFFFCC]  dark:bg-blue-50/5')}
       >
         <AppSidebar variant="inset" />
-        <SidebarInset className=" no-scrollbar! flex min-h-0 flex-1 flex-col overflow-hidden  border bg-clip-padding has-data-[slot=rtl-components]:overflow-visible has-data-[slot=rtl-components]:border-0 has-data-[slot=rtl-components]:bg-transparent md:flex-1 xl:rounded-xl">
+        <SidebarInset className=" no-scrollbar! flex min-h-0 flex-1 flex-col overflow-hidden  border bg-clip-padding has-data-[slot=rtl-components]:overflow-visible has-data-[slot=rtl-components]:border-0 has-data-[slot=rtl-components]:bg-transparent md:flex-1 xl:rounded-md">
           <Header variant="app" className="bg-blue-50/70  dark:bg-blue-50/5" />
           <div className="flex flex-1 flex-col gap-4 p-4 md:p-4 overflow-x-auto no-scrollbar! bg-blue-50/70  dark:bg-blue-50/5">
             <Outlet />

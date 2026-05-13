@@ -176,7 +176,7 @@ export function PriceInput({
     <div className={cn('flex flex-col gap-1.5', className)}>
       <InputGroup
         className={cn(
-          'h-10 group/price focus-within:ring-2 focus-within:ring-primary/20 rounded-xs border bg-background transition-all overflow-hidden',
+          'h-10 group/price focus-within:ring-2 focus-within:ring-primary/20 rounded-md border bg-background transition-all overflow-hidden',
           disabled && 'opacity-60 pointer-events-none grayscale-[0.5]'
         )}
       >

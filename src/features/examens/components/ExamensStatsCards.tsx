@@ -181,25 +181,25 @@ export function ExamensStatsCards({
       trend: buildTrend(trends.totalExamens, 'vs période précédente'),
       sparklineData: totalSparkline
         ? {
-            values: totalSparkline.values,
-            labels: totalSparkline.labels,
-          }
+          values: totalSparkline.values,
+          labels: totalSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('total-examens'),
     },
     {
       id: 'taux-reussite',
       title: 'Taux de réussite',
-      value: `${stats.tauxReussiteGlobal}%`,
+      value: `${stats.tauxReussiteGlobal.toFixed(0)}%`,
       icon: <Award className="size-5" />,
       iconBg: 'bg-emerald-500',
       description: 'Global (reçus)',
       trend: buildTrend(trends.tauxReussiteGlobal, 'vs période précédente'),
       sparklineData: tauxReussiteSparkline
         ? {
-            values: tauxReussiteSparkline.values,
-            labels: tauxReussiteSparkline.labels,
-          }
+          values: tauxReussiteSparkline.values,
+          labels: tauxReussiteSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('taux-reussite'),
     },
@@ -213,9 +213,9 @@ export function ExamensStatsCards({
       trend: buildTrend(trends.examensCode, 'vs période précédente'),
       sparklineData: codeSparkline
         ? {
-            values: codeSparkline.values,
-            labels: codeSparkline.labels,
-          }
+          values: codeSparkline.values,
+          labels: codeSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('examens-code'),
     },
@@ -229,9 +229,9 @@ export function ExamensStatsCards({
       trend: buildTrend(trends.examensConduite, 'vs période précédente'),
       sparklineData: conduiteSparkline
         ? {
-            values: conduiteSparkline.values,
-            labels: conduiteSparkline.labels,
-          }
+          values: conduiteSparkline.values,
+          labels: conduiteSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('examens-conduite'),
     },

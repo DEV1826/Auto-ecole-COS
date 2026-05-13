@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ChevronDownIcon, DotIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { PROTECTED_ROUTES, PUBLIC_ROUTES, route } from '@/config/routes';
+import { PROTECTED_ROUTES } from '@/config/routes';
 
 // Import des icônes nécessaires pour l'auto‑école
 import {
@@ -59,7 +59,6 @@ import {
   Settings,
   UserCog,
   ClipboardList,
-  AlertCircle,
   HelpCircle,
   Bell,
   FileOutput,
@@ -173,9 +172,6 @@ function getIconForPathOrSegment(path: string, segmentLabel?: string): React.Rea
   if (path.match(/\/depenses\/\d+\/edit$/)) return <TrendingDown className="size-3.5" />;
 
   if (path === PROTECTED_ROUTES.CAISSE.INDEX) return <Coins className="size-3.5" />;
-  if (path === PROTECTED_ROUTES.CAISSE.ENTREE) return <HandCoins className="size-3.5" />;
-  if (path === PROTECTED_ROUTES.CAISSE.SORTIE) return <HandCoins className="size-3.5" />;
-  if (path === PROTECTED_ROUTES.CAISSE.RELEVE) return <BarChart3 className="size-3.5" />;
 
   // Rapports
   if (path === PROTECTED_ROUTES.RAPPORTS.FINANCIER) return <BarChart3 className="size-3.5" />;
@@ -193,11 +189,9 @@ function getIconForPathOrSegment(path: string, segmentLabel?: string): React.Rea
   if (path.match(/\/admin\/users\/\d+\/permissions$/)) return <Shield className="size-3.5" />;
   if (path === PROTECTED_ROUTES.ADMIN.AUDIT_LOGS) return <ClipboardList className="size-3.5" />;
   if (path === PROTECTED_ROUTES.ADMIN.COMPANY_CONFIG) return <Settings className="size-3.5" />;
-  if (path === PROTECTED_ROUTES.ADMIN.SESSIONS) return <Calendar className="size-3.5" />;
 
   // Utilitaires
   if (path === PROTECTED_ROUTES.UTILS.NOTIFICATIONS) return <Bell className="size-3.5" />;
-  if (path === PROTECTED_ROUTES.UTILS.API_DOCS) return <FileText className="size-3.5" />;
   if (path === PROTECTED_ROUTES.UTILS.HELP) return <HelpCircle className="size-3.5" />;
 
   // Accueil (dashboard)
@@ -528,38 +522,6 @@ function generateSegmentsFromPath(pathname: string): BreadcrumbSegment[] {
       addSegment('Modifier dépense', undefined, undefined, <TrendingDown className="size-3.5" />);
     }
 
-    // Caisse
-    else if (currentPath === PROTECTED_ROUTES.CAISSE.INDEX) {
-      addSegment(
-        'Caisse',
-        undefined,
-        [
-          {
-            label: 'Entrée manuelle',
-            href: PROTECTED_ROUTES.CAISSE.ENTREE,
-            icon: <HandCoins className="size-3.5" />,
-          },
-          {
-            label: 'Sortie manuelle',
-            href: PROTECTED_ROUTES.CAISSE.SORTIE,
-            icon: <HandCoins className="size-3.5" />,
-          },
-          {
-            label: 'Relevé de période',
-            href: PROTECTED_ROUTES.CAISSE.RELEVE,
-            icon: <BarChart3 className="size-3.5" />,
-          },
-        ],
-        <Coins className="size-3.5" />
-      );
-    } else if (currentPath === PROTECTED_ROUTES.CAISSE.ENTREE) {
-      addSegment('Entrée en caisse', undefined, undefined, <HandCoins className="size-3.5" />);
-    } else if (currentPath === PROTECTED_ROUTES.CAISSE.SORTIE) {
-      addSegment('Sortie de caisse', undefined, undefined, <HandCoins className="size-3.5" />);
-    } else if (currentPath === PROTECTED_ROUTES.CAISSE.RELEVE) {
-      addSegment('Relevé de caisse', undefined, undefined, <BarChart3 className="size-3.5" />);
-    }
-
     // Rapports
     else if (currentPath === PROTECTED_ROUTES.RAPPORTS.FINANCIER) {
       addSegment('Rapport financier', undefined, undefined, <BarChart3 className="size-3.5" />);
@@ -605,15 +567,11 @@ function generateSegmentsFromPath(pathname: string): BreadcrumbSegment[] {
       addSegment("Journaux d'audit", undefined, undefined, <ClipboardList className="size-3.5" />);
     } else if (currentPath === PROTECTED_ROUTES.ADMIN.COMPANY_CONFIG) {
       addSegment('Configuration', undefined, undefined, <Settings className="size-3.5" />);
-    } else if (currentPath === PROTECTED_ROUTES.ADMIN.SESSIONS) {
-      addSegment('Sessions actives', undefined, undefined, <Calendar className="size-3.5" />);
     }
 
     // Utilitaires
     else if (currentPath === PROTECTED_ROUTES.UTILS.NOTIFICATIONS) {
       addSegment('Notifications', undefined, undefined, <Bell className="size-3.5" />);
-    } else if (currentPath === PROTECTED_ROUTES.UTILS.API_DOCS) {
-      addSegment('API Docs', undefined, undefined, <FileText className="size-3.5" />);
     } else if (currentPath === PROTECTED_ROUTES.UTILS.HELP) {
       addSegment('Aide & Support', undefined, undefined, <HelpCircle className="size-3.5" />);
     }

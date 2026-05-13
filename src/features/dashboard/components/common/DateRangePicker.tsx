@@ -247,7 +247,7 @@ function EventRow({
   const eventContent = (
     <div
       className={cn(
-        'group flex items-start gap-3 rounded-xl border max-w-xl border-border/50 p-3 transition-all duration-150',
+        'group flex items-start gap-3 rounded-md border max-w-xl border-border/50 p-3 transition-all duration-150',
         (canEdit || canDelete) && 'hover:border-border hover:bg-muted/40 cursor-pointer'
       )}
       onClick={() => canEdit && onEdit(event)}
@@ -270,7 +270,7 @@ function EventRow({
         </Avatar>
       ) : (
         <div
-          className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xs', cfg.badge)}
+          className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-md', cfg.badge)}
         >
           <TypeIcon className="size-4" />
         </div>
@@ -349,7 +349,7 @@ function EventRow({
     <Tooltip delayDuration={200}>
       <TooltipTrigger asChild>{eventContent}</TooltipTrigger>
       <TooltipContent side="right" className="p-0 border-0 bg-transparent shadow-none">
-        <div className="rounded-xs border border-border bg-popover p-3 shadow-md max-w-xs space-y-2.5">
+        <div className="rounded-md border border-border bg-popover p-3 shadow-md max-w-xs space-y-2.5">
           {/* En-tête avec type et badge */}
           <div className="flex items-start justify-between gap-2 border-b pb-2">
             <div className="flex items-center gap-2 flex-1">
@@ -595,7 +595,7 @@ export function DateRangePicker({
         <Tooltip delayDuration={300}>
           <TooltipTrigger asChild>{button}</TooltipTrigger>
           <TooltipContent side="top" className="p-0 border-0 bg-transparent shadow-none">
-            <div className="rounded-xs border border-border bg-popover p-3 shadow-md max-w-xs space-y-2">
+            <div className="rounded-md border border-border bg-popover p-3 shadow-md max-w-xs space-y-2">
               <div className="flex items-center gap-2 border-b pb-2">
                 <CalendarDays className="size-3.5 text-muted-foreground shrink-0" />
                 <span className="text-xs font-semibold capitalize text-foreground">

@@ -76,13 +76,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast:
-            'cn-toast group flex items-center gap-4  text-foreground border-border rounded-xs shadow-2xl p-4 transition-all duration-300',
+            'cn-toast group flex items-center gap-4  text-foreground border-border rounded-md shadow-2xl p-4 transition-all duration-300',
           title: 'font-bold text-[14px] tracking-tight',
           description: 'text-xs text-muted-foreground',
           actionButton:
-            'bg-primary text-primary-foreground font-semibold rounded-xs px-4 py-2 hover:opacity-90 transition-opacity',
+            'bg-primary text-primary-foreground font-semibold rounded-md px-4 py-2 hover:opacity-90 transition-opacity',
           cancelButton:
-            'bg-muted text-muted-foreground font-semibold rounded-xs px-4 py-2 hover:bg-muted/80 transition-colors',
+            'bg-muted text-muted-foreground font-semibold rounded-md px-4 py-2 hover:bg-muted/80 transition-colors',
         },
       }}
       {...props}

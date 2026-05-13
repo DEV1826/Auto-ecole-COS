@@ -48,7 +48,7 @@ export default function HomePage() {
             <Button
               asChild
               size="lg"
-              className="mt-6 h-12 px-8 text-base rounded-xs bg-blue-500 hover:bg-blue-600! text-white dark:bg-blue-900 shadow-md"
+              className="mt-6 h-12 px-8 text-base rounded-md bg-blue-500 hover:bg-blue-600! text-white dark:bg-blue-900 shadow-md"
             >
               <Link to={PUBLIC_ROUTES.AUTH.LOGIN}>
                 <LogIn className="mr-2 h-5 w-5" />

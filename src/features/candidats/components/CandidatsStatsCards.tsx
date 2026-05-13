@@ -107,6 +107,10 @@ export interface CandidatsStatsCardsProps {
    * Si fourni, les props `stats` et `trends` sont ignorées.
    */
   customCards?: StatsCardProps[];
+
+
+  /** Nombre de colonnes dans la grille */
+  cols?: 2 | 3 | 4;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -166,6 +170,7 @@ export function CandidatsStatsCards({
   onCardClick,
   className,
   customCards,
+  cols = 2,
 }: CandidatsStatsCardsProps): React.JSX.Element {
   const handleCardClick = (cardId: string) => {
     onCardClick?.(cardId);
@@ -183,9 +188,9 @@ export function CandidatsStatsCards({
       trend: buildTrend(trends.total, 'vs période précédente'),
       sparklineData: totalSparkline
         ? {
-            values: totalSparkline.values,
-            labels: totalSparkline.labels,
-          }
+          values: totalSparkline.values,
+          labels: totalSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('total-candidats'),
     },
@@ -199,32 +204,32 @@ export function CandidatsStatsCards({
       trend: buildTrend(trends.actifs, 'vs période précédente'),
       sparklineData: actifsSparkline
         ? {
-            values: actifsSparkline.values,
-            labels: actifsSparkline.labels,
-          }
+          values: actifsSparkline.values,
+          labels: actifsSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('actifs-candidats'),
     },
     {
       id: 'taux-reussite',
       title: 'Taux de réussite',
-      value: `${stats.tauxReussite}%`,
+      value: `${stats.tauxReussite.toFixed(1)}%`,
       icon: <TrendingUp className="size-5" />,
       iconBg: 'bg-amber-500',
       description: 'Moyenne sur les candidats terminés',
       trend: trends.echecs
         ? {
-            value: trends.echecs,
-            isPositive: trends.echecs > 0,
-            label: 'vs période précédente',
-            isPercentage: true,
-          }
+          value: trends.echecs,
+          isPositive: trends.echecs > 0,
+          label: 'vs période précédente',
+          isPercentage: true,
+        }
         : undefined,
       sparklineData: tauxReussiteSparkline
         ? {
-            values: tauxReussiteSparkline.values,
-            labels: tauxReussiteSparkline.labels,
-          }
+          values: tauxReussiteSparkline.values,
+          labels: tauxReussiteSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('taux-reussite'),
     },
@@ -238,9 +243,9 @@ export function CandidatsStatsCards({
       trend: buildTrend(trends.reçus, 'vs période précédente'),
       sparklineData: recusSparkline
         ? {
-            values: recusSparkline.values,
-            labels: recusSparkline.labels,
-          }
+          values: recusSparkline.values,
+          labels: recusSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('recus-candidats'),
     },
@@ -272,7 +277,7 @@ export function CandidatsStatsCards({
   }
 
   return (
-    <StatsGrid cards={cards} cols={2} className={cn('w-full', className)} isLoading={isLoading} />
+    <StatsGrid cards={cards} cols={cols} className={cn('w-full', className)} isLoading={isLoading} />
   );
 }
 

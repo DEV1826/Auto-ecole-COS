@@ -22,7 +22,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { PROTECTED_ROUTES } from '@/config/routes';
 import { AdminWelcomeHeader } from '@/features/dashboard/components/admin/AdminWelcomeHeader';
 import { AdminStatsCards } from '@/features/dashboard/components/admin/AdminStatsCards';
-import { AuthStatsCards } from '@/features/dashboard/components/admin/AuthStatsCards';
+import { AuthStatsCards } from '@/features/admin/components/AuthStatsCards';
 import { CandidatsTable } from '@/features/candidats/components/CandidatsTable';
 import { AppActivityChart } from '@/features/dashboard/components/admin/AppActivityChart';
 import { FinanceOverviewCard } from '@/features/dashboard/components/admin/FinanceOverviewCard';
@@ -31,6 +31,7 @@ import type { Session, Utilisateur } from '@/types/auth.types';
 import type { Candidat } from '@/types/candidats.types';
 import type { CaisseStats, CaisseTrends, MouvementCaisse } from '@/types/caisse.types';
 import { getAvatarUrl } from '@/lib';
+import { Footer } from '@/components/footer';
 
 // ============================================================
 // Types
@@ -364,21 +365,7 @@ export default function AdminDashboard({
     },
   };
 
-  // ── Stats système mockées ───────────────────────────────────────────────
-  const authStats = {
-    totalUsers: 24,
-    totalUsersTrend: { value: 4, isPositive: true, label: 'vs mois dernier' },
-    totalUsersSparkline: {
-      values: [18, 20, 21, 22, 23, 24, 24],
-      labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil'],
-    },
-    totalAdmins: 2,
-    totalAdminsTrend: { value: 0, label: 'stable' },
-    totalSecretaires: 3,
-    totalSecretairesTrend: { value: 1, isPositive: true, label: 'ce mois' },
-    totalMoniteurs: 8,
-    totalMoniteursTrend: { value: -1, isPositive: false, label: 'vs mois dernier' },
-  };
+
 
   // ── Navigation ──────────────────────────────────────────────────────────
   const handleManageCandidats = () => navigate(PROTECTED_ROUTES.CANDIDATS.LIST);
@@ -420,7 +407,7 @@ export default function AdminDashboard({
   ).reduce((sum, m) => sum + m.montant, 0);
 
   return (
-    <div className="space-y-4 pb-10">
+    <div className="space-y-4">
       {/* En‑tête de bienvenue */}
       <AdminWelcomeHeader
         adminName={adminName}
@@ -519,19 +506,9 @@ export default function AdminDashboard({
         showLegend
         className="w-full"
       />
-      {/* Cartes statistiques système (utilisateurs) */}
-      <AuthStatsCards
-        totalUsers={authStats.totalUsers}
-        totalUsersTrend={authStats.totalUsersTrend}
-        totalUsersSparkline={authStats.totalUsersSparkline}
-        totalAdmins={authStats.totalAdmins}
-        totalAdminsTrend={authStats.totalAdminsTrend}
-        totalSecretaires={authStats.totalSecretaires}
-        totalSecretairesTrend={authStats.totalSecretairesTrend}
-        totalMoniteurs={authStats.totalMoniteurs}
-        totalMoniteursTrend={authStats.totalMoniteursTrend}
-        onCardClick={handleStatsCardClick}
-      />
+
+      <Footer variant="minim" />
+
     </div>
   );
 }

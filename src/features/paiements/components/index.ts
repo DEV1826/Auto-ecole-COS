@@ -8,3 +8,9 @@
 
 export { PaiementsStatsCards } from './PaiementsStatsCards';
 export type { PaiementsStatsCardsProps, PaiementsSparklineData } from './PaiementsStatsCards';
+
+export { PaiementsTable } from './PaiementsTable';
+export type { PaiementsTableProps, PaiementsPeriodFilter } from './PaiementsTable';
+
+export { PaiementsRecentCard } from './PaiementsRecentCard';
+export type { PaiementsRecentCardProps } from './PaiementsRecentCard';

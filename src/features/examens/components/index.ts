@@ -8,3 +8,7 @@
 
 export { ExamensStatsCards } from './ExamensStatsCards';
 export type { ExamensStatsCardsProps, ExamensSparklineData } from './ExamensStatsCards';
+export { ExamensTable } from './ExamensTable';
+export type { ExamensTableProps, ExamensPeriodFilter } from './ExamensTable';
+export { CandidatsExamsCard } from './CandidatsExamensCard';
+export type { CandidatsExamsCardProps } from './CandidatsExamensCard';

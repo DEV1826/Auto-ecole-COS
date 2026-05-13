@@ -341,14 +341,14 @@ export function VitaAreaChart({
         <div className="flex justify-end">
           <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger
-              className="h-8 w-35 rounded-xs text-xs"
+              className="h-8 w-35 rounded-md text-xs"
               aria-label="Sélectionner une période"
             >
               <SelectValue placeholder="Période" />
             </SelectTrigger>
-            <SelectContent className="rounded-xl">
+            <SelectContent className="rounded-md">
               {periodOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value} className="rounded-xs text-xs">
+                <SelectItem key={opt.value} value={opt.value} className="rounded-md text-xs">
                   {opt.label}
                 </SelectItem>
               ))}

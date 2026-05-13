@@ -175,9 +175,6 @@ const ExamensParCandidatPage = lazy(() =>
 const PaiementsListPage = lazy(() =>
   import('@/features/paiements').then((m) => ({ default: m.PaiementsListPage }))
 );
-const PaiementsParCandidatPage = lazy(() =>
-  import('@/features/paiements').then((m) => ({ default: m.PaiementsParCandidatPage }))
-);
 const PaiementCreatePage = lazy(() =>
   import('@/features/paiements').then((m) => ({ default: m.PaiementCreatePage }))
 );
@@ -222,15 +219,6 @@ const DepenseEditPage = lazy(() =>
 const CaisseIndexPage = lazy(() =>
   import('@/features/caisse').then((m) => ({ default: m.CaisseIndexPage }))
 );
-const CaisseEntreePage = lazy(() =>
-  import('@/features/caisse').then((m) => ({ default: m.CaisseEntreePage }))
-);
-const CaisseSortiePage = lazy(() =>
-  import('@/features/caisse').then((m) => ({ default: m.CaisseSortiePage }))
-);
-const CaisseRelevePage = lazy(() =>
-  import('@/features/caisse').then((m) => ({ default: m.CaisseRelevePage }))
-);
 
 // ---- RAPPORTS ----
 const RapportFinancierPage = lazy(() =>
@@ -274,9 +262,7 @@ const AdminAuditLogsPage = lazy(() =>
 const AdminCompanyConfigPage = lazy(() =>
   import('@/features/admin').then((m) => ({ default: m.AdminCompanyConfigPage }))
 );
-const AdminSessionsPage = lazy(() =>
-  import('@/features/admin').then((m) => ({ default: m.AdminSessionsPage }))
-);
+
 
 // ---- UTILITAIRES (Notifications, Help, API Docs) ----
 const NotificationsPage = lazy(() =>
@@ -500,10 +486,7 @@ export default function App() {
 
                   {/* Finances - tous rôles (lecture et création de paiements, factures, etc.) */}
                   <Route path={PROTECTED_ROUTES.PAIEMENTS.LIST} element={<PaiementsListPage />} />
-                  <Route
-                    path={PROTECTED_ROUTES.PAIEMENTS.PAR_CANDIDAT(':candidatId')}
-                    element={<PaiementsParCandidatPage />}
-                  />
+
                   <Route
                     path={PROTECTED_ROUTES.PAIEMENTS.CREATE}
                     element={<PaiementCreatePage />}
@@ -535,10 +518,6 @@ export default function App() {
                   />
 
                   <Route path={PROTECTED_ROUTES.CAISSE.INDEX} element={<CaisseIndexPage />} />
-                  <Route path={PROTECTED_ROUTES.CAISSE.ENTREE} element={<CaisseEntreePage />} />
-                  <Route path={PROTECTED_ROUTES.CAISSE.SORTIE} element={<CaisseSortiePage />} />
-                  <Route path={PROTECTED_ROUTES.CAISSE.RELEVE} element={<CaisseRelevePage />} />
-
                   {/* Rapports - accessibles à tous, mais certaines données sensibles filtrées par rôle */}
                   <Route
                     path={PROTECTED_ROUTES.RAPPORTS.FINANCIER}
@@ -588,7 +567,7 @@ export default function App() {
                       path={PROTECTED_ROUTES.ADMIN.COMPANY_CONFIG}
                       element={<AdminCompanyConfigPage />}
                     />
-                    <Route path={PROTECTED_ROUTES.ADMIN.SESSIONS} element={<AdminSessionsPage />} />
+
                   </Route>
 
                   {/* Utilitaires */}

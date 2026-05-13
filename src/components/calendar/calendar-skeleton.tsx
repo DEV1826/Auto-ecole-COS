@@ -68,11 +68,11 @@ export function CalendarWeekSkeleton({
         {Array.from({ length: 7 }).map((_, i) => (
           <div key={i} className="flex-1 flex flex-col items-center py-2 gap-1 border-r">
             <Skeleton className="h-3 w-8" />
-            <Skeleton className="h-7 w-7 rounded-xs" />
+            <Skeleton className="h-7 w-7 rounded-md" />
             <div className="flex gap-0.5">
-              <Skeleton className="h-1.5 w-1.5 rounded-xs" />
-              <Skeleton className="h-1.5 w-1.5 rounded-xs" />
-              <Skeleton className="h-1.5 w-1.5 rounded-xs" />
+              <Skeleton className="h-1.5 w-1.5 rounded-md" />
+              <Skeleton className="h-1.5 w-1.5 rounded-md" />
+              <Skeleton className="h-1.5 w-1.5 rounded-md" />
             </div>
           </div>
         ))}
@@ -108,13 +108,13 @@ export function CalendarWeekSkeleton({
               {/* Événements simulés */}
               {dayIdx % 2 === 0 && (
                 <div
-                  className="absolute left-0.5 right-0.5 rounded-xs border-l-2 bg-muted/50"
+                  className="absolute left-0.5 right-0.5 rounded-md border-l-2 bg-muted/50"
                   style={{ top: `${hourHeight * 2}px`, height: `${hourHeight * 1.5}px` }}
                 />
               )}
               {dayIdx % 3 === 1 && (
                 <div
-                  className="absolute left-0.5 right-0.5 rounded-xs border-l-2 bg-muted/50"
+                  className="absolute left-0.5 right-0.5 rounded-md border-l-2 bg-muted/50"
                   style={{ top: `${hourHeight * 6}px`, height: `${hourHeight * 2}px` }}
                 />
               )}
@@ -179,14 +179,14 @@ export function CalendarMonthSkeleton({
             >
               {/* Numéro du jour */}
               <div className="flex items-start justify-between mb-1">
-                <Skeleton className="h-6 w-6 rounded-xs" />
+                <Skeleton className="h-6 w-6 rounded-md" />
                 <Skeleton className="h-3 w-6" />
               </div>
               {/* Événements simulés */}
               <div className="space-y-1">
-                {idx % 2 === 0 && <Skeleton className="h-5 w-full rounded-xs" />}
-                {idx % 3 === 1 && <Skeleton className="h-5 w-3/4 rounded-xs" />}
-                {idx % 5 === 2 && <Skeleton className="h-5 w-2/3 rounded-xs" />}
+                {idx % 2 === 0 && <Skeleton className="h-5 w-full rounded-md" />}
+                {idx % 3 === 1 && <Skeleton className="h-5 w-3/4 rounded-md" />}
+                {idx % 5 === 2 && <Skeleton className="h-5 w-2/3 rounded-md" />}
               </div>
             </div>
           ))}
@@ -222,9 +222,9 @@ export function CalendarHeaderSkeleton({
     <div className={cn('flex items-center gap-2 px-4 py-3 border-b bg-background', className)}>
       {/* Navigation */}
       <div className="flex items-center gap-1">
-        <Skeleton className="h-8 w-8 rounded-xs" />
-        <Skeleton className="h-8 w-8 rounded-xs" />
-        <Skeleton className="h-8 w-20 rounded-xs hidden sm:block" />
+        <Skeleton className="h-8 w-8 rounded-md" />
+        <Skeleton className="h-8 w-8 rounded-md" />
+        <Skeleton className="h-8 w-20 rounded-md hidden sm:block" />
       </div>
 
       <Skeleton className="h-5 w-px hidden sm:block" />
@@ -238,20 +238,20 @@ export function CalendarHeaderSkeleton({
       <div className="flex-1" />
 
       {/* Recherche + filtres */}
-      <Skeleton className="h-8 w-8 rounded-xs" />
-      <Skeleton className="h-8 w-8 rounded-xs" />
+      <Skeleton className="h-8 w-8 rounded-md" />
+      <Skeleton className="h-8 w-8 rounded-md" />
 
       <Skeleton className="h-5 w-px hidden sm:block" />
 
       {/* Toggle vue */}
-      <div className="flex items-center gap-0.5 rounded-xs border p-0.5">
+      <div className="flex items-center gap-0.5 rounded-md border p-0.5">
         <Skeleton className="h-7 w-7 rounded" />
         <Skeleton className="h-7 w-7 rounded" />
       </div>
 
       {/* Bouton Ajouter */}
-      <Skeleton className="h-8 w-16 rounded-xs hidden sm:block" />
-      <Skeleton className="h-8 w-8 rounded-xs sm:hidden" />
+      <Skeleton className="h-8 w-16 rounded-md hidden sm:block" />
+      <Skeleton className="h-8 w-8 rounded-md sm:hidden" />
     </div>
   );
 }
@@ -296,7 +296,7 @@ export function CalendarSidebarSkeleton({
         {/* Grille jours */}
         <div className="grid grid-cols-7 gap-1">
           {monthCells.map((i) => (
-            <Skeleton key={i} className="h-7 w-full rounded-xs" />
+            <Skeleton key={i} className="h-7 w-full rounded-md" />
           ))}
         </div>
       </div>
@@ -305,7 +305,7 @@ export function CalendarSidebarSkeleton({
       <div className="flex-1 flex flex-col min-h-0">
         <div className="px-3 py-2 border-b">
           <div className="flex items-center gap-2">
-            <Skeleton className="h-4 w-4 rounded-xs" />
+            <Skeleton className="h-4 w-4 rounded-md" />
             <Skeleton className="h-4 w-28" />
           </div>
         </div>
@@ -313,7 +313,7 @@ export function CalendarSidebarSkeleton({
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="relative pl-6 pb-4">
               <div className="absolute left-0 top-0.5">
-                <Skeleton className="h-8 w-8 rounded-xs" />
+                <Skeleton className="h-8 w-8 rounded-md" />
               </div>
               <div className="ml-10 space-y-1">
                 <Skeleton className="h-4 w-32" />

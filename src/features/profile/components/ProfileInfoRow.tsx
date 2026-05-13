@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 /**
@@ -49,7 +50,7 @@ export interface ProfileInfoRowProps {
   value?: string | number | boolean | null | undefined | JSON | undefined;
   icon?: LucideIcon;
   type?: FieldType | 'action' | 'json';
-  onEdit?: (value: unknown) => Promise<void>;
+  onEdit?: (value?: any) => Promise<void> | void;
   onAction?: () => void;
   actionLabel?: string;
   actionIcon?: LucideIcon;
@@ -84,7 +85,7 @@ function BooleanBadge({ value }: { value: boolean }) {
       variant={value ? 'default' : 'secondary'}
       className={cn(
         'text-xs font-medium',
-        value ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : ''
+        value ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400' : ''
       )}
     >
       {value ? 'Activé' : 'Désactivé'}
@@ -154,7 +155,7 @@ function JsonValueDisplay({
       {entries.length > 0 ? (
         <>
           <div className="flex items-center gap-2 text-sm">
-            <ShieldCheck className="h-4 w-4 text-emerald-600" />
+            <ShieldCheck className="h-4 w-4 text-blue-600" />
             <span className="font-semibold">
               {activeCount} permission{activeCount > 1 ? 's' : ''}
             </span>
@@ -167,7 +168,7 @@ function JsonValueDisplay({
                 className={cn(
                   'text-[11px] capitalize',
                   enabled
-                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300'
+                    ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300'
                     : 'text-muted-foreground'
                 )}
               >
@@ -376,25 +377,25 @@ export function ProfileInfoRow({
   const fieldConfig: FieldConfig | null =
     !hasCustomContent && onEdit && !isActionType && !isPassword && !isJson
       ? {
-          field: label.toLowerCase().replace(/\s/g, '-'),
-          label,
-          type: type === 'stepper' ? 'number' : (type as FieldType),
-          defaultValue: value ?? '',
-          options,
-          placeholder,
-          description: editDescription,
-          icon: Icon,
-          unit,
-          min,
-          max,
-          step,
-          schema,
-          onSubmit: async (newValue) => {
-            if (onEdit) await onEdit(newValue);
-          },
-          useSwitch: type === 'boolean',
-          useStepper: type === 'stepper',
-        }
+        field: label.toLowerCase().replace(/\s/g, '-'),
+        label,
+        type: type === 'stepper' ? 'number' : (type as FieldType),
+        defaultValue: value ?? '',
+        options,
+        placeholder,
+        description: editDescription,
+        icon: Icon,
+        unit,
+        min,
+        max,
+        step,
+        schema,
+        onSubmit: async (newValue) => {
+          if (onEdit) await onEdit(newValue);
+        },
+        useSwitch: type === 'boolean',
+        useStepper: type === 'stepper',
+      }
       : null;
 
   if (loading) {
@@ -415,9 +416,9 @@ export function ProfileInfoRow({
         className={cn(
           'group flex items-start gap-4 py-3 transition-colors',
           !isActionType &&
-            (onEdit || hasCustomContent || isJson) &&
-            !disabled &&
-            'cursor-pointer hover:bg-muted/30 rounded-lg -mx-1 px-2',
+          (onEdit || hasCustomContent || isJson) &&
+          !disabled &&
+          'cursor-pointer hover:bg-muted/30 rounded-md -mx-1 px-2',
           className
         )}
         onClick={(e) => {
@@ -429,11 +430,11 @@ export function ProfileInfoRow({
         }}
       >
         {Icon && (
-          <Icon className="h-5 w-5 text-emerald-900 dark:text-muted-foreground mt-0.5 shrink-0" />
+          <Icon className="h-5 w-5 text-blue-900 dark:text-muted-foreground mt-0.5 shrink-0" />
         )}
 
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-emerald-900 dark:text-muted-foreground">{label}</p>
+          <p className="text-sm font-medium text-blue-900 dark:text-muted-foreground">{label}</p>
           <div className="mt-1">{displayRawValue()}</div>
         </div>
 

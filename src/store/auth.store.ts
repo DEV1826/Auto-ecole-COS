@@ -19,7 +19,6 @@ import type {
   LoginResponse,
   Utilisateur,
   UtilisateurDetail,
-  Permission,
   Session,
   UsersListResponse,
   AuditLog,
@@ -45,6 +44,7 @@ import {
 } from '../lib/validators/auth.validator';
 import { safeValidate, validateOrThrow } from '@/lib/validators/utils.validator';
 import { formatErrorMessage } from '@/lib/helpers/error.helper';
+import type { Permission } from '@/types/admin.types';
 
 // ===============================
 // TYPES INTERNES DU STORE

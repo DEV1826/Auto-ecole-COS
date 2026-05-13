@@ -143,7 +143,7 @@ function MiniCalendar({
               <button
                 onClick={() => onDateSelect(day)}
                 className={cn(
-                  'relative flex flex-col items-center justify-center w-7 h-7 text-[10px] rounded-xs',
+                  'relative flex flex-col items-center justify-center w-7 h-7 text-[10px] rounded-md',
                   'hover:bg-accent focus:outline-none focus:ring-1 focus:ring-primary/50',
                   !isCurrentMonth && 'opacity-30',
                   today && 'bg-blue-800 text-white font-bold hover:bg-blue-900',
@@ -155,7 +155,7 @@ function MiniCalendar({
                 {hasEvents && !today && (
                   <span
                     className={cn(
-                      'absolute bottom-0.5 h-0.5 w-3 rounded-xs',
+                      'absolute bottom-0.5 h-0.5 w-3 rounded-md',
                       hasUrgent ? 'bg-red-500' : 'bg-primary/60'
                     )}
                   />
@@ -166,7 +166,7 @@ function MiniCalendar({
                 <Button
                   variant="secondary"
                   size="icon"
-                  className="absolute -top-2 -right-2 h-5 w-5 rounded-xs shadow-md z-10"
+                  className="absolute -top-2 -right-2 h-5 w-5 rounded-md shadow-md z-10"
                   onClick={(e) => {
                     e.stopPropagation();
                     onNewEvent(day);
@@ -243,7 +243,7 @@ function SidebarEventItem({
         ) : (
           <div
             className={cn(
-              'flex h-8 w-8 items-center justify-center rounded-xs border-2 border-white bg-gray-100 text-gray-500 ring-2 ring-gray-200 dark:border-gray-800 dark:bg-gray-900 dark:ring-gray-800',
+              'flex h-8 w-8 items-center justify-center rounded-md border-2 border-white bg-gray-100 text-gray-500 ring-2 ring-gray-200 dark:border-gray-800 dark:bg-gray-900 dark:ring-gray-800',
               config.textColor
             )}
           >
@@ -388,10 +388,10 @@ export function CalendarSidebar({
   const todayLabel = isToday(displayDate)
     ? "Aujourd'hui"
     : displayDate.toLocaleDateString('fr-FR', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-      });
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
 
   // Mode replié
   if (collapsible && collapsed) {
@@ -437,7 +437,7 @@ export function CalendarSidebar({
           <Button
             variant="ghost"
             size="icon"
-            className="h-5 w-5 rounded-xs bg-background border-gray-700 hover:bg-gray-100 focus:ring-1 focus:ring-primary/50"
+            className="h-5 w-5 rounded-md bg-background border-gray-700 hover:bg-gray-100 focus:ring-1 focus:ring-primary/50"
             onClick={() => setCollapsed(true)}
           >
             <ChevronRightIcon className="h-3 w-3" />

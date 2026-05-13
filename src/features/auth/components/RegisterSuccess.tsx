@@ -55,7 +55,7 @@ export function RegisterSuccess({ email }: RegisterSuccessProps) {
             initial={{ scale: 0 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
-            className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xs bg-blue-100 dark:bg-blue-900/40"
+            className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-md bg-blue-100 dark:bg-blue-900/40"
           >
             <CheckCircle2 className="h-10 w-10 text-blue-700 dark:text-blue-400" />
           </motion.div>
@@ -72,7 +72,7 @@ export function RegisterSuccess({ email }: RegisterSuccessProps) {
           </p>
           <Button
             asChild
-            className="w-full gap-2 bg-blue-700 hover:bg-blue-800 text-white rounded-xl h-12 text-base font-semibold"
+            className="w-full gap-2 bg-blue-700 hover:bg-blue-800 text-white rounded-md h-12 text-base font-semibold"
           >
             <Link to={PUBLIC_ROUTES.AUTH.LOGIN}>
               Se connecter

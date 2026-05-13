@@ -116,7 +116,7 @@ export function HeroCarousel({
         <CarouselContent>
           {slides.map((slide, idx) => (
             <CarouselItem key={idx}>
-              <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl bg-muted/30">
+              <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-md bg-muted/30">
                 <img
                   src={slide.image}
                   alt={slide.title || `Slide ${idx + 1}`}

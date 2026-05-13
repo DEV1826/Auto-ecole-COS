@@ -23,7 +23,6 @@
 import { useEffect, useCallback } from 'react';
 import type {
   Utilisateur,
-  Permission,
   Session,
   AuditLog,
   UsersListResponse,
@@ -31,6 +30,7 @@ import type {
   LoginCredentials,
 } from '../types/auth.types';
 import { useAuthStore } from '@/store/auth.store';
+import type { Permission } from '@/types/admin.types';
 
 // ===============================
 // INTERFACE DE RETOUR DU HOOK

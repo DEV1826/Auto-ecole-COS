@@ -240,11 +240,11 @@ export interface DocumentsTableActions {
  * ```
  */
 export interface DocumentsEnrichments {
-  getCandidatNomComplet?: (document: Document) => string;
-  getCandidatEmail?: (document: Document) => string;
-  getCandidatTelephone?: (document: Document) => string;
-  getCandidatAvatarUrl?: (document: Document) => string;
-  getCandidatInitials?: (document: Document) => string;
+  getCandidatNomComplet?: () => string;
+  getCandidatEmail?: () => string;
+  getCandidatTelephone?: () => string;
+  getCandidatAvatarUrl?: () => string;
+  getCandidatInitials?: () => string;
 }
 
 /**

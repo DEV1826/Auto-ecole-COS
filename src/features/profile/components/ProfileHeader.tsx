@@ -45,7 +45,7 @@ import { fr } from 'date-fns/locale';
 import { Camera, type LucideIcon, Clock } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn, getAvatarUrl } from '@/lib/utils';
 import { EditFieldDialog, type FieldConfig } from './ProfileForms';
@@ -233,7 +233,7 @@ export function ProfileHeader({
   onAvatarChange,
   decorativeIcon = (
     <svg
-      className="absolute -right-12 -top-12 h-40 w-40 text-emerald-500"
+      className="absolute -right-12 -top-12 h-40 w-40 text-blue-500"
       fill="currentColor"
       viewBox="0 0 24 24"
     >
@@ -298,7 +298,7 @@ export function ProfileHeader({
   return (
     <div className={cn('space-y-6', className)}>
       {/* Carte principale */}
-      <div className={cn('relative overflow-hidden  bg-background rounded-xl border-none!')}>
+      <Card className={cn('relative overflow-hidden rounded-md border-none!')}>
         <CardContent className="p-6">
           {/* Icône décorative de fond */}
           <div
@@ -312,9 +312,9 @@ export function ProfileHeader({
             {/* ── COLONNE GAUCHE : AVATAR XL ─────────────────────────────── */}
             <div className="flex justify-center sm:block shrink-0">
               <div className="relative group/avatar cursor-pointer">
-                <Avatar className="h-32 w-32  shadow-lg">
+                <Avatar className="h-32 w-32  shadow-lg rounded-full">
                   <AvatarImage src={avatarUrl ?? undefined} alt={fullName} />
-                  <AvatarFallback className="bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-200 font-semibold text-3xl">
+                  <AvatarFallback className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 font-semibold text-3xl">
                     {getInitials(firstName, lastName)}
                   </AvatarFallback>
                 </Avatar>
@@ -332,8 +332,8 @@ export function ProfileHeader({
                 {/* Indicateur de statut actif/inactif */}
                 <span
                   className={cn(
-                    'absolute bottom-2 right-2 h-5 w-5 rounded-full border-2 border-white ring-1 ring-emerald-200',
-                    isActive ? 'bg-emerald-500' : 'bg-slate-400'
+                    'absolute bottom-2 right-2 h-5 w-5 rounded-full border-2 border-white ring-1 ring-blue-200',
+                    isActive ? 'bg-blue-500' : 'bg-slate-400'
                   )}
                   title={isActive ? 'Compte actif' : 'Compte inactif'}
                 />
@@ -353,21 +353,21 @@ export function ProfileHeader({
               {/* Nom + badges avec édition du nom */}
               <div className="flex flex-wrap items-center gap-2">
                 <div className="group/name flex items-center gap-1">
-                  <h1 className="text-xl sm:text-2xl font-semibold text-emerald-700 dark:text-emerald-200">
-                    <span className="font-bold tracking-tight text-emerald-900 dark:text-emerald-50">
+                  <h1 className="text-xl sm:text-2xl font-semibold text-blue-700 dark:text-blue-200">
+                    <span className="font-bold tracking-tight text-blue-900 dark:text-blue-50">
                       {greeting}
                     </span>{' '}
                     {fullName}
                   </h1>
                 </div>
-                <Badge className="bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-200 border-0 font-medium">
+                <Badge className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 border-0 font-medium">
                   {roleLabel}
                 </Badge>
               </div>
 
               {/* Sous-titre */}
               {subtitle && (
-                <p className="text-sm text-emerald-600 dark:text-emerald-400">{subtitle}</p>
+                <p className="text-sm text-blue-600 dark:text-blue-400">{subtitle}</p>
               )}
 
               {/* Message contextuel */}
@@ -377,7 +377,7 @@ export function ProfileHeader({
                     <span
                       key={i}
                       className={cn(
-                        segment.highlight && 'font-semibold text-emerald-600 dark:text-emerald-400',
+                        segment.highlight && 'font-semibold text-blue-600 dark:text-blue-400',
                         segment.colorClass
                       )}
                     >
@@ -390,7 +390,7 @@ export function ProfileHeader({
               {/* Dernière connexion (affichage clair avec icône et texte) */}
               {lastLoginAt && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/30 rounded-md px-3 py-1.5 w-fit">
-                  <Clock className="h-4 w-4 text-emerald-600" />
+                  <Clock className="h-4 w-4 text-blue-600" />
                   <span>
                     Dernière connexion :{' '}
                     <span className="font-medium text-foreground">
@@ -405,7 +405,7 @@ export function ProfileHeader({
             </div>
           </div>
         </CardContent>
-      </div>
+      </Card>
 
       {/* Dialogue d'édition modale */}
       {editingField && (
@@ -418,10 +418,10 @@ export function ProfileHeader({
             options:
               editingField.field === 'gender'
                 ? [
-                    { value: 'M', label: 'Homme' },
-                    { value: 'F', label: 'Femme' },
-                    { value: 'O', label: 'Autre' },
-                  ]
+                  { value: 'M', label: 'Homme' },
+                  { value: 'F', label: 'Femme' },
+                  { value: 'O', label: 'Autre' },
+                ]
                 : undefined,
             onSubmit: editingField.onSubmit,
           }}

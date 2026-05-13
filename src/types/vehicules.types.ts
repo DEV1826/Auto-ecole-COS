@@ -165,19 +165,13 @@ export interface Vehicule {
  * @property {number} totalVehicules - Nombre total de véhicules dans le parc
  * @property {number} disponibles - Nombre de véhicules disponibles
  * @property {number} enLecon - Nombre de véhicules actuellement en leçon
- * @property {number} enEntretien - Nombre de véhicules en entretien
- * @property {number} horsService - Nombre de véhicules hors service
  * @property {number} kilometrageMoyen - Kilométrage moyen de l’ensemble du parc
- * @property {number} entretiensAnnee - Nombre d’entretiens effectués dans l’année
  */
 export interface VehiculesStats {
   totalVehicules: number;
   disponibles: number;
   enLecon: number;
-  enEntretien: number;
-  horsService: number;
   kilometrageMoyen: number;
-  entretiensAnnee: number;
 }
 
 /**

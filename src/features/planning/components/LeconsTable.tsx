@@ -52,7 +52,7 @@
  */
 
 import * as React from 'react';
-import { Calendar, RefreshCw, ChevronRight, PlusCircle } from 'lucide-react';
+import { Calendar, RefreshCw, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { DataTable } from '@/components/tables/data-table';
@@ -128,9 +128,6 @@ export interface LeconsTableProps {
     /** Callback du bouton « Voir tout » */
     onViewAll?: () => void;
 
-    /** Afficher le bouton « Ajouter leçon » */
-    showAddButton?: boolean;
-
     /** Callback du bouton « Ajouter leçon » */
     onAddClick?: () => void;
 
@@ -197,7 +194,6 @@ export function LeconsTable({
     description,
     showViewAll = false,
     onViewAll,
-    showAddButton = false,
     onAddClick,
     variant = 'admin',
     columnConfig,
@@ -277,7 +273,7 @@ export function LeconsTable({
         <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-2.5">
                 {/* Icône */}
-                <div className="flex items-center justify-center h-9 w-9 rounded-xs bg-blue-700 text-white shrink-0">
+                <div className="flex items-center justify-center h-9 w-9 rounded-md bg-blue-700 text-white shrink-0">
                     <Calendar className="h-4.5 w-4.5" />
                 </div>
                 {/* Titre + badges */}
@@ -320,12 +316,7 @@ export function LeconsTable({
                 </div>
             </div>
             <div className="flex items-center gap-1">
-                {showAddButton && onAddClick && (
-                    <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={onAddClick}>
-                        <PlusCircle className="h-3.5 w-3.5" />
-                        Ajouter
-                    </Button>
-                )}
+
                 {extraActions}
             </div>
         </div>
@@ -348,6 +339,8 @@ export function LeconsTable({
                 searchColumn="candidatId"
                 searchPlaceholder="Rechercher par candidat…"
                 extraActions={undefined}
+                onAddClick={onAddClick}
+                addButtonText='Planifier une leçon'
                 onRowClick={actions.onView}
                 emptyMessage={emptyMessage}
                 onEmptyActionLabel="Actualiser"
@@ -361,7 +354,7 @@ export function LeconsTable({
     // Rendu final
     if (asCard) {
         return (
-            <Card className={cn('overflow-hidden shadow-sm rounded-xs', className)}>
+            <Card className={cn('overflow-hidden shadow-sm rounded-md', className)}>
                 <CardHeader className="pb-3 border-b">{header}</CardHeader>
                 <CardContent className="pt-4">{tableContent}</CardContent>
             </Card>

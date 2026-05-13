@@ -265,7 +265,7 @@ const METRICS_CONFIG: MetricConfig[] = [
   {
     key: 'newCandidats',
     label: 'Candidats',
-    fullLabel: 'Nouvelles inscriptions candidats',
+    fullLabel: 'Nouvelles inscriptions',
     icon: ({ className }) => <Users className={className} />,
     color: 'var(--chart-1)',
     description: 'Nombre de candidats inscrits',
@@ -320,9 +320,9 @@ const METRICS_CONFIG: MetricConfig[] = [
   {
     key: 'depenses',
     label: 'Dépenses',
-    fullLabel: 'Dépenses enregistrées',
+    fullLabel: 'Dépenses',
     icon: ({ className }) => <TrendingDown className={className} />,
-    color: '#d97706', // ambre
+    color: '#d97706',
     description: 'Montant total des dépenses (FCFA)',
     group: 'finances',
     suffix: ' FCFA',
@@ -330,9 +330,9 @@ const METRICS_CONFIG: MetricConfig[] = [
   {
     key: 'tauxReussite',
     label: 'Réussite',
-    fullLabel: 'Taux de réussite aux examens',
+    fullLabel: 'Taux de réussite',
     icon: ({ className }) => <Activity className={className} />,
-    color: '#0ea5e9', // bleu ciel
+    color: '#0ea5e9',
     description: 'Pourcentage de réussite',
     group: 'performance',
     suffix: '%',
@@ -704,12 +704,12 @@ export function AppActivityChart({
 
   // Rendu principal
   return (
-    <Card className={cn('w-full @container/card overflow-hidden rounded-xs', className)}>
+    <Card className={cn('w-full @container/card overflow-hidden rounded-md', className)}>
       <CardHeader className="pb-3 space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1.5 min-w-0">
             <CardTitle className="flex items-center gap-2 text-base">
-              <div className="flex items-center justify-center h-7 w-7 rounded-xs bg-emerald-700 text-white shrink-0">
+              <div className="flex items-center justify-center h-7 w-7 rounded-md bg-emerald-700 text-white shrink-0">
                 <Activity className="h-4 w-4" />
               </div>
               {title}
@@ -725,7 +725,7 @@ export function AppActivityChart({
                         <Badge
                           variant="outline"
                           className={cn(
-                            'gap-1 text-[10px] h-5 px-1.5 border-0 cursor-default rounded-xs',
+                            'gap-1 text-[10px] h-5 px-1.5 border-0 cursor-default rounded-md',
                             candidatsTrend.isPositive
                               ? 'bg-emerald-50 text-emerald-700'
                               : 'bg-red-50 text-red-700'
@@ -753,7 +753,7 @@ export function AppActivityChart({
                         <Badge
                           variant="outline"
                           className={cn(
-                            'gap-1 text-[10px] h-5 px-1.5 border-0 cursor-default rounded-xs',
+                            'gap-1 text-[10px] h-5 px-1.5 border-0 cursor-default rounded-md',
                             leconsTrend.isPositive
                               ? 'bg-emerald-50 text-emerald-700'
                               : 'bg-red-50 text-red-700'
@@ -779,7 +779,7 @@ export function AppActivityChart({
                         <Badge
                           variant="outline"
                           className={cn(
-                            'gap-1 text-[10px] h-5 px-1.5 border-0 cursor-default rounded-xs',
+                            'gap-1 text-[10px] h-5 px-1.5 border-0 cursor-default rounded-md',
                             paiementsTrend.isPositive
                               ? 'bg-emerald-50 text-emerald-700'
                               : 'bg-red-50 text-red-700'
@@ -811,7 +811,7 @@ export function AppActivityChart({
               variant="outline"
               pressed={showComparison}
               onPressedChange={setShowComparison}
-              className="h-8 text-xs rounded-xs"
+              className="h-8 text-xs rounded-md"
             >
               <GitCompare className="mr-1 h-3.5 w-3.5" />
               <span className="hidden sm:inline">Comparer</span>
@@ -819,12 +819,12 @@ export function AppActivityChart({
             {onExport && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 gap-1.5 rounded-xs">
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5 rounded-md">
                     <Download className="h-3.5 w-3.5" />
                     <span className="hidden sm:inline text-xs">Export</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="rounded-xs">
+                <DropdownMenuContent align="end" className="rounded-md">
                   <DropdownMenuItem onClick={() => onExport('csv')} className="gap-2 text-xs">
                     CSV
                   </DropdownMenuItem>
@@ -839,7 +839,7 @@ export function AppActivityChart({
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 w-8 p-0 rounded-xs"
+                className="h-8 w-8 p-0 rounded-md"
                 onClick={handleRefresh}
                 disabled={isRefreshing}
               >
@@ -897,7 +897,7 @@ export function AppActivityChart({
             .map((m) => (
               <div
                 key={m.key}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 rounded-xs px-2 py-1"
+                className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 rounded-md px-2 py-1"
               >
                 <span
                   className="h-1.5 w-1.5 rounded-full shrink-0"
@@ -925,7 +925,7 @@ export function AppActivityChart({
           showLegend={showLegend}
           onChartTypeChange={handleChartTypeChange}
           dateKey="date"
-          className="border-0 shadow-none rounded-xs"
+          className="border-0 shadow-none rounded-md"
         />
       </CardContent>
 

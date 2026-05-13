@@ -266,12 +266,12 @@ function colCandidatEnriched(enrichments: FacturesEnrichments): ColumnDef<Factur
     accessorKey: 'candidatId',
     title: 'Candidat',
     icon: User,
-    getAvatarUrl: (f) => getCandidatAvatarUrl?.(f) ?? '',
-    getInitials: (f) => getCandidatInitials?.(f) ?? '?',
-    getPrimaryText: (f) => getCandidatNomComplet(f),
-    getSecondaryText: (f) => {
-      const email = getCandidatEmail?.(f);
-      const phone = getCandidatTelephone?.(f);
+    getAvatarUrl: () => getCandidatAvatarUrl?.() ?? '',
+    getInitials: () => getCandidatInitials?.() ?? '?',
+    getPrimaryText: () => getCandidatNomComplet(),
+    getSecondaryText: () => {
+      const email = getCandidatEmail?.();
+      const phone = getCandidatTelephone?.();
       if (email && phone) return `${email} · ${phone}`;
       return email ?? phone ?? '';
     },

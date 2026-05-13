@@ -191,9 +191,9 @@ export function MoniteursStatsCards({
       trend: buildTrend(trends.totalMoniteurs, 'vs période précédente'),
       sparklineData: totalMoniteursSparkline
         ? {
-            values: totalMoniteursSparkline.values,
-            labels: totalMoniteursSparkline.labels,
-          }
+          values: totalMoniteursSparkline.values,
+          labels: totalMoniteursSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('total-moniteurs'),
     },
@@ -207,9 +207,9 @@ export function MoniteursStatsCards({
       trend: buildTrend(trends.actifs, 'vs période précédente'),
       sparklineData: actifsSparkline
         ? {
-            values: actifsSparkline.values,
-            labels: actifsSparkline.labels,
-          }
+          values: actifsSparkline.values,
+          labels: actifsSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('moniteurs-actifs'),
     },
@@ -223,9 +223,9 @@ export function MoniteursStatsCards({
       trend: buildTrend(trends.totalHeuresLeçons, 'vs période précédente'),
       sparklineData: totalHeuresSparkline
         ? {
-            values: totalHeuresSparkline.values,
-            labels: totalHeuresSparkline.labels,
-          }
+          values: totalHeuresSparkline.values,
+          labels: totalHeuresSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('total-heures-lecons'),
     },
@@ -239,9 +239,9 @@ export function MoniteursStatsCards({
       trend: undefined, // généralement pas de tendance directe, pourrait être ajoutée
       sparklineData: moyenneHeuresSparkline
         ? {
-            values: moyenneHeuresSparkline.values,
-            labels: moyenneHeuresSparkline.labels,
-          }
+          values: moyenneHeuresSparkline.values,
+          labels: moyenneHeuresSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('moyenne-heures'),
     },

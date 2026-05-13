@@ -26,7 +26,7 @@ export function ItemAvatar() {
           <ItemDescription>Last seen 5 months ago</ItemDescription>
         </ItemContent>
         <ItemActions>
-          <Button size="icon-sm" variant="outline" className="rounded-xs" aria-label="Invite">
+          <Button size="icon-sm" variant="outline" className="rounded-md" aria-label="Invite">
             <Plus />
           </Button>
         </ItemActions>

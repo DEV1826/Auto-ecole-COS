@@ -125,7 +125,7 @@ export function ProfileMobileNav({
                 'flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium ',
                 'whitespace-nowrap',
                 activeSection === section.id
-                  ? 'bg-emerald-800 text-white'
+                  ? 'bg-blue-800 text-white'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
             >

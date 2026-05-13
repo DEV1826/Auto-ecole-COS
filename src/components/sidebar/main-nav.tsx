@@ -252,7 +252,7 @@ export function MainNav({ items, title, size = 'lg', className }: MainNavProps) 
                 isActive={active}
                 className={cn(
                   styles.button,
-                  'w-full justify-start gap-2.5 px-3 py-0 transition-all duration-200',
+                  'w-full justify-start gap-2.5 rounded-md px-3 py-0 transition-all duration-200',
                   active && activeButtonClass
                 )}
               >

@@ -179,7 +179,7 @@ export default function OtpForm() {
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
           <DialogHeader>
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xs bg-muted">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-md bg-muted">
               <MailWarning className="h-6 w-6 text-destructive" />
             </div>
             <DialogTitle className="text-center">Adresse email manquante</DialogTitle>

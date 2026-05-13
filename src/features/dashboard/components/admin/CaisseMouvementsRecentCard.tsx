@@ -6,7 +6,7 @@
  * Carte des **mouvements récents de caisse** – version 2 ultra‑améliorée.
  *
  * Design cohérent avec `StatsCard` (fond gradient from-primary/5 to-card,
- * `rounded-xs`, `ring-0`, `shadow-[0_8px_30px_-15px_rgb(70,95,255,0.18)]`,
+ * `rounded-md`, `ring-0`, `shadow-[0_8px_30px_-15px_rgb(70,95,255,0.18)]`,
  * `backdrop-blur-2xl`, sans bordure visible).
  *
  * ## Améliorations majeures
@@ -190,13 +190,13 @@ function MouvementSkeleton() {
       <div className="flex items-center gap-3">
         <Skeleton className="size-10 rounded-full" />
         <div className="space-y-1.5">
-          <Skeleton className="h-3.5 w-32 rounded-xs" />
-          <Skeleton className="h-3 w-20 rounded-xs" />
+          <Skeleton className="h-3.5 w-32 rounded-md" />
+          <Skeleton className="h-3 w-20 rounded-md" />
         </div>
       </div>
       <div className="flex flex-col items-end gap-1.5">
-        <Skeleton className="h-3.5 w-20 rounded-xs" />
-        <Skeleton className="h-3 w-12 rounded-xs" />
+        <Skeleton className="h-3.5 w-20 rounded-md" />
+        <Skeleton className="h-3 w-12 rounded-md" />
       </div>
     </li>
   );
@@ -229,7 +229,7 @@ export function CaisseMouvementsRecentCard({
     <div className={cn('col-span-12 lg:col-span-7 xl:col-span-4', className)}>
       <Card
         className={cn(
-          'rounded-xs overflow-hidden flex flex-col h-full',
+          'rounded-md overflow-hidden flex flex-col h-full',
           'backdrop-blur-2xl'
         )}
       >
@@ -237,7 +237,7 @@ export function CaisseMouvementsRecentCard({
         <div className="px-1 pt-5 sm:px-6 sm:pt-6">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xs bg-blue-800 text-white">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-blue-800 text-white">
                 <History className="size-5" />
               </div>
               <div>
@@ -254,7 +254,7 @@ export function CaisseMouvementsRecentCard({
             {!isLoading && mouvements.length > 0 && onViewAll && (
               <button
                 onClick={onViewAll}
-                className="flex items-center gap-1 rounded-xs px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
               >
                 Voir plus
                 <ChevronRight className="size-3.5" />
@@ -290,9 +290,9 @@ export function CaisseMouvementsRecentCard({
             </div>
           ) : isLoading ? (
             <div className="mt-5 flex gap-4 border-t border-border/30 pt-4">
-              <Skeleton className="h-12 w-24 rounded-xs" />
-              <Skeleton className="h-12 w-24 rounded-xs" />
-              <Skeleton className="h-12 w-24 rounded-xs" />
+              <Skeleton className="h-12 w-24 rounded-md" />
+              <Skeleton className="h-12 w-24 rounded-md" />
+              <Skeleton className="h-12 w-24 rounded-md" />
             </div>
           ) : null}
         </div>
@@ -318,7 +318,7 @@ export function CaisseMouvementsRecentCard({
                 return (
                   <li
                     key={mouvement.id}
-                    className="group flex items-center justify-between py-2.5 transition-all hover:bg-primary/5 -mx-1 px-1 rounded-xs"
+                    className="group flex items-center justify-between py-2.5 transition-all hover:bg-primary/5 -mx-1 px-1 rounded-md"
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <MouvementAvatar type={mouvement.type} />

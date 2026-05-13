@@ -1,4 +1,5 @@
 // src/components/tables/documents/documents-columns.tsx
+'use client';
 
 /**
  * @module tables/documents/documents-columns
@@ -66,6 +67,9 @@ import { cn } from '@/lib/utils';
 import type { Document, DocumentsEnrichments } from '@/types/documents.types';
 import type { DocumentsTableActions, DocumentsColumnsOptions } from '@/types/documents.types';
 import type { RowActionsConfig, CustomRowAction } from '@/components/tables/types';
+import { useTheme } from 'next-themes';
+
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIGURATION DES TYPES DE DOCUMENTS (pour les icônes SVG)
@@ -151,11 +155,19 @@ function getDocumentTypeConfig(type: string) {
  * @internal
  */
 function colDocumentInfo(): ColumnDef<Document> {
+
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const { resolvedTheme } = useTheme();
+
+
+  const isDark = resolvedTheme === 'dark';
+
   return createAvatarWithTextColumn<Document>({
     accessorKey: 'nomFichier',
     title: 'Document',
     icon: FileText,
-    getAvatarUrl: (doc) => getDocumentIconPath(doc.type).light,
+    getAvatarUrl: (doc) => !isDark ? getDocumentIconPath(doc.type).light : getDocumentIconPath(doc.type).dark,
     getInitials: () => '📄',
     getPrimaryText: (doc) => doc.nomFichier,
     getSecondaryText: (doc) => formatBytes(doc.taille),
@@ -410,6 +422,7 @@ export function getDocumentsColumns({
     showCandidat = variant !== 'candidat',
     showActions = true,
   } = columnConfig;
+
 
   const cols: ColumnDef<Document>[] = [];
 

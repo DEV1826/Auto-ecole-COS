@@ -58,7 +58,7 @@ export const EmailInput = forwardRef<HTMLInputElement, EmailInputProps>(
     return (
       <div className={cn('flex flex-col gap-1.5', className)}>
         <InputGroup
-          className="h-10 group focus-within:ring-2 focus-within:ring-primary/20 rounded-xs border bg-background transition-all overflow-hidden"
+          className="h-12 group focus-within:ring-2 focus-within:ring-primary/20 rounded-md border bg-background transition-all overflow-hidden"
           data-invalid={error}
         >
           {/* Icône Mail à gauche */}

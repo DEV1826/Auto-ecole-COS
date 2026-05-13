@@ -214,7 +214,7 @@ export function FileDropzone({
         tabIndex={0}
         aria-label={label ?? 'Zone de dépôt de fichier'}
         className={cn(
-          'relative cursor-pointer rounded-xl border-2 border-dashed transition-all duration-200',
+          'relative cursor-pointer rounded-md border-2 border-dashed transition-all duration-200',
           'p-6',
           'bg-muted/30 dark:bg-muted/10',
           isDragging
@@ -254,10 +254,10 @@ export function FileDropzone({
                 <img
                   src={preview}
                   alt={fileName}
-                  className="h-10 w-10 rounded-xs object-cover border border-blue-100 dark:border-blue-900"
+                  className="h-10 w-10 rounded-md object-cover border border-blue-100 dark:border-blue-900"
                 />
               ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-xs bg-white dark:bg-white/5 border border-border">
+                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-white dark:bg-white/5 border border-border">
                   <img
                     src={getFileIcon(fileType)}
                     alt=""
@@ -275,7 +275,7 @@ export function FileDropzone({
                 <p className="text-sm font-medium text-foreground truncate">{fileName}</p>
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <span>{getReadableType(fileType)}</span>
-                  <span className="inline-block w-1 h-1 bg-muted-foreground rounded-xs" />
+                  <span className="inline-block w-1 h-1 bg-muted-foreground rounded-md" />
                   <span>{fileSize}</span>
                 </div>
               </div>
@@ -286,7 +286,7 @@ export function FileDropzone({
               type="button"
               variant="ghost"
               size="icon"
-              className="h-8 w-8 rounded-xs text-muted-foreground hover:text-destructive shrink-0"
+              className="h-8 w-8 rounded-md text-muted-foreground hover:text-destructive shrink-0"
               onClick={(e) => {
                 e.stopPropagation();
                 handleRemove();
@@ -299,7 +299,7 @@ export function FileDropzone({
         ) : (
           // ── Zone vide ─────────────────────────────────────────────
           <div className="flex flex-col items-center">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xs bg-muted text-muted-foreground dark:bg-muted/50">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-md bg-muted text-muted-foreground dark:bg-muted/50">
               <Upload className="h-6 w-6" />
             </div>
             <h4 className="mb-2 text-sm font-semibold text-foreground">{dropLabel}</h4>

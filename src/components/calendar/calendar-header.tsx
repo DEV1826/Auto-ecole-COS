@@ -232,7 +232,7 @@ export function CalendarHeader({
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 text-xs hidden rounded-xs sm:inline-flex"
+                className="h-8 text-xs hidden rounded-md sm:inline-flex"
                 onClick={onToday}
               >
                 <RotateCcw className="h-3 w-3 mr-1.5" />
@@ -247,7 +247,7 @@ export function CalendarHeader({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 rounded-xs sm:hidden"
+          className="h-8 w-8 rounded-md sm:hidden"
           onClick={onToday}
         >
           <RotateCcw className="h-3.5 w-3.5" />
@@ -322,7 +322,7 @@ export function CalendarHeader({
           >
             <Filter className="h-3.5 w-3.5" />
             {hasActiveFilters && (
-              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-xs bg-blue-800" />
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-md bg-blue-800" />
             )}
           </Button>
         </DropdownMenuTrigger>
@@ -342,7 +342,7 @@ export function CalendarHeader({
               className="text-xs"
             >
               <div className="flex items-center gap-2">
-                <span className={cn('h-2 w-2 rounded-xs shrink-0', config.dotColor)} />
+                <span className={cn('h-2 w-2 rounded-md shrink-0', config.dotColor)} />
                 {config.label}
               </div>
             </DropdownMenuCheckboxItem>
@@ -365,7 +365,7 @@ export function CalendarHeader({
       <Separator orientation="vertical" className="h-5" />
 
       {/* ── Toggle vue (semaine / mois) ──────────────────────── */}
-      <div className="flex items-center gap-0.5 rounded-xs border p-0.5 bg-muted/50">
+      <div className="flex items-center gap-0.5 rounded-md border p-0.5 bg-muted/50">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -409,7 +409,7 @@ export function CalendarHeader({
       {canCreate && (
         <Button
           size="sm"
-          className="h-8 gap-1.5 text-xs rounded-xs bg-blue-800 text-white dark:bg-blue-600"
+          className="h-8 gap-1.5 text-xs rounded-md bg-blue-800 text-white dark:bg-blue-600"
           onClick={onCreateClick}
         >
           <Plus className="h-3.5 w-3.5" />

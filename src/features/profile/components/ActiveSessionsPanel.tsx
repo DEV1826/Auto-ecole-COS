@@ -138,7 +138,7 @@ const LoadingSkeleton = () => (
         key={i}
         className="flex items-center gap-4 p-4 rounded-2xl border border-dashed animate-pulse"
       >
-        <Skeleton className="h-16 w-16 rounded-xl bg-emerald-100/20" />
+        <Skeleton className="h-16 w-16 rounded-md bg-emerald-100/20" />
         <div className="flex-1 space-y-2">
           <Skeleton className="h-4 w-1/3 bg-emerald-100/20" />
           <Skeleton className="h-3 w-1/2 opacity-50" />
@@ -191,14 +191,14 @@ const SessionList = ({
               <div
                 key={session.id}
                 className={cn(
-                  'group relative flex items-center gap-4 p-2 rounded-xs transition-all duration-300',
+                  'group relative flex items-center gap-4 p-2 rounded-md transition-all duration-300',
                   'bg-white/40 dark:bg-zinc-900/40 backdrop-blur-md border border-white/20 dark:border-white/5',
                   'hover:shadow-lg hover:shadow-emerald-500/5 hover:border-emerald-500/30',
                   isCurrent && 'ring-1 ring-emerald-500 bg-emerald-50/30 dark:bg-emerald-500/5'
                 )}
               >
                 {/* Image du produit (Device) */}
-                <div className="relative h-14 w-14 shrink-0 flex items-center justify-center rounded-xs bg-white dark:bg-zinc-800 shadow-sm">
+                <div className="relative h-14 w-14 shrink-0 flex items-center justify-center rounded-md bg-white dark:bg-zinc-800 shadow-sm">
                   <img
                     src={meta.image}
                     alt={session.userAgent || ''}
@@ -404,14 +404,14 @@ export function ActiveSessionsPanel({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="sm:justify-center gap-2">
-            <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-md">Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
                 handleTerminateAction();
               }}
               disabled={isActionInProgress}
-              className="bg-destructive hover:bg-destructive/90 rounded-xl"
+              className="bg-destructive hover:bg-destructive/90 rounded-md"
             >
               {isActionInProgress ? 'Fermeture...' : 'Confirmer la révocation'}
             </AlertDialogAction>
@@ -433,14 +433,14 @@ export function ActiveSessionsPanel({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="sm:justify-center gap-2">
-            <AlertDialogCancel className="rounded-xl">Annuler</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-md">Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
                 handleLogoutAllAction();
               }}
               disabled={isActionInProgress}
-              className="bg-destructive hover:bg-destructive/90 rounded-xl"
+              className="bg-destructive hover:bg-destructive/90 rounded-md"
             >
               {isActionInProgress ? 'Déconnexion...' : 'Tout déconnecter'}
             </AlertDialogAction>

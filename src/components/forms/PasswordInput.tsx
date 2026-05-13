@@ -58,7 +58,7 @@ export function PasswordInput({
 
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
-      <InputGroup className="h-10 flex items-center group focus-within:ring-2 focus-within:ring-primary/20 rounded-xs border bg-background transition-all overflow-hidden">
+      <InputGroup className="h-10 flex items-center group focus-within:ring-2 focus-within:ring-primary/20 rounded-md border bg-background transition-all overflow-hidden">
         {/* 1. SECTION : ICÔNE DE VERROUILLAGE */}
         <div className="h-full flex items-center px-3 select-none">
           <Lock className="size-4 text-muted-foreground/60 group-focus-within:text-primary transition-colors" />

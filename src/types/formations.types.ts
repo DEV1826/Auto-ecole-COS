@@ -246,6 +246,7 @@ export interface FormationsColumnConfig {
   showCategorie?: boolean;
   showPrix?: boolean;
   showHeures?: boolean;
+  showNbInscriptions?: boolean;
   showActif?: boolean;
   showActions?: boolean;
 }

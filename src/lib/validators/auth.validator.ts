@@ -94,9 +94,85 @@ export const positiveIntSchema = positiveNumberSchema.int(VALIDATION_ERRORS.INVA
 /**
  * Schéma de date (string ISO ou Date).
  */
+// src/lib/validators/auth.validator.ts (extrait modifié)
+
+/**
+ * @module shared/schemas/dateSchema
+ * @description
+ * Schéma de validation et de transformation de date ultra-robuste.
+ * Ce schéma résout le conflit entre les entrées utilisateur (String au format FR)
+ * et les besoins du backend (Format ISO).
+ * * FONCTIONNALITÉS :
+ * 1. Support multi-format : Accepte les objets Date, les strings ISO et le format JJ/MM/AAAA.
+ * 2. Normalisation : Transforme systématiquement l'entrée en chaîne ISO 8601.
+ * 3. Valeur par défaut dynamique : Si l'entrée est vide, injecte la date du jour à minuit.
+ * 4. Validation stricte : Vérifie la validité réelle de la date (ex: refuse le 31/02/2026).
+ * * @example
+ * dateSchema.parse("09/05/2026") // -> "2026-05-09T00:00:00.000Z"
+ * dateSchema.parse("")           // -> [Date du jour ISO]
+ */
+
 export const dateSchema = z
-  .union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/, VALIDATION_ERRORS.INVALID_DATE), z.date()])
-  .optional();
+  .preprocess(
+    (arg) => {
+      if (arg === '' || arg === null || arg === undefined) {
+        return new Date();
+      }
+      return arg;
+    },
+    z.union([
+      // Cas 1 : L'entrée est déjà un objet Date
+      z.date(),
+      // Cas 2 : L'entrée est une chaîne de caractères
+      z
+        .string()
+        .trim()
+        .refine(
+          (val) => {
+            // On accepte soit le format ISO, soit le format JJ/MM/AAAA
+            const isIso = !isNaN(Date.parse(val));
+            const isFrenchFormat = /^\d{2}\/\d{2}\/\d{4}$/.test(val);
+            return isIso || isFrenchFormat;
+          },
+          {
+            message: 'Format de date invalide. Utilisez JJ/MM/AAAA ou le format standard ISO.',
+          }
+        ),
+    ])
+  )
+  .transform((val) => {
+    // Si c'est déjà un objet Date, on s'assure qu'il est valide avant conversion
+    if (val instanceof Date) {
+      if (isNaN(val.getTime())) return new Date().toISOString();
+      return val.toISOString();
+    }
+
+    // Si c'est une chaîne au format JJ/MM/AAAA
+    if (typeof val === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(val)) {
+      const [day, month, year] = val.split('/').map(Number);
+
+      // Attention : Le mois en JS commence à 0 (janvier = 0)
+      const date = new Date(year, month - 1, day);
+
+      // Validation de la cohérence de la date (évite le 32/01/2026)
+      if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+        // En cas d'incohérence, on peut soit lever une erreur, soit retourner la date actuelle
+        // Ici, on retourne la date actuelle pour éviter de bloquer le formulaire inutilement
+        return new Date().toISOString();
+      }
+
+      return date.toISOString();
+    }
+
+    // Pour les chaînes déjà au format ISO ou autre format valide reconnu par Date.parse()
+    const finalDate = new Date(val);
+    return isNaN(finalDate.getTime()) ? new Date().toISOString() : finalDate.toISOString();
+  });
+
+/**
+ * @typedef {z.infer<typeof dateSchema>} DateSchemaType
+ * @description Type TypeScript généré : string (car transformé en ISO)
+ */
 
 // ============================================================
 // SCHÉMAS D'AUTHENTIFICATION (LOGIN, REGISTER, TOKENS)

@@ -62,7 +62,7 @@ export function PhoneInput({
 
   return (
     <div className={cn('flex flex-col gap-1', className)}>
-      <InputGroup className="h-10 group focus-within:ring-2 focus-within:ring-primary/20 rounded-xs border bg-background transition-all overflow-hidden">
+      <InputGroup className="h-12 group focus-within:ring-2 focus-within:ring-primary/20 rounded-md border bg-background transition-all overflow-hidden">
         {/* 2. Indicateur fixe (indicatif) */}
         <div className="h-full flex items-center px-3 bg-muted/20 select-none">
           <span className="text-sm font-bold text-muted-foreground/80 whitespace-nowrap">

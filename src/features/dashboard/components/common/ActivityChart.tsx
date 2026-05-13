@@ -450,9 +450,9 @@ export function ActivityChart({
               >
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl">
+              <SelectContent className="rounded-md">
                 {chartTypeOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value} className="rounded-xs">
+                  <SelectItem key={opt.value} value={opt.value} className="rounded-md">
                     <div className="flex items-center gap-2">
                       <opt.icon className="size-3.5" />
                       {isMobile ? opt.shortLabel : opt.label}

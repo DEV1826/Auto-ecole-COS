@@ -198,10 +198,24 @@ export interface CaisseTableActions {
 }
 
 /**
+ * Enrichissements optionnels pour injecter des données calculées
+ * sans modifier le modèle principal `MouvementCaisse`.
+ *
+ * @interface CaisseEnrichments
+ * @property {(mouvement: MouvementCaisse) => string} [getVehiculeLibelle] - Retourne le libellé du véhicule associé (si applicable)
+ * @property {(mouvement: MouvementCaisse) => string} [getNomCandidat] - Nom du candidat lié au mouvement (si applicable)
+ */
+export interface CaisseEnrichments {
+  getVehiculeLibelle?: (mouvement: MouvementCaisse) => string;
+  getNomCandidat?: (mouvement: MouvementCaisse) => string;
+}
+
+/**
  * Options complètes pour la génération des colonnes du tableau de caisse.
  *
  * @interface CaisseColumnsOptions
  * @property {CaisseColumnConfig} [columnConfig] - Surcharge de la visibilité des colonnes
+ * @property {CaisseEnrichments} [enrichments] - Enrichissements optionnels pour injecter des données calculées
  * @property {CaisseTableActions} [actions] - Callbacks d’actions sur les lignes (généralement limités)
  * @property {'admin' | 'secretaire'} [variant] - Profil utilisateur
  *   - `admin` : affiche toutes les colonnes (y compris références et actions)
@@ -220,5 +234,6 @@ export interface CaisseTableActions {
 export interface CaisseColumnsOptions {
   columnConfig?: CaisseColumnConfig;
   actions?: CaisseTableActions;
+  enrichments?: CaisseEnrichments;
   variant?: 'admin' | 'secretaire';
 }

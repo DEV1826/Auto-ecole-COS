@@ -218,7 +218,7 @@ const DayCell = React.memo(function DayCell({
       <div className="flex items-center justify-between mb-1 gap-1">
         <span
           className={cn(
-            'flex items-center justify-center h-6 w-6 rounded-xs text-xs font-medium shrink-0 transition-colors',
+            'flex items-center justify-center h-6 w-6 rounded-md text-xs font-medium shrink-0 transition-colors',
             today && 'bg-primary text-primary-foreground font-bold shadow-sm',
             selected && !today && 'bg-primary/20 text-primary font-semibold',
             !today && !selected && isCurrentMonth && 'text-foreground',

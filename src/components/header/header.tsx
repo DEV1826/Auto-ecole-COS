@@ -78,14 +78,14 @@ export const UserMenuDropdown = React.memo(
       <DropdownMenu>
         <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
         <DropdownMenuContent
-          className="w-70 rounded-xs shadow-lg  dark:border-blue-900/30 p-1 max-h-[85vh] overflow-y-auto "
+          className="w-70 rounded-md shadow-lg  dark:border-blue-900/30 p-1 max-h-[85vh] overflow-y-auto "
           align="end"
           sideOffset={2}
         >
           {/* En-tête utilisateur */}
           <DropdownMenuLabel className="p-3 pb-2">
             <div className="flex items-center gap-3">
-              <Avatar className="size-12 rounded-xs ">
+              <Avatar className="size-12 rounded-md ">
                 <AvatarImage src={getAvatarUrl('Visiteur')} alt="Avatar visiteur" />
                 <AvatarFallback className="bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 text-lg font-semibold">
                   V
@@ -108,7 +108,7 @@ export const UserMenuDropdown = React.memo(
               Mon compte
             </DropdownMenuLabel>
             <DropdownMenuItem asChild className="cursor-pointer">
-              <Link to={PUBLIC_ROUTES.AUTH.LOGIN} className="gap-3 px-3 py-2 rounded-xs">
+              <Link to={PUBLIC_ROUTES.AUTH.LOGIN} className="gap-3 px-3 py-2 rounded-md">
                 <LogIn className="size-4" />
                 <span>Connexion</span>
               </Link>
@@ -125,7 +125,7 @@ export const UserMenuDropdown = React.memo(
 
             {/* Thème */}
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger className="rounded-xs px-3 py-2 data-[state=open]:bg-blue-50 dark:data-[state=open]:bg-blue-950/30 focus:bg-blue-50 dark:focus:bg-blue-950/30">
+              <DropdownMenuSubTrigger className="rounded-md px-3 py-2 data-[state=open]:bg-blue-50 dark:data-[state=open]:bg-blue-950/30 focus:bg-blue-50 dark:focus:bg-blue-950/30">
                 <div className="flex items-center gap-3">
                   {theme === 'dark' ? (
                     <Moon className="size-4 text-blue-600" />
@@ -138,25 +138,25 @@ export const UserMenuDropdown = React.memo(
                 </div>
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
-                <DropdownMenuSubContent className="rounded-xs border-blue-200 dark:border-blue-900/50 p-1 min-w-40">
+                <DropdownMenuSubContent className="rounded-md border-blue-200 dark:border-blue-900/50 p-1 min-w-40">
                   <DropdownMenuRadioGroup value={theme} onValueChange={onThemeChange}>
                     <DropdownMenuRadioItem
                       value="light"
-                      className="gap-3 cursor-pointer rounded-xs focus:bg-blue-50 dark:focus:bg-blue-950/30"
+                      className="gap-3 cursor-pointer rounded-md focus:bg-blue-50 dark:focus:bg-blue-950/30"
                     >
                       <Sun className="size-4 text-blue-600" />
                       Clair
                     </DropdownMenuRadioItem>
                     <DropdownMenuRadioItem
                       value="dark"
-                      className="gap-3 cursor-pointer rounded-xs focus:bg-blue-50 dark:focus:bg-blue-950/30"
+                      className="gap-3 cursor-pointer rounded-md focus:bg-blue-50 dark:focus:bg-blue-950/30"
                     >
                       <Moon className="size-4 text-blue-600" />
                       Sombre
                     </DropdownMenuRadioItem>
                     <DropdownMenuRadioItem
                       value="system"
-                      className="gap-3 cursor-pointer rounded-xs focus:bg-blue-50 dark:focus:bg-blue-950/30"
+                      className="gap-3 cursor-pointer rounded-md focus:bg-blue-50 dark:focus:bg-blue-950/30"
                     >
                       <Monitor className="size-4 text-blue-600" />
                       Système
@@ -343,7 +343,7 @@ export function Header({ variant = 'app', className }: HeaderProps) {
   const AvatarTriggerDesktop = (
     <Button
       variant="ghost"
-      className="h-auto gap-2  rounded-xs border border-primary/10 p-1.5 bg-muted"
+      className="h-auto gap-2  rounded-md border border-primary/10 p-1.5 bg-muted"
     >
       <Avatar className="size-8">
         <AvatarImage src={getAvatarUrl('Visiteur')} />

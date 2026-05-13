@@ -7,4 +7,10 @@
  */
 
 export { FormationsStatsCards } from './FormationsStatsCards';
+export { FormationsTable } from './FormationsTable';
+export type { FormationsTableProps } from './FormationsTable';
+
 export type { FormationsStatsCardsProps, FormationsSparklineData } from './FormationsStatsCards';
+
+export { FormationTrendChart } from './FormationTrendChart';
+export type { FormationTrendChartProps, FormationTrendDataPoint } from './FormationTrendChart';

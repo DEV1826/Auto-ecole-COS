@@ -128,7 +128,7 @@ export function Success({
               asChild
               size="lg"
               className={cn(
-                'rounded-xs h-10 w-full sm:w-auto text-base font-semibold text-white',
+                'rounded-md h-10 w-full sm:w-auto text-base font-semibold text-white',
                 'bg-blue-700! hover:bg-blue-900'
               )}
             >
@@ -140,7 +140,7 @@ export function Success({
                 asChild
                 variant="outline"
                 size="lg"
-                className="rounded-xs h-10 text-base font-semibold w-full sm:w-auto"
+                className="rounded-md h-10 text-base font-semibold w-full sm:w-auto"
               >
                 <Link to={PUBLIC_ROUTES.HOME}>
                   <Home className="mr-2 size-4" />

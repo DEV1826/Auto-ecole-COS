@@ -63,12 +63,8 @@ import type {
   RapportLecons,
   RapportVehicules,
 } from '@/types/rapports.types';
+import type { RapportType } from '@/components/tables/rapports';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
-
-export type RapportType = 'financier' | 'candidats' | 'lecons' | 'vehicules';
 
 export interface RapportStatsCardsProps {
   /** Type de rapport à afficher */
@@ -206,7 +202,7 @@ export function RapportStatsCards({
         onClick: () => handleClick('recus'),
       },
     ];
-  } else if (type === 'lecons') {
+  } else if (type === 'lecons_parType') {
     const d = data as RapportLecons;
     const heuresConduite = d.parType['CONDUITE'] ?? 0;
     const heuresCode = d.parType['CODE'] ?? 0;

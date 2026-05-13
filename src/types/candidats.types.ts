@@ -36,6 +36,11 @@ import type { Examen } from '@/types/examens.types';
 import type { Facture } from '@/types/factures.types';
 import type { FormationCandidat } from '@/types/formations.types';
 import type { Document } from '@/types/documents.types';
+import type {
+  CreateCandidatInput,
+  UpdateCandidatInput,
+  CandidatsListInput,
+} from '@/lib/validators/candidats.validator';
 
 // ============================================================
 // MODÈLE PRINCIPAL
@@ -321,4 +326,220 @@ export interface CandidatsColumnsOptions {
   actions?: CandidatsTableActions;
   enrichments?: CandidatsEnrichments;
   variant?: 'admin' | 'secretaire' | 'moniteur';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Réponses paginées
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Réponse paginée pour la liste des candidats.
+ *
+ * @interface CandidatsPaginatedResponse
+ * @property {Candidat[]} candidats - Candidats de la page courante
+ * @property {number} total - Nombre total de candidats (tous filtres confondus)
+ * @property {number} page - Page courante (1-indexed)
+ * @property {number} limit - Nombre d'éléments par page
+ * @property {number} totalPages - Nombre total de pages
+ */
+export interface CandidatsPaginatedResponse {
+  candidats: Candidat[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/**
+ * Paramètres de la liste paginée des candidats.
+ * Reprend `CandidatsListInput` du validateur Zod avec page/limit requis.
+ */
+export type CandidatsListParams = CandidatsListInput;
+
+/**
+ * Paramètres de mise à jour du statut d'un candidat.
+ *
+ * @interface UpdateCandidatStatusParams
+ * @property {number} id - Identifiant du candidat
+ * @property {string} statut - Nouveau statut (EN_COURS, RECU, ECHOUE, ABANDONNE, EN_ATTENTE)
+ */
+export interface UpdateCandidatStatusParams {
+  id: number;
+  statut: 'EN_COURS' | 'RECU' | 'ECHOUE' | 'ABANDONNE' | 'EN_ATTENTE';
+}
+
+/**
+ * Document candidat (pièce jointe numérisée).
+ *
+ * @interface CandidatDocumentInput
+ * @property {number} candidatId - Identifiant du candidat
+ * @property {string} type - Type de document (permis, carte_identite, photo, autre)
+ * @property {string} nomFichier - Nom du fichier (avec extension)
+ * @property {string} chemin - Chemin absolu ou URL du fichier stocké
+ * @property {number} [taille] - Taille en octets
+ * @property {string} [mimeType] - Type MIME (application/pdf, image/jpeg, etc.)
+ */
+export interface CandidatDocumentInput {
+  candidatId: number;
+  type: string;
+  nomFichier: string;
+  chemin: string;
+  taille?: number;
+  mimeType?: string;
+}
+
+/**
+ * Statistiques étendues pour le dashboard candidats
+ * (enrichies par rapport à `CandidatsStats`).
+ *
+ * @interface CandidatsStatsExtended
+ * @extends CandidatsStats
+ * @property {number} enAttente - Candidats avec statut EN_ATTENTE
+ * @property {number} abandonnes - Candidats avec statut ABANDONNE
+ * @property {number} inscritsAujourdHui - Candidats inscrits aujourd'hui
+ * @property {number} inscritsCeMois - Candidats inscrits ce mois-ci
+ */
+export interface CandidatsStatsExtended extends CandidatsStats {
+  enAttente: number;
+  abandonnes: number;
+  inscritsAujourdHui: number;
+  inscritsCeMois: number;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Interface CandidatsApi — exposée via window.api.candidats
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Interface de l'API candidats exposée au renderer via `window.api.candidats`.
+ *
+ * @interface CandidatsApi
+ * @description
+ * Toutes les méthodes sont asynchrones et communiquent via IPC Electron.
+ * Les canaux correspondants sont définis dans `preload.js` et `main.js`.
+ *
+ * ## Canaux IPC utilisés
+ * | Méthode              | Canal IPC                  |
+ * |----------------------|----------------------------|
+ * | getAll               | candidats:getAll           |
+ * | getById              | candidats:getById          |
+ * | create               | candidats:create           |
+ * | update               | candidats:update           |
+ * | delete               | candidats:delete           |
+ * | search               | candidats:search           |
+ * | updateStatus         | candidats:updateStatus     |
+ * | getStats             | candidats:getStats         |
+ * | getPaiements         | candidats:getPaiements     |
+ * | getLecons            | candidats:getLecons        |
+ * | getExamens           | candidats:getExamens       |
+ * | getFactures          | candidats:getFactures      |
+ * | getDocuments         | candidats:getDocuments     |
+ * | addDocument          | candidats:addDocument      |
+ * | deleteDocument       | candidats:deleteDocument   |
+ */
+export interface CandidatsApi {
+  /**
+   * Récupère la liste paginée des candidats avec filtres optionnels.
+   * @param params - Pagination et filtres (page, limit, search, statut, categorie, dates)
+   * @returns Liste paginée
+   */
+  getAll: (params?: CandidatsListParams) => Promise<CandidatsPaginatedResponse>;
+
+  /**
+   * Récupère un candidat par son identifiant avec toutes ses relations.
+   * @param id - Identifiant du candidat
+   * @returns Candidat complet (paiements, leçons, examens, factures, documents, formation)
+   */
+  getById: (id: number) => Promise<Candidat>;
+
+  /**
+   * Crée un nouveau candidat.
+   * @param data - Données du candidat (conformes à `createCandidatSchema`)
+   * @returns Candidat créé
+   */
+  create: (data: CreateCandidatInput) => Promise<Candidat>;
+
+  /**
+   * Met à jour un candidat existant (patch partiel).
+   * @param id - Identifiant du candidat
+   * @param data - Champs à mettre à jour
+   * @returns Candidat mis à jour
+   */
+  update: (id: number, data: Omit<UpdateCandidatInput, 'id'>) => Promise<Candidat>;
+
+  /**
+   * Supprime logiquement (soft delete) un candidat.
+   * @param id - Identifiant du candidat
+   * @returns Résultat de l'opération
+   */
+  delete: (id: number) => Promise<{ success: boolean; message: string }>;
+
+  /**
+   * Recherche des candidats par nom, prénom, email ou numéro de permis.
+   * @param query - Terme de recherche (min 2 caractères)
+   * @returns Liste des candidats correspondants (max 20)
+   */
+  search: (query: string) => Promise<Candidat[]>;
+
+  /**
+   * Met à jour uniquement le statut d'un candidat.
+   * @param params - ID + nouveau statut
+   * @returns Candidat mis à jour
+   */
+  updateStatus: (params: UpdateCandidatStatusParams) => Promise<Candidat>;
+
+  /**
+   * Récupère les statistiques agrégées des candidats.
+   * @returns Métriques (total, actifs, reçus, echecs, taux de réussite, etc.)
+   */
+  getStats: () => Promise<CandidatsStatsExtended>;
+
+  /**
+   * Récupère tous les paiements d'un candidat.
+   * @param candidatId - Identifiant du candidat
+   * @returns Liste des paiements
+   */
+  getPaiements: (candidatId: number) => Promise<Paiement[]>;
+
+  /**
+   * Récupère toutes les leçons d'un candidat.
+   * @param candidatId - Identifiant du candidat
+   * @returns Liste des leçons (avec moniteur et véhicule)
+   */
+  getLecons: (candidatId: number) => Promise<Lecon[]>;
+
+  /**
+   * Récupère tous les examens d'un candidat.
+   * @param candidatId - Identifiant du candidat
+   * @returns Liste des examens
+   */
+  getExamens: (candidatId: number) => Promise<Examen[]>;
+
+  /**
+   * Récupère toutes les factures d'un candidat.
+   * @param candidatId - Identifiant du candidat
+   * @returns Liste des factures
+   */
+  getFactures: (candidatId: number) => Promise<Facture[]>;
+
+  /**
+   * Récupère tous les documents scannés d'un candidat.
+   * @param candidatId - Identifiant du candidat
+   * @returns Liste des documents
+   */
+  getDocuments: (candidatId: number) => Promise<Document[]>;
+
+  /**
+   * Ajoute un document à un candidat.
+   * @param data - Données du document (candidatId, type, chemin, etc.)
+   * @returns Document créé
+   */
+  addDocument: (data: CandidatDocumentInput) => Promise<Document>;
+
+  /**
+   * Supprime définitivement un document d'un candidat.
+   * @param docId - Identifiant du document
+   * @returns Résultat de l'opération
+   */
+  deleteDocument: (docId: number) => Promise<{ success: boolean; message: string }>;
 }

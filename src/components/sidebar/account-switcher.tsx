@@ -94,13 +94,13 @@ export function AccountSwitcher({
   const displayElement =
     isCollapsed || isMobile ? (
       // Mode réduit : juste le logo (ou avatar) sans texte
-      <div className="flex aspect-square size-8 items-center justify-center rounded-xs bg-primary/10">
+      <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-primary/10">
         <img src={appConfig.logo} alt="Logo" className="size-6 object-contain" />
       </div>
     ) : (
       // Mode expansé : logo + nom + chevron
       <>
-        <div className="flex aspect-square size-18 items-center justify-center rounded-xs">
+        <div className="flex aspect-square size-18 items-center justify-center rounded-md">
           <img src={appConfig.logo} alt="Logo" className="size-15 object-contain" />
         </div>
         <div className="flex flex-1 flex-col text-left text-sm leading-tight">
@@ -127,7 +127,7 @@ export function AccountSwitcher({
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-xs"
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-md"
             align="start"
             side={isMobile ? 'bottom' : 'right'}
             sideOffset={4}
@@ -156,7 +156,7 @@ export function AccountSwitcher({
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => onAddAccount?.()} className="gap-2 p-2">
-              <div className="flex size-6 items-center justify-center rounded-xs border bg-transparent">
+              <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
                 <Plus className="size-4" />
               </div>
               <div className="font-medium text-muted-foreground">Ajouter un compte</div>
