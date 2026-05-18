@@ -6,47 +6,23 @@
  * Colonnes pour le tableau des dépenses de l’auto‑école COS.
  * Deux variantes disponibles :
  *
- * - `admin`      : affichage complet (date, catégorie, montant, description, fournisseur, véhicule, actions)
- * - `secretaire` : colonnes adaptées à la gestion quotidienne (date, catégorie, montant, description, actions)
+ * - `admin`      : affichage complet (date, catégorie, montant, description avec icône,
+ *                  fournisseur, référence, véhicule, actions)
+ * - `secretaire` : colonnes essentielles (date, catégorie, montant, description, actions)
  *
  * ## Architecture
  *
- * Ce module suit exactement le même pattern que `candidats-columns.tsx`.
+ * - La colonne "Description" affiche une icône contextuelle basée sur la catégorie,
+ *   et peut être enrichie avec un avatar du fournisseur (optionnel).
+ * - La colonne "Référence" est disponible en vue admin.
+ * - La colonne "Véhicule" utilise un enrichissement pour afficher un libellé personnalisé.
  *
- * ## Colonnes disponibles
- *
- * | Colonne       | Variante        | Description                                      |
- * |---------------|-----------------|--------------------------------------------------|
- * | `date`        | toutes          | Date de la dépense (formatée avec tooltip)       |
- * | `categorie`   | toutes          | Catégorie de dépense (badge coloré)              |
- * | `montant`     | toutes          | Montant en FCFA (formaté, rouge)                 |
- * | `description` | toutes          | Description (texte tronqué avec tooltip)         |
- * | `fournisseur` | admin           | Nom du fournisseur / prestataire                 |
- * | `vehicule`    | admin           | Véhicule associé (via enrichissement)            |
- * | `actions`     | toutes          | Menu d’actions contextuelles                     |
- *
- * @see {@link DepensesColumnsOptions} Options de configuration
- * @see {@link DepensesTableActions} Callbacks d’actions
- * @see {@link DepensesEnrichments} Enrichissements optionnels
+ * @see {@link DepensesColumnsOptions}
+ * @see {@link DepensesTableActions}
+ * @see {@link DepensesEnrichments}
  *
  * @author Stive Junior
- * @version 1.0.0
- *
- * @example
- * ```tsx
- * // Variante admin
- * const columns = getDepensesColumns({
- *   variant: 'admin',
- *   actions: { onView: (d) => navigate(`/depenses/${d.id}`) },
- *   enrichments: { getVehiculeImmatriculation: (d) => d.vehicule?.immatriculation ?? '—' },
- * });
- *
- * // Variante secretaire
- * const columns = getDepensesColumns({
- *   variant: 'secretaire',
- *   actions: { onEdit: (d) => navigate(`/depenses/${d.id}/edit`) },
- * });
- * ```
+ * @version 2.0.0
  */
 
 import type { ColumnDef } from '@tanstack/react-table';
@@ -59,9 +35,21 @@ import {
   FileText,
   Building,
   Car,
+  Hash,
   Eye,
   Pencil,
   Paperclip,
+  Fuel,
+  Wrench,
+  Briefcase,
+  Building2,
+  Zap,
+  Phone,
+  Shield,
+  Megaphone,
+  Package,
+  Landmark,
+  MoreHorizontal,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -73,6 +61,25 @@ import { CATEGORIE_DEPENSE_CONFIG } from '@/types/enums';
 import type { Depense, DepensesEnrichments } from '@/types/depenses.types';
 import type { DepensesTableActions, DepensesColumnsOptions } from '@/types/depenses.types';
 import type { RowActionsConfig, CustomRowAction } from '@/components/tables/types';
+import { createAvatarWithTextColumn } from '../factory';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAPPING ICÔNES PAR CATÉGORIE (sur mesure si besoin)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CATEGORY_ICON_MAP: Record<CategorieDepense, React.ElementType> = {
+  CARBURANT: Fuel,
+  ENTRETIEN_VEHICULE: Wrench,
+  SALAIRE: Briefcase,
+  LOYER: Building2,
+  ELECTRICITE: Zap,
+  TELEPHONE: Phone,
+  ASSURANCE: Shield,
+  PUBLICITE: Megaphone,
+  FOURNITURES: Package,
+  TAXES: Landmark,
+  AUTRE: MoreHorizontal,
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UTILITAIRES
@@ -127,7 +134,7 @@ function colDate(): ColumnDef<Depense> {
 }
 
 /**
- * Colonne "Catégorie" – badge coloré.
+ * Colonne "Catégorie" – badge coloré avec icône.
  * @internal
  */
 function colCategorie(): ColumnDef<Depense> {
@@ -150,7 +157,7 @@ function colCategorie(): ColumnDef<Depense> {
       );
     },
     enableSorting: true,
-    size: 120,
+    size: 130,
     filterFn: (row, id, value: string[]) => value.includes(row.getValue(id)),
   };
 }
@@ -179,32 +186,59 @@ function colMontant(): ColumnDef<Depense> {
 }
 
 /**
- * Colonne "Description" – texte tronqué avec tooltip.
+ * Colonne "Description" enrichie – avec icône contextuelle (selon catégorie) et tooltip.
+ * Optionnellement peut afficher un avatar du fournisseur si enrichi.
+ * @param enrichments - Pour récupérer éventuellement un avatar du fournisseur
  * @internal
  */
 function colDescription(): ColumnDef<Depense> {
+
+  const getIconForCategory = (categorie: CategorieDepense) => {
+    const Icon = CATEGORY_ICON_MAP[categorie] || MoreHorizontal;
+    return <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />;
+  };
+
   return {
     accessorKey: 'description',
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Description" icon={FileText} />
     ),
     cell: ({ row }) => {
-      const desc = row.original.description;
-      if (!desc) return <span className="text-xs text-muted-foreground">—</span>;
-      const truncated = desc.length > 40 ? desc.slice(0, 40) + '…' : desc;
+      const depense = row.original;
+      const desc = depense.description || '—';
+      const categorie = depense.categorie;
+      const icon = getIconForCategory(categorie);
+
+      // Texte secondaire éventuel : fournisseur ou référence (si on veut)
+      const secondaryText = depense.fournisseur ? `Fournisseur : ${depense.fournisseur}` : null;
+
       return (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="text-xs cursor-default">{truncated}</span>
+              <div className="flex items-center gap-2 cursor-default group min-w-0">
+                <div className="shrink-0">{icon}</div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs truncate">{desc.length > 40 ? desc.slice(0, 40) + '…' : desc}</span>
+                  {secondaryText && (
+                    <span className="text-[10px] text-muted-foreground truncate">{secondaryText}</span>
+                  )}
+                </div>
+              </div>
             </TooltipTrigger>
-            <TooltipContent className="max-w-xs text-xs">{desc}</TooltipContent>
+            <TooltipContent className="max-w-xs text-xs">
+              <div className="space-y-1">
+                <p>{desc}</p>
+                {depense.fournisseur && <p className="text-muted-foreground">Fournisseur : {depense.fournisseur}</p>}
+                {depense.reference && <p className="text-muted-foreground">Réf : {depense.reference}</p>}
+              </div>
+            </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       );
     },
     enableSorting: false,
-    size: 200,
+    size: 220,
   };
 }
 
@@ -221,10 +255,46 @@ function colFournisseur(): ColumnDef<Depense> {
     cell: ({ row }) => {
       const fournisseur = row.original.fournisseur;
       if (!fournisseur) return <span className="text-xs text-muted-foreground">—</span>;
-      return <span className="text-xs">{fournisseur}</span>;
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="text-xs cursor-default">{fournisseur}</span>
+            </TooltipTrigger>
+            <TooltipContent className="text-xs">{fournisseur}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
     },
     enableSorting: true,
     size: 150,
+  };
+}
+
+/**
+ * Colonne "Référence" – optionnelle (admin seulement).
+ * @internal
+ */
+function colReference(): ColumnDef<Depense> {
+  return {
+    accessorKey: 'reference',
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Référence" icon={Hash} />,
+    cell: ({ row }) => {
+      const ref = row.original.reference;
+      if (!ref) return <span className="text-xs text-muted-foreground">—</span>;
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="text-xs font-mono cursor-default">{ref}</span>
+            </TooltipTrigger>
+            <TooltipContent className="text-xs">{ref}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    },
+    enableSorting: true,
+    size: 130,
   };
 }
 
@@ -234,16 +304,24 @@ function colFournisseur(): ColumnDef<Depense> {
  * @internal
  */
 function colVehicule(getVehiculeLibelle: (d: Depense) => string): ColumnDef<Depense> {
-  return {
-    id: 'vehicule',
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Véhicule" icon={Car} />,
-    cell: ({ row }) => {
-      const libelle = getVehiculeLibelle(row.original);
-      return <span className="text-xs">{libelle || '—'}</span>;
-    },
-    enableSorting: false,
-    size: 130,
-  };
+
+
+
+  return createAvatarWithTextColumn<Depense>({
+    accessorKey: 'marque',
+    title: 'Véhicule',
+    icon: Car,
+    getAvatarUrl: (d) => '/images/brand/car.png',
+    getInitials: (d) => `${d.vehicule?.marque[0]}${d.vehicule?.modele[0]}`,
+    getPrimaryText: (d) => getVehiculeLibelle(d),
+    avatarSize: 'md',
+
+    img: true,
+    enableSorting: true,
+    size: 240,
+    cellClassName: 'text-sm font-medium',
+  });
+
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -330,6 +408,7 @@ export function getDepensesColumns({
     showMontant = true,
     showDescription = true,
     showFournisseur = false,
+    showReference = false,
     showVehicule = false,
     showActions = true,
   } = columnConfig;
@@ -342,6 +421,7 @@ export function getDepensesColumns({
   if (showDescription) cols.push(colDescription());
 
   if (showFournisseur && variant === 'admin') cols.push(colFournisseur());
+  if (showReference && variant === 'admin') cols.push(colReference());
   if (showVehicule && getVehiculeLibelle && variant === 'admin')
     cols.push(colVehicule(getVehiculeLibelle));
 
@@ -356,8 +436,7 @@ export function getDepensesColumns({
 
 /**
  * Colonnes pour le tableau des dépenses – vue administrateur.
- *
- * Inclut : date, catégorie, montant, description, fournisseur, véhicule (si enrichi), actions.
+ * Inclut : date, catégorie, montant, description enrichie, fournisseur, référence, véhicule (si enrichi), actions.
  */
 export function getAdminDepensesColumns(
   actions?: DepensesTableActions,
@@ -374,6 +453,7 @@ export function getAdminDepensesColumns(
       showMontant: true,
       showDescription: true,
       showFournisseur: true,
+      showReference: true,
       showVehicule: !!enrichments?.getVehiculeLibelle,
       showActions: true,
       ...columnConfig,
@@ -383,8 +463,7 @@ export function getAdminDepensesColumns(
 
 /**
  * Colonnes pour le tableau des dépenses – vue secrétaire.
- *
- * Inclut : date, catégorie, montant, description, actions.
+ * Inclut : date, catégorie, montant, description enrichie, actions.
  */
 export function getSecretaireDepensesColumns(
   actions?: DepensesTableActions,
@@ -399,6 +478,7 @@ export function getSecretaireDepensesColumns(
       showMontant: true,
       showDescription: true,
       showFournisseur: false,
+      showReference: false,
       showVehicule: false,
       showActions: true,
       ...columnConfig,

@@ -2,14 +2,20 @@
 // /home/stive-junior/Auto-ecole-COS/src/store/auth.store.ts
 
 /**
- * Store d'authentification et d'autorisation Zustand (TypeScript)
- * Gère l'état de connexion, les utilisateurs, permissions, sessions et audit logs.
- * Communique avec l'API Electron via window.api (exposée par preload).
- *
- * Toutes les données entrantes sont validées avec Zod avant d'être utilisées.
- * Les erreurs de validation sont capturées et formatées.
- *
  * @module authStore
+ * @description
+ * Store Zustand pour l'authentification, les utilisateurs, les permissions,
+ * les sessions et les codes OTP. Gère l'état de connexion, la persistance locale,
+ * et toutes les interactions avec l'API Electron via `window.api.auth`.
+ *
+ * Toutes les données entrantes sont validées avec Zod avant utilisation.
+ * Les erreurs sont formatées pour une meilleure expérience utilisateur.
+ *
+ * @author Stive Junior
+ * @version 3.0.0
+ *
+ * @see {@link auth.types.ts} – Types associés
+ * @see {@link auth.validator.ts} – Schémas de validation Zod
  */
 
 import { create } from 'zustand';
@@ -21,11 +27,11 @@ import type {
   UtilisateurDetail,
   Session,
   UsersListResponse,
-  AuditLog,
-  AuditLogFilters,
-  AuditLogsResponse,
   CreateUserParams,
   UpdateUserParams,
+  AuthStats,
+  AuthTrends,
+  AuthSparklineData,
 } from '../types/auth.types';
 import {
   loginSchema,
@@ -40,7 +46,6 @@ import {
   getUserSessionsSchema,
   revokeSessionSchema,
   revokeAllSessionsSchema,
-  getAuditLogsSchema,
 } from '../lib/validators/auth.validator';
 import { safeValidate, validateOrThrow } from '@/lib/validators/utils.validator';
 import { formatErrorMessage } from '@/lib/helpers/error.helper';
@@ -50,108 +55,326 @@ import type { Permission } from '@/types/admin.types';
 // TYPES INTERNES DU STORE
 // ===============================
 
+/**
+ * @interface AuthState
+ * @description État du store d'authentification.
+ */
 interface AuthState {
-  // Authentification
+  /** Indique si l'utilisateur est actuellement authentifié. */
   isAuthenticated: boolean;
+  /** Token JWT d'accès (stocké en mémoire et persistant). */
   token: string | null;
+  /** Refresh token JWT (stocké en mémoire et persistant). */
   refreshToken: string | null;
+  /** Identifiant de la session active (stocké en mémoire et persistant). */
   sessionId: number | null;
+  /** Utilisateur courant (stocké en mémoire et persistant). */
   user: Utilisateur | null;
+  /** Liste des permissions de l'utilisateur courant. */
   permissions: Permission[];
 
-  // États de chargement et erreurs
+  /** Indicateur de chargement global (authentification, etc.). */
   isLoading: boolean;
+  /** Indicateur de rafraîchissement du token. */
   isRefreshing: boolean;
+  /** Dernière erreur survenue (message utilisateur). */
   lastError: string | null;
 
+  /** Flag pour afficher un message de bienvenue après connexion. */
   showWelcome: boolean;
 
-  // Gestion des utilisateurs
+  /** Liste paginée de tous les utilisateurs (admin uniquement). */
   allUsers: Utilisateur[];
+  /** Indicateur de chargement de la liste des utilisateurs. */
   usersLoading: boolean;
+  /** Erreur lors du chargement des utilisateurs. */
   usersError: string | null;
+  /** Informations de pagination pour la liste des utilisateurs. */
   usersPagination: { page: number; limit: number; total: number; totalPages: number };
 
-  // Gestion des permissions
+  /** Erreur lors des opérations sur les permissions. */
   permissionsError: string | null;
 
-  // Gestion des sessions
+  /** Liste des sessions actives de l'utilisateur courant. */
   userSessions: Session[];
+  /** Indicateur de chargement des sessions. */
   sessionsLoading: boolean;
+  /** Erreur lors du chargement des sessions. */
   sessionsError: string | null;
 
-  // Audit logs
-  auditLogs: AuditLog[];
-  auditLogsLoading: boolean;
-  auditLogsError: string | null;
-  auditLogsPagination: { page: number; limit: number; total: number; totalPages: number };
+  /** Statistiques agrégées des utilisateurs pour le dashboard admin. */
+  stats: AuthStats | null;
+  /** Indicateur de chargement des statistiques utilisateurs. */
+  statsLoading: boolean;
+  /** Erreur lors du chargement des statistiques. */
+  statsError: string | null;
+
+  /** Tendances évolutives des utilisateurs (30j vs 30j précédents). */
+  trends: AuthTrends | null;
+  /** Indicateur de chargement des tendances. */
+  trendsLoading: boolean;
+  /** Erreur lors du chargement des tendances. */
+  trendsError: string | null;
+
+  /** Données des sparklines pour les 12 derniers mois. */
+  sparklines: AuthSparklineData | null;
+  /** Indicateur de chargement des sparklines. */
+  sparklinesLoading: boolean;
+  /** Erreur lors du chargement des sparklines. */
+  sparklinesError: string | null;
 }
 
+/**
+ * @interface AuthActions
+ * @description Actions disponibles dans le store d'authentification.
+ */
 interface AuthActions {
-  // Authentification
+  // ───────────── Authentification ─────────────
+  /**
+   * Connecte un utilisateur avec ses identifiants.
+   * @param credentials - Email et mot de passe.
+   * @returns Réponse de l'API contenant le token et les infos utilisateur.
+   * @throws {Error} Si la validation échoue ou si l'API retourne une erreur.
+   */
   login: (credentials: LoginCredentials) => Promise<LoginResponse>;
+
+  /**
+   * Déconnecte l'utilisateur courant (invalide la session côté serveur et efface l'état local).
+   * @returns Promise résolue après la déconnexion.
+   */
   logout: () => Promise<void>;
+
+  /**
+   * Rafraîchit le token d'accès à l'aide du refresh token stocké.
+   * @returns Nouveau token, refresh token et identifiant de session.
+   * @throws {Error} Si aucun refresh token n'est disponible ou si l'API échoue.
+   */
   refreshTokenFn: () => Promise<{ token: string; refreshToken: string; sessionId: number }>;
+
+  /**
+   * Valide le token actuel et met à jour l'état utilisateur si nécessaire.
+   * @returns Objet indiquant si le token est valide, avec un éventuel message d'erreur.
+   */
   validateCurrentToken: () => Promise<{ valid: boolean; error?: string }>;
+
+  /**
+   * Vérifie si la session est encore valide (token non expiré) et tente un refresh si besoin.
+   * @returns true si la session est valide, false sinon.
+   */
   isSessionValid: () => Promise<boolean>;
 
+  /**
+   * Modifie l'état du flag d'affichage du message de bienvenue.
+   * @param value - Nouvelle valeur du flag.
+   */
   setShowWelcome: (value: boolean) => void;
 
-  // Gestion des utilisateurs
+  // ───────────── Gestion des utilisateurs (admin) ─────────────
+  /**
+   * Récupère la liste paginée de tous les utilisateurs (nécessite droits admin).
+   * @param page - Numéro de page (défaut : 1).
+   * @param limit - Nombre d'éléments par page (max 200).
+   * @returns Réponse paginée contenant la liste des utilisateurs.
+   * @throws {Error} Si l'utilisateur n'est pas authentifié ou si l'API échoue.
+   */
   getAllUsers: (page?: number, limit?: number) => Promise<UsersListResponse>;
+
+  /**
+   * Récupère les détails complets d'un utilisateur (permissions + sessions actives).
+   * @param userId - Identifiant de l'utilisateur à consulter.
+   * @returns Utilisateur détaillé.
+   * @throws {Error} Si l'utilisateur n'est pas authentifié ou si l'API échoue.
+   */
   getUserById: (userId: number) => Promise<UtilisateurDetail>;
+
+  /**
+   * Crée un nouvel utilisateur (nécessite droits admin).
+   * @param userData - Données du nouvel utilisateur (email, nom, prénom, mot de passe, rôle, niveau).
+   * @returns Utilisateur créé (sans mot de passe).
+   * @throws {Error} Si la validation échoue ou si l'API retourne une erreur.
+   */
   createUser: (userData: Omit<CreateUserParams, 'creeParId'>) => Promise<Utilisateur>;
+
+  /**
+   * Met à jour les informations d'un utilisateur existant.
+   * @param userId - Identifiant de l'utilisateur à modifier.
+   * @param updateData - Champs à modifier (partiels).
+   * @returns Utilisateur mis à jour.
+   * @throws {Error} Si la validation échoue ou si l'API retourne une erreur.
+   */
   updateUser: (
     userId: number,
     updateData: Partial<Omit<UpdateUserParams, 'userId' | 'updatedByUserId'>>
   ) => Promise<Utilisateur>;
+
+  /**
+   * Désactive (soft delete) un compte utilisateur.
+   * @param userId - Identifiant de l'utilisateur à désactiver.
+   * @returns Résultat de l'opération.
+   * @throws {Error} Si l'utilisateur n'est pas authentifié ou si l'API échoue.
+   */
   deleteUser: (userId: number) => Promise<{ success: boolean; message: string }>;
+
+  /**
+   * Change le mot de passe de l'utilisateur courant.
+   * @param data - Ancien mot de passe, nouveau mot de passe et confirmation.
+   * @returns Résultat de l'opération.
+   * @throws {Error} Si la validation échoue ou si l'API retourne une erreur.
+   */
   changePassword: (data: {
     oldPassword: string;
     newPassword: string;
     confirmNewPassword: string;
   }) => Promise<{ success: boolean; message: string }>;
 
-  // Permissions
+  // ───────────── Permissions ─────────────
+  /**
+   * Récupère toutes les permissions actives d'un utilisateur.
+   * @param userId - Identifiant de l'utilisateur.
+   * @returns Liste des permissions.
+   */
   getUserPermissions: (userId: number) => Promise<Permission[]>;
+
+  /**
+   * Assigne une permission à un utilisateur.
+   * @param userId - Identifiant de l'utilisateur bénéficiaire.
+   * @param ressource - Nom de la ressource (ex: "candidats").
+   * @param action - Action autorisée (create, read, update, delete).
+   * @returns Permission créée ou mise à jour.
+   * @throws {Error} Si l'utilisateur n'est pas authentifié ou si l'API échoue.
+   */
   assignPermission: (userId: number, ressource: string, action: string) => Promise<Permission>;
+
+  /**
+   * Révoque (désactive) une permission.
+   * @param permissionId - Identifiant de la permission à révoquer.
+   * @returns Résultat de l'opération.
+   * @throws {Error} Si l'utilisateur n'est pas authentifié ou si l'API échoue.
+   */
   revokePermission: (permissionId: number) => Promise<{ success: boolean; message: string }>;
+
+  /**
+   * Vérifie si l'utilisateur courant a une permission spécifique via l'API.
+   * @param ressource - Nom de la ressource.
+   * @param action - Action.
+   * @returns true si la permission est active, false sinon.
+   */
   checkPermission: (ressource: string, action: string) => Promise<boolean>;
+
+  /**
+   * Vérification synchrone basée sur les permissions stockées localement.
+   * @param ressource - Nom de la ressource.
+   * @param action - Action.
+   * @returns true si la permission est présente dans l'état local.
+   */
   hasPermission: (ressource: string, action: string) => boolean;
+
+  /**
+   * Vérifie si l'utilisateur courant a un niveau d'accès suffisant.
+   * @param level - Niveau requis (SUPER_ADMIN, ADMIN, MANAGER, STANDARD, GUEST).
+   * @returns true si le niveau de l'utilisateur est inférieur ou égal au niveau requis.
+   */
   hasLevel: (level: string) => boolean;
 
-  // Sessions
+  // ───────────── Sessions ─────────────
+  /**
+   * Récupère toutes les sessions actives d'un utilisateur.
+   * @param userId - Identifiant de l'utilisateur.
+   * @returns Liste des sessions.
+   * @throws {Error} Si la validation échoue ou si l'API échoue.
+   */
   getUserSessions: (userId: number) => Promise<Session[]>;
+
+  /**
+   * Révoque une session spécifique (déconnexion forcée).
+   * @param sessionId - Identifiant de la session à révoquer.
+   * @returns Résultat de l'opération.
+   * @throws {Error} Si l'utilisateur n'est pas authentifié ou si l'API échoue.
+   */
   revokeSession: (sessionId: number) => Promise<{ success: boolean; message: string }>;
+
+  /**
+   * Révoque toutes les sessions actives d'un utilisateur.
+   * @param userId - Identifiant de l'utilisateur.
+   * @returns Résultat de l'opération.
+   * @throws {Error} Si l'utilisateur n'est pas authentifié ou si l'API échoue.
+   */
   revokeAllUserSessions: (userId: number) => Promise<{ success: boolean; message: string }>;
 
-  // Audit
-  getAuditLogs: (
-    page?: number,
-    limit?: number,
-    filters?: AuditLogFilters
-  ) => Promise<AuditLogsResponse>;
-
-  // Utilitaires
+  // ───────────── Utilitaires ─────────────
+  /**
+   * Réinitialise toutes les erreurs du store.
+   */
   clearErrors: () => void;
 
-  // Réinitialisation par code OTP
+  // ───────────── Réinitialisation par code OTP ─────────────
+  /**
+   * Demande un code OTP de réinitialisation pour un email.
+   * @param email - Adresse email de l'utilisateur.
+   * @param isAdmin - Si true, le code est retourné directement (usage admin).
+   * @returns Succès + message (et code + userId si isAdmin = true).
+   */
   requestPasswordResetByEmail: (
     email: string,
     isAdmin?: boolean
   ) => Promise<{ success: boolean; message: string; code?: string; userId?: number }>;
+
+  /**
+   * Valide un code OTP de réinitialisation.
+   * @param code - Code à 6 chiffres.
+   * @returns Validité + userId si valide.
+   */
   validateResetCode: (
     code: string
   ) => Promise<{ valid: boolean; message?: string; userId?: number }>;
+
+  /**
+   * Réinitialise le mot de passe à l'aide d'un code OTP valide.
+   * @param params - Code OTP et nouveau mot de passe.
+   * @returns Résultat de l'opération.
+   */
   resetPassword: (params: {
     code: string;
     newPassword: string;
   }) => Promise<{ success: boolean; message: string }>;
+
+  /**
+   * Récupère tous les codes de réinitialisation générés (admin uniquement).
+   * @param page - Page courante (défaut : 1).
+   * @param limit - Éléments par page (défaut : 20).
+   * @param onlyActive - Ne retourner que les codes non utilisés et non expirés (défaut : false).
+   * @returns Liste paginée des codes.
+   */
   getAllResetCodes: (
     page?: number,
     limit?: number,
     onlyActive?: boolean
   ) => Promise<{ codes: any[]; total: number; page: number; limit: number; totalPages: number }>;
+
+  // ───────────── Statistiques, tendances et sparklines ─────────────
+
+  /**
+   * Récupère les statistiques agrégées des utilisateurs.
+   * @returns Objet contenant les statistiques (total par rôle, sessions actives, inactifs).
+   * @throws {Error} Si l'API échoue.
+   */
+  getStats: () => Promise<AuthStats>;
+
+  /**
+   * Récupère les tendances évolutives des utilisateurs.
+   * Compare les 30 derniers jours avec la période précédente.
+   * @returns Objet contenant les variations en pourcentage.
+   * @throws {Error} Si l'API échoue.
+   */
+  getTrends: () => Promise<AuthTrends>;
+
+  /**
+   * Récupère les données des sparklines pour les 12 derniers mois.
+   * Génère les mini-graphiques pour l'affichage des KPI.
+   * @returns Objet contenant les données historiques mensuelles par rôle.
+   * @throws {Error} Si l'API échoue.
+   */
+  getSparklines: () => Promise<AuthSparklineData>;
 }
 
 type AuthStore = AuthState & AuthActions;
@@ -160,6 +383,9 @@ type AuthStore = AuthState & AuthActions;
 // ÉTAT INITIAL
 // ===============================
 
+/**
+ * @description Valeurs par défaut du store.
+ */
 const initialState: AuthState = {
   isAuthenticated: false,
   token: null,
@@ -169,7 +395,7 @@ const initialState: AuthState = {
   permissions: [],
   isLoading: false,
   isRefreshing: false,
-  showWelcome: true,
+  showWelcome: false,
   lastError: null,
   allUsers: [],
   usersLoading: false,
@@ -179,29 +405,36 @@ const initialState: AuthState = {
   userSessions: [],
   sessionsLoading: false,
   sessionsError: null,
-  auditLogs: [],
-  auditLogsLoading: false,
-  auditLogsError: null,
-  auditLogsPagination: { page: 1, limit: 50, total: 0, totalPages: 0 },
+  stats: null,
+  statsLoading: false,
+  statsError: null,
+  trends: null,
+  trendsLoading: false,
+  trendsError: null,
+  sparklines: null,
+  sparklinesLoading: false,
+  sparklinesError: null,
 };
 
 // ===============================
 // STORE PRINCIPAL
 // ===============================
 
+/**
+ * Store Zustand pour l'authentification.
+ * Utilise le middleware `persist` pour conserver le token, l'utilisateur, etc. dans le localStorage.
+ */
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
       ...initialState,
 
-      // ===============================
+      // ─────────────────────────────────────────────────────────────────────────
       // AUTHENTIFICATION
-      // ===============================
+      // ─────────────────────────────────────────────────────────────────────────
 
       /**
-       * Connecte un utilisateur.
-       * Valide les credentials avec `loginSchema` avant l'appel API.
-       * Utilise `formatErrorMessage` pour rendre les erreurs compréhensibles.
+       * @inheritdoc
        */
       login: async (credentials) => {
         const validated = validateOrThrow(loginSchema, credentials);
@@ -232,13 +465,12 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           const message = formatErrorMessage(error, 'Échec de la connexion');
           set({ isLoading: false, showWelcome: false, lastError: message });
-          throw new Error(message, { cause: error });
+          throw new Error(message);
         }
       },
 
       /**
-       * Déconnecte l'utilisateur courant.
-       * Les erreurs sont formatées et loguées mais ne sont pas propagées à l'utilisateur.
+       * @inheritdoc
        */
       logout: async () => {
         const { sessionId, user } = get();
@@ -254,20 +486,18 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       /**
-       * Rafraîchit le token d'accès à l'aide du refresh token.
-       * Valide le refresh token avant la requête.
+       * @inheritdoc
        */
       refreshTokenFn: async () => {
         const { refreshToken, isRefreshing } = get();
-        if (!refreshToken) {
-          throw new Error('Aucun refresh token disponible');
-        }
+        if (!refreshToken) throw new Error('Aucun refresh token disponible');
         const validation = safeValidate(refreshTokenSchema, { refreshToken });
         if (!validation.success) {
           throw new Error(formatErrorMessage(validation.error, 'Refresh token invalide'));
         }
 
         if (isRefreshing) {
+          // Attendre que le refresh en cours se termine
           return new Promise((resolve, reject) => {
             const interval = setInterval(() => {
               if (!get().isRefreshing) {
@@ -286,6 +516,7 @@ export const useAuthStore = create<AuthStore>()(
             }, 100);
           });
         }
+
         set({ isRefreshing: true, lastError: null });
         try {
           const response = await window.api.auth.refresh(validation.data.refreshToken);
@@ -300,13 +531,12 @@ export const useAuthStore = create<AuthStore>()(
           const message = formatErrorMessage(error, 'Session expirée, veuillez vous reconnecter');
           set({ lastError: message, isRefreshing: false });
           await get().logout();
-          throw new Error(message, { cause: error });
+          throw new Error(message);
         }
       },
 
       /**
-       * Valide le token actuel et met à jour l'état utilisateur.
-       * Valide le token avant l'appel API.
+       * @inheritdoc
        */
       validateCurrentToken: async () => {
         const { token } = get();
@@ -348,8 +578,7 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       /**
-       * Vérifie si la session est encore valide (token non expiré).
-       * Tente un refresh si nécessaire.
+       * @inheritdoc
        */
       isSessionValid: async () => {
         const { token, refreshTokenFn } = get();
@@ -365,13 +594,17 @@ export const useAuthStore = create<AuthStore>()(
         }
       },
 
-      // ===============================
+      /**
+       * @inheritdoc
+       */
+      setShowWelcome: (value) => set({ showWelcome: value }),
+
+      // ─────────────────────────────────────────────────────────────────────────
       // GESTION DES UTILISATEURS (Admin)
-      // ===============================
+      // ─────────────────────────────────────────────────────────────────────────
 
       /**
-       * Récupère la liste paginée des utilisateurs.
-       * Valide les paramètres page et limit.
+       * @inheritdoc
        */
       getAllUsers: async (page = 1, limit = 20) => {
         const { user } = get();
@@ -399,13 +632,12 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           const message = formatErrorMessage(error, 'Erreur récupération utilisateurs');
           set({ usersLoading: false, usersError: message });
-          throw new Error(message, { cause: error });
+          throw new Error(message);
         }
       },
 
       /**
-       * Récupère un utilisateur par son ID.
-       * Valide l'ID avant l'appel.
+       * @inheritdoc
        */
       getUserById: async (userId) => {
         const { user } = get();
@@ -416,13 +648,12 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           const message = formatErrorMessage(error, 'Erreur lors de la récupération');
           console.error(message, error);
-          throw new Error(message, { cause: error });
+          throw new Error(message);
         }
       },
 
       /**
-       * Crée un nouvel utilisateur.
-       * Valide les données avec `createUserSchema` avant l'envoi.
+       * @inheritdoc
        */
       createUser: async (userData) => {
         const { user } = get();
@@ -436,13 +667,12 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           const message = formatErrorMessage(error, 'Erreur création utilisateur');
           set({ usersError: message });
-          throw new Error(message, { cause: error });
+          throw new Error(message);
         }
       },
 
       /**
-       * Met à jour un utilisateur.
-       * Valide les données avec `updateUserSchema`.
+       * @inheritdoc
        */
       updateUser: async (userId, updateData) => {
         const { user } = get();
@@ -450,10 +680,12 @@ export const useAuthStore = create<AuthStore>()(
         const validated = validateOrThrow(updateUserSchema, { userId, ...updateData });
         set({ usersError: null });
         try {
-          const response = await window.api.auth.updateUser({
-            ...validated,
-            updatedByUserId: user.id,
-          });
+          const response = await window.api.auth.updateUser(
+            Object.assign({
+              ...validated,
+              updatedByUserId: user.id,
+            })
+          );
           await get().getAllUsers(get().usersPagination.page, get().usersPagination.limit);
           if (userId === user.id) {
             set({ user: { ...user, ...response } });
@@ -462,13 +694,12 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           const message = formatErrorMessage(error, 'Erreur mise à jour utilisateur');
           set({ usersError: message });
-          throw new Error(message, { cause: error });
+          throw new Error(message);
         }
       },
 
       /**
-       * Désactive un utilisateur.
-       * Valide l'ID avant l'appel.
+       * @inheritdoc
        */
       deleteUser: async (userId) => {
         const { user } = get();
@@ -482,13 +713,12 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           const message = formatErrorMessage(error, 'Erreur désactivation utilisateur');
           set({ usersError: message });
-          throw new Error(message, { cause: error });
+          throw new Error(message);
         }
       },
 
       /**
-       * Change le mot de passe de l'utilisateur courant.
-       * Valide les mots de passe avec `changePasswordSchema`.
+       * @inheritdoc
        */
       changePassword: async (data) => {
         const { user } = get();
@@ -504,17 +734,16 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           const message = formatErrorMessage(error, 'Erreur changement mot de passe');
           set({ lastError: message });
-          throw new Error(message, { cause: error });
+          throw new Error(message);
         }
       },
 
-      // ===============================
+      // ─────────────────────────────────────────────────────────────────────────
       // PERMISSIONS
-      // ===============================
+      // ─────────────────────────────────────────────────────────────────────────
 
       /**
-       * Récupère les permissions d'un utilisateur.
-       * Valide l'ID utilisateur.
+       * @inheritdoc
        */
       getUserPermissions: async (userId) => {
         const validation = validateOrThrow(getUserSessionsSchema, { userId });
@@ -527,8 +756,7 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       /**
-       * Assigne une permission à un utilisateur.
-       * Valide les paramètres avec `assignPermissionSchema`.
+       * @inheritdoc
        */
       assignPermission: async (userId, ressource, action) => {
         const { user } = get();
@@ -548,13 +776,12 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           const message = formatErrorMessage(error, 'Erreur assignation permission');
           set({ permissionsError: message });
-          throw new Error(message, { cause: error });
+          throw new Error(message);
         }
       },
 
       /**
-       * Révoque une permission.
-       * Valide l'ID permission.
+       * @inheritdoc
        */
       revokePermission: async (permissionId) => {
         const { user } = get();
@@ -569,13 +796,12 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           const message = formatErrorMessage(error, 'Erreur révocation permission');
           set({ permissionsError: message });
-          throw new Error(message, { cause: error });
+          throw new Error(message);
         }
       },
 
       /**
-       * Vérifie si l'utilisateur courant a une permission (via API).
-       * Valide les paramètres.
+       * @inheritdoc
        */
       checkPermission: async (ressource, action) => {
         const { user } = get();
@@ -598,7 +824,7 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       /**
-       * Vérification synchrone basée sur les permissions locales.
+       * @inheritdoc
        */
       hasPermission: (ressource, action) => {
         const { permissions } = get();
@@ -606,7 +832,7 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       /**
-       * Vérifie le niveau d'accès.
+       * @inheritdoc
        */
       hasLevel: (level) => {
         const levels = ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'STANDARD', 'GUEST'];
@@ -614,13 +840,12 @@ export const useAuthStore = create<AuthStore>()(
         return levels.indexOf(userLevel) <= levels.indexOf(level);
       },
 
-      // ===============================
+      // ─────────────────────────────────────────────────────────────────────────
       // SESSIONS
-      // ===============================
+      // ─────────────────────────────────────────────────────────────────────────
 
       /**
-       * Récupère les sessions d'un utilisateur.
-       * Valide l'ID utilisateur.
+       * @inheritdoc
        */
       getUserSessions: async (userId) => {
         const validated = validateOrThrow(getUserSessionsSchema, { userId });
@@ -632,13 +857,12 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           const message = formatErrorMessage(error, 'Erreur récupération sessions');
           set({ sessionsLoading: false, sessionsError: message });
-          throw new Error(message, { cause: error });
+          throw new Error(message);
         }
       },
 
       /**
-       * Révoque une session spécifique.
-       * Valide l'ID session.
+       * @inheritdoc
        */
       revokeSession: async (sessionId) => {
         const { user } = get();
@@ -652,13 +876,12 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           const message = formatErrorMessage(error, 'Erreur révocation session');
           set({ sessionsError: message });
-          throw new Error(message, { cause: error });
+          throw new Error(message);
         }
       },
 
       /**
-       * Révoque toutes les sessions d'un utilisateur.
-       * Valide l'ID utilisateur.
+       * @inheritdoc
        */
       revokeAllUserSessions: async (userId) => {
         const { user } = get();
@@ -672,54 +895,16 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           const message = formatErrorMessage(error, 'Erreur révocation toutes sessions');
           set({ sessionsError: message });
-          throw new Error(message, { cause: error });
+          throw new Error(message);
         }
       },
 
-      // ===============================
-      // AUDIT LOGS
-      // ===============================
-
-      /**
-       * Récupère les logs d'audit paginés.
-       * Valide les paramètres avec `getAuditLogsSchema`.
-       */
-      getAuditLogs: async (page = 1, limit = 50, filters = {}) => {
-        const { user } = get();
-        if (!user) throw new Error('Non authentifié');
-        const validated = validateOrThrow(getAuditLogsSchema, { page, limit, filters });
-        set({ auditLogsLoading: true, auditLogsError: null });
-        try {
-          const response = await window.api.auth.getAuditLogs(
-            user.id,
-            validated.page!,
-            validated.limit!,
-            validated.filters || {}
-          );
-          set({
-            auditLogs: response.logs,
-            auditLogsPagination: {
-              page: response.page,
-              limit: response.limit,
-              total: response.total,
-              totalPages: response.totalPages,
-            },
-            auditLogsLoading: false,
-          });
-          return response;
-        } catch (error) {
-          const message = formatErrorMessage(error, 'Erreur récupération logs audit');
-          set({ auditLogsLoading: false, auditLogsError: message });
-          throw new Error(message, { cause: error });
-        }
-      },
-
-      // ===============================
+      // ─────────────────────────────────────────────────────────────────────────
       // UTILITAIRES
-      // ===============================
+      // ─────────────────────────────────────────────────────────────────────────
 
       /**
-       * Réinitialise toutes les erreurs du store.
+       * @inheritdoc
        */
       clearErrors: () => {
         set({
@@ -727,17 +912,15 @@ export const useAuthStore = create<AuthStore>()(
           usersError: null,
           permissionsError: null,
           sessionsError: null,
-          auditLogsError: null,
         });
       },
 
-      // ===============================
+      // ─────────────────────────────────────────────────────────────────────────
       // RÉINITIALISATION PAR CODE OTP
-      // ===============================
+      // ─────────────────────────────────────────────────────────────────────────
 
       /**
-       * Demande un code de réinitialisation pour un email.
-       * Si l'utilisateur est admin, le code est retourné directement.
+       * @inheritdoc
        */
       requestPasswordResetByEmail: async (email, isAdmin = false) => {
         set({ isLoading: true, lastError: null });
@@ -751,12 +934,12 @@ export const useAuthStore = create<AuthStore>()(
             'Erreur lors de la demande de réinitialisation'
           );
           set({ isLoading: false, lastError: message });
-          throw new Error(message, { cause: error });
+          throw new Error(message);
         }
       },
 
       /**
-       * Valide un code OTP de réinitialisation.
+       * @inheritdoc
        */
       validateResetCode: async (code) => {
         set({ isLoading: true, lastError: null });
@@ -767,12 +950,12 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           const message = formatErrorMessage(error, 'Erreur lors de la validation du code');
           set({ isLoading: false, lastError: message });
-          throw new Error(message, { cause: error });
+          throw new Error(message);
         }
       },
 
       /**
-       * Réinitialise le mot de passe avec un code OTP valide.
+       * @inheritdoc
        */
       resetPassword: async ({ code, newPassword }) => {
         set({ isLoading: true, lastError: null });
@@ -786,12 +969,12 @@ export const useAuthStore = create<AuthStore>()(
             'Erreur lors de la réinitialisation du mot de passe'
           );
           set({ isLoading: false, lastError: message });
-          throw new Error(message, { cause: error });
+          throw new Error(message);
         }
       },
 
       /**
-       * Récupère tous les codes de réinitialisation (admin uniquement).
+       * @inheritdoc
        */
       getAllResetCodes: async (page = 1, limit = 20, onlyActive = false) => {
         const { user } = get();
@@ -804,14 +987,68 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           const message = formatErrorMessage(error, 'Erreur récupération des codes');
           set({ isLoading: false, lastError: message });
-          throw new Error(message, { cause: error });
+          throw new Error(message);
         }
       },
 
-      setShowWelcome: (value) => set({ showWelcome: value }),
+      /**
+       * Récupère les statistiques agrégées des utilisateurs.
+       * @inheritdoc
+       */
+      getStats: async () => {
+        set({ statsLoading: true, statsError: null });
+        try {
+          const stats = await window.api.auth.getStats();
+          set({ stats, statsLoading: false });
+          return stats;
+        } catch (error) {
+          const message = formatErrorMessage(error, 'Erreur lors du chargement des statistiques');
+          set({ statsLoading: false, statsError: message });
+          throw new Error(message);
+        }
+      },
+
+      /**
+       * Récupère les tendances évolutives des utilisateurs.
+       * @inheritdoc
+       */
+      getTrends: async () => {
+        set({ trendsLoading: true, trendsError: null });
+        try {
+          const trends = await window.api.auth.getTrends();
+          set({ trends, trendsLoading: false });
+          return trends;
+        } catch (error) {
+          const message = formatErrorMessage(error, 'Erreur lors du chargement des tendances');
+          set({ trendsLoading: false, trendsError: message });
+          throw new Error(message);
+        }
+      },
+
+      /**
+       * Récupère les données des sparklines pour les 12 derniers mois.
+       * @inheritdoc
+       */
+      getSparklines: async () => {
+        set({ sparklinesLoading: true, sparklinesError: null });
+        try {
+          const sparklines = await window.api.auth.getSparklines();
+          set({ sparklines, sparklinesLoading: false });
+          return sparklines;
+        } catch (error) {
+          const message = formatErrorMessage(error, 'Erreur lors du chargement des sparklines');
+          set({ sparklinesLoading: false, sparklinesError: message });
+          throw new Error(message);
+        }
+      },
     }),
     {
       name: 'auth-storage',
+      /**
+       * Persiste uniquement les champs essentiels (token, refresh token, session, user, permissions, état d'authentification).
+       * @param state - État complet du store.
+       * @returns État partiel à sauvegarder dans localStorage.
+       */
       partialize: (state) => ({
         token: state.token,
         refreshToken: state.refreshToken,

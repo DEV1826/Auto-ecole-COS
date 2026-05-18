@@ -192,6 +192,7 @@ export interface FacturesColumnConfig {
   showDateEmission?: boolean;
   showDateEcheance?: boolean;
   showMontantPaye?: boolean;
+  showResteAPayer?: boolean;
   showActions?: boolean;
 }
 
@@ -237,12 +238,13 @@ export interface FacturesTableActions {
  * @property {(facture: Facture) => number} [getMontantPaye] - Montant déjà payé (somme des paiements)
  */
 export interface FacturesEnrichments {
-  getCandidatNomComplet?: () => string;
-  getCandidatEmail?: () => string;
-  getCandidatTelephone?: () => string;
-  getCandidatAvatarUrl?: () => string;
-  getCandidatInitials?: () => string;
+  getCandidatNomComplet?: (facture: Facture) => string;
+  getCandidatEmail?: (facture: Facture) => string;
+  getCandidatTelephone?: (facture: Facture) => string;
+  getCandidatAvatarUrl?: (facture: Facture) => string;
+  getCandidatInitials?: (facture: Facture) => string;
   getMontantPaye?: (facture: Facture) => number;
+  getResteAPayer?: (facture: Facture) => number;
 }
 
 /**
@@ -275,4 +277,245 @@ export interface FacturesColumnsOptions {
   actions?: FacturesTableActions;
   enrichments?: FacturesEnrichments;
   variant?: 'admin' | 'secretaire';
+}
+
+// ============================================================
+// PARAMÈTRES & ENTRÉES (DTOs)
+// ============================================================
+
+/**
+ * Paramètres de filtrage et pagination pour la liste des factures.
+ *
+ * @interface FacturesListParams
+ * @description
+ * Utilisé par `FacturesApi.getAll()` et le canal IPC `factures:getAll`.
+ *
+ * @property {number} [page=1] - Page courante (1-indexed)
+ * @property {number} [limit=20] - Nombre d'éléments par page (max 200)
+ * @property {string} [search] - Recherche textuelle : numéro de facture, nom candidat
+ * @property {StatutFacture} [statut] - Filtrer par statut (EN_ATTENTE, PARTIELLEMENT_PAYEE, PAYEE, ANNULEE)
+ * @property {number} [candidatId] - Filtrer par candidat
+ * @property {string} [dateDebut] - Date d'émission début (ISO 8601)
+ * @property {string} [dateFin] - Date d'émission fin
+ * @property {'today' | 'week' | 'month' | 'all'} [period] - Période prédéfinie (remplace dateDebut/dateFin)
+ * @property {'numero' | 'montantTotal' | 'dateEmission' | 'createdAt'} [sortBy='dateEmission'] - Champ de tri
+ * @property {'asc' | 'desc'} [sortOrder='desc'] - Sens du tri
+ */
+export interface FacturesListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  statut?: StatutFacture;
+  candidatId?: number;
+  dateDebut?: string;
+  dateFin?: string;
+  period?: 'today' | 'week' | 'month' | 'all';
+  sortBy?: 'numero' | 'montantTotal' | 'dateEmission' | 'createdAt';
+  sortOrder?: 'asc' | 'desc';
+}
+
+/**
+ * Données d'entrée pour créer une nouvelle facture.
+ *
+ * @interface CreateFactureInput
+ * @description
+ * Utilisé par `FacturesApi.create()`.
+ *
+ * @property {number} candidatId - Identifiant du candidat
+ * @property {number} montantTotal - Montant total de la facture (FCFA)
+ * @property {string} [dateEmission] - Date d'émission (ISO 8601), défaut = maintenant
+ * @property {string} [dateEcheance] - Date d'échéance (optionnelle)
+ * @property {string} [notes] - Commentaires internes
+ * @property {string} [numero] - Numéro de facture (si laissé vide, auto-généré)
+ */
+export interface CreateFactureInput {
+  candidatId: number;
+  montantTotal: number;
+  dateEmission?: string;
+  dateEcheance?: string | null;
+  notes?: string | null;
+  numero?: string; // auto-généré si absent
+}
+
+/**
+ * Données d'entrée pour mettre à jour une facture.
+ *
+ * @interface UpdateFactureInput
+ * @description
+ * Tous les champs sont optionnels (patch partiel).
+ *
+ * @property {StatutFacture} [statut] - Nouveau statut
+ * @property {string} [dateEcheance] - Nouvelle date d'échéance
+ * @property {string} [notes] - Nouvelles notes
+ * @property {string} [pdfPath] - Chemin du PDF (si régénéré)
+ */
+export interface UpdateFactureInput {
+  statut?: StatutFacture;
+  dateEcheance?: string | null;
+  notes?: string | null;
+  pdfPath?: string | null;
+}
+
+// ============================================================
+// RÉPONSES DE L'API
+// ============================================================
+
+/**
+ * Réponse paginée pour la liste des factures.
+ *
+ * @interface FacturesPaginatedResponse
+ * @property {Facture[]} factures - Liste des factures de la page (avec relations candidat et paiements résumés)
+ * @property {number} total - Nombre total de factures (tous filtres)
+ * @property {number} page - Page courante
+ * @property {number} limit - Limite par page
+ * @property {number} totalPages - Nombre total de pages
+ */
+export interface FacturesPaginatedResponse {
+  factures: Facture[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/**
+ * Statistiques étendues des factures pour le dashboard.
+ *
+ * @interface FacturesStatsExtended
+ * @extends FacturesStats
+ * @property {number} montantJour - Montant des factures émises aujourd'hui
+ * @property {number} montantMois - Montant des factures émises ce mois-ci
+ * @property {number} montantImpayeEvolution - Évolution du montant impayé (en %)
+ */
+export interface FacturesStatsExtended extends FacturesStats {
+  montantJour: number;
+  montantMois: number;
+  montantImpayeEvolution: number;
+}
+
+/**
+ * Données des sparklines pour les factures (12 derniers mois).
+ *
+ * @interface FacturesSparklineData
+ * @property {{ values: number[]; labels?: string[] }} totalFacturesSparkline - Nombre de factures par mois
+ * @property {{ values: number[]; labels?: string[] }} montantTotalSparkline - Montant total par mois
+ * @property {{ values: number[]; labels?: string[] }} montantImpayeSparkline - Montant impayé par mois
+ * @property {{ values: number[]; labels?: string[] }} paiementsRecusSparkline - Paiements reçus par mois
+ */
+export interface FacturesSparklineData {
+  totalFacturesSparkline: { values: number[]; labels?: string[] };
+  montantTotalSparkline: { values: number[]; labels?: string[] };
+  montantImpayeSparkline: { values: number[]; labels?: string[] };
+  paiementsRecusSparkline: { values: number[]; labels?: string[] };
+}
+
+// ============================================================
+// API WINDOW — FacturesApi
+// ============================================================
+
+/**
+ * Interface de l'API factures exposée au renderer via `window.api.factures`.
+ *
+ * @interface FacturesApi
+ * @description
+ * Toutes les méthodes sont asynchrones et communiquent via IPC Electron.
+ *
+ * ## Canaux IPC utilisés
+ * | Méthode               | Canal IPC                         |
+ * |-----------------------|-----------------------------------|
+ * | getAll                | factures:getAll                   |
+ * | getById               | factures:getById                  |
+ * | create                | factures:create                   |
+ * | update                | factures:update                   |
+ * | delete                | factures:delete                   |
+ * | getStats              | factures:getStats                 |
+ * | getTrends             | factures:getTrends                |
+ * | getSparklines         | factures:getSparklines            |
+ * | getPaiements          | factures:getPaiements             |
+ * | getByCandidat         | factures:getByCandidat            |
+ * | generatePDF           | factures:generatePDF              |
+ * | sendByEmail           | factures:sendByEmail              |
+ */
+export interface FacturesApi {
+  /**
+   * Récupère la liste paginée des factures avec filtres.
+   * @param params - Paramètres de pagination, filtres et tri
+   * @returns Liste paginée
+   */
+  getAll: (params?: FacturesListParams) => Promise<FacturesPaginatedResponse>;
+
+  /**
+   * Récupère une facture par son identifiant (avec candidat et paiements).
+   * @param id - Identifiant de la facture
+   * @returns Facture complète
+   */
+  getById: (id: number) => Promise<Facture & { paiements?: Paiement[]; candidat?: Candidat }>;
+
+  /**
+   * Crée une nouvelle facture (avec génération automatique du numéro et du PDF).
+   * @param data - Données de la facture
+   * @returns Facture créée
+   */
+  create: (data: CreateFactureInput) => Promise<Facture>;
+
+  /**
+   * Met à jour partiellement une facture (statut, échéance, notes).
+   * @param id - Identifiant de la facture
+   * @param data - Champs à modifier
+   * @returns Facture mise à jour
+   */
+  update: (id: number, data: UpdateFactureInput) => Promise<Facture>;
+
+  /**
+   * Supprime définitivement une facture (uniquement si aucun paiement associé).
+   * @param id - Identifiant de la facture
+   * @returns Résultat de l'opération
+   */
+  delete: (id: number) => Promise<{ success: boolean; message: string }>;
+
+  /**
+   * Récupère les statistiques agrégées des factures.
+   * @returns Métriques (total, montants, tendances)
+   */
+  getStats: () => Promise<FacturesStatsExtended>;
+
+  /**
+   * Récupère les tendances évolutives (mois en cours vs précédent).
+   * @returns Variations en pourcentage
+   */
+  getTrends: () => Promise<FacturesTrends>;
+
+  /**
+   * Récupère les données des sparklines pour les 12 derniers mois.
+   * @returns Sparklines (totaux, montants, impayés)
+   */
+  getSparklines: () => Promise<FacturesSparklineData>;
+
+  /**
+   * Récupère la liste des paiements associés à une facture.
+   * @param factureId - Identifiant de la facture
+   * @returns Liste des paiements
+   */
+  getPaiements: (factureId: number) => Promise<Paiement[]>;
+
+  /**
+   * Récupère toutes les factures d’un candidat spécifique.
+   * @param candidatId - Identifiant du candidat
+   * @returns Liste des factures du candidat (triées par date décroissante)
+   */
+  getByCandidat: (candidatId: number) => Promise<Facture[]>;
+
+  /**
+   * Génère (ou régénère) le PDF d’une facture et met à jour le chemin.
+   * @param id - Identifiant de la facture
+   * @returns Chemin du fichier PDF généré
+   */
+  generatePDF: (id: number) => Promise<{ success: boolean; path: string; message?: string }>;
+
+  /**
+   * Envoie la facture par email au candidat (si email connu).
+   * @param id - Identifiant de la facture
+   * @returns Résultat de l’envoi
+   */
+  sendByEmail: (id: number) => Promise<{ success: boolean; message: string }>;
 }

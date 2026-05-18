@@ -11,146 +11,34 @@
  * ─ Bloc statistiques (`FormationsStatsCards`) — repliable
  * ─ Tableau complet (`FormationsTable`) avec filtres, pagination, actions
  *
- * Données mockées (à remplacer par des appels API réels).
+ * Les données sont chargées depuis l’API Electron via le store `useFormations`.
+ * Aucune donnée mockée n’est utilisée. Le tableau gère lui‑même la pagination.
+ *
+ * Les squelettes sont gérés directement par les composants enfants
+ * (`FormationsStatsCards` et `FormationTrendChart`) via leur prop `isLoading`.
  *
  * @author Stive Junior
- * @version 1.0.0
- *
- * @example
- * ```tsx
- * <FormationsListPage />
- * ```
+ * @version 4.0.0
  */
 
 import * as React from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { GraduationCap, PlusCircle, Download, } from 'lucide-react';
+import { GraduationCap } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { FormationsStatsCards } from '../components/FormationsStatsCards';
-import { FormationsTable } from '../components/FormationsTable';
 import { PageBreadcrumb } from '@/components/common/PageBreadcrumb';
 import { useAuth } from '@/hooks/use.auth';
-import type { Formation } from '@/types/formations.types';
-import type { FormationsStats, FormationsTrends } from '@/types/formations.types';
+import { useFormations } from '@/hooks/use.formations';
 import { useNavigate } from 'react-router-dom';
 import { PROTECTED_ROUTES, route } from '@/config';
+
+import { FormationsStatsCards } from '../components/FormationsStatsCards';
+import { FormationsTable } from '../components/FormationsTable';
 import { FormationTrendChart } from '../components/FormationTrendChart';
 
-// ============================================================
-// Données mockées (à remplacer par des appels API réels)
-// ============================================================
-
-/**
- * Génère une liste aléatoire de formations.
- */
-function generateMockFormations(count: number = 8): Formation[] {
-  const noms = [
-    'Permis B (Voiture)',
-    'Permis A (Moto)',
-    'Permis C (Poids lourd)',
-    'Permis D (Transport en commun)',
-    'Permis BE (Remorque)',
-    'Conduite accompagnée',
-    'Stage de récupération de points',
-    'Formation accélérée (3 mois)',
-  ];
-  const categories = ['A', 'B', 'C', 'D', 'BE'] as const;
-  const now = new Date();
-
-  const formations: Formation[] = [];
-
-  for (let i = 1; i <= Math.min(count, noms.length); i++) {
-    const actif = Math.random() > 0.3;
-    const prixTotal = [180000, 220000, 250000, 280000, 310000, 350000][Math.floor(Math.random() * 6)];
-    const heuresCode = [8, 10, 12, 15][Math.floor(Math.random() * 4)];
-    const heuresConduite = [12, 15, 20, 25, 30][Math.floor(Math.random() * 5)];
-    const createdAt = new Date(now);
-    createdAt.setMonth(now.getMonth() - Math.floor(Math.random() * 12));
-
-    formations.push({
-      id: i,
-      nom: noms[i - 1],
-      description: `Formation complète pour l’obtention du ${noms[i - 1]}.`,
-      prixTotal,
-      heuresCode,
-      heuresConduite,
-      categorie: categories[i % categories.length],
-      actif,
-      createdAt: createdAt.toISOString(),
-      updatedAt: createdAt.toISOString(),
-    });
-  }
-  return formations;
-}
-
-/**
- * Calcule les statistiques agrégées à partir de la liste des formations.
- */
-function computeStats(formations: Formation[]): FormationsStats {
-  const totalFormations = formations.length;
-  const formationsActives = formations.filter((f) => f.actif).length;
-  const prixMoyen = formationsActives > 0
-    ? Math.round(formations.filter((f) => f.actif).reduce((s, f) => s + f.prixTotal, 0) / formationsActives)
-    : 0;
-  const dureeMoyenneConduite = formationsActives > 0
-    ? Math.round(formations.filter((f) => f.actif).reduce((s, f) => s + f.heuresConduite, 0) / formationsActives)
-    : 0;
-  // Simuler des inscriptions (mockées)
-  const totalInscriptions = Math.floor(Math.random() * 200) + 50;
-  const inscriptionsMois = Math.floor(Math.random() * 15) + 2;
-
-  return {
-    totalFormations,
-    formationsActives,
-    prixMoyen,
-    dureeMoyenneConduite,
-    totalInscriptions,
-    inscriptionsMois,
-  };
-}
-
-/**
- * Génère des tendances fictives (évolution).
- */
-function generateMockTrends(): Partial<FormationsTrends> {
-  return {
-    formationsActives: 0,
-    prixMoyen: 2.5,
-    totalInscriptions: 8,
-    inscriptionsMois: -3,
-  };
-}
-
-/**
- * Génère des sparklines pour les statistiques.
- */
-function generateMockSparklines() {
-  return {
-    formationsActivesSparkline: {
-      values: [3, 3, 4, 4, 4, 4, 4],
-      labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil'],
-    },
-    prixMoyenSparkline: {
-      values: [210000, 215000, 220000, 225000, 230000, 240000, 245000],
-      labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil'],
-    },
-    totalInscriptionsSparkline: {
-      values: [98, 105, 112, 118, 122, 125, 128],
-      labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil'],
-    },
-    inscriptionsMoisSparkline: {
-      values: [8, 10, 11, 12, 9, 14, 12],
-      labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil'],
-    },
-  };
-}
-
-// ============================================================
-// Page principale
-// ============================================================
+import type { Formation } from '@/types/formations.types';
+import type { FormationTrendChartProps } from '../components/FormationTrendChart';
 
 export default function FormationsListPage(): React.JSX.Element {
   const navigate = useNavigate();
@@ -159,70 +47,171 @@ export default function FormationsListPage(): React.JSX.Element {
   const isSecretaire = user?.role === 'SECRETAIRE';
   const canEdit = isAdmin || isSecretaire;
 
-  // Données mockées
-  const [formations, setFormations] = React.useState<Formation[]>(() => generateMockFormations(8));
-  const [stats, setStats] = React.useState<FormationsStats>(() => computeStats(formations));
-  const [trends] = React.useState(() => generateMockTrends());
-  const [isLoading, setIsLoading] = React.useState(false);
+  // Store
+  const {
+    isBusy,
+    formations,
+    stats,
+    trends,
+    sparklines,
+    getAll,
+    getStats,
+    getTrends,
+    getSparklines,
+    getMonthlyInscriptions,
+    getPopularityStats,
+    getNbInscriptions,
+    update: updateFormation,
 
-  const sparklines = generateMockSparklines();
+  } = useFormations();
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
+  // État local pour les données du graphique
+  const [trendChartProps, setTrendChartProps] = React.useState<FormationTrendChartProps | null>(null);
+  const [trendChartLoading, setTrendChartLoading] = React.useState(false);
 
+  // Chargement initial : toutes les formations (sans pagination)
+  React.useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        await getAll();
+        await getStats();
+        await getTrends();
+        await getSparklines();
+      } catch {
+        toast.error('Erreur lors du chargement des données');
+      }
+    };
+    loadInitialData();
+  }, [getAll, getSparklines, getStats, getTrends]);
+
+  // Chargement des données pour le graphique de tendances
+  React.useEffect(() => {
+    const loadTrendData = async () => {
+      if (!formations.length) {
+        setTrendChartProps(null);
+        setTrendChartLoading(false);
+        return;
+      }
+
+      setTrendChartLoading(true);
+      try {
+        const activeFormations = formations.filter((f) => f.actif);
+        if (activeFormations.length === 1) {
+          // Mode mono‑formation
+          const formation = activeFormations[0];
+          const monthly = await getMonthlyInscriptions(formation.id);
+          const total = monthly.reduce((sum, m) => sum + m.inscriptions, 0);
+          let trend = 0;
+          if (monthly.length >= 2) {
+            const last = monthly[monthly.length - 1].inscriptions;
+            const prev = monthly[monthly.length - 2].inscriptions;
+            if (prev > 0) trend = ((last - prev) / prev) * 100;
+            else if (last > 0) trend = 100;
+          }
+          setTrendChartProps({
+            type: 'single',
+            formationName: formation.nom,
+            monthlyData: monthly,
+            totalInscriptions: total,
+            trendPercentage: Math.abs(Math.round(trend)),
+            isPositiveTrend: trend >= 0,
+          });
+        } else if (activeFormations.length > 1) {
+          // Mode multi‑formations
+          const popularity = await getPopularityStats();
+          const data = popularity
+            .filter((p) => activeFormations.some((f) => f.id === p.formationId))
+            .slice(0, 5)
+            .map((p) => ({
+              name: p.name,
+              inscriptions: p.inscriptions,
+              trend: p.trend,
+            }));
+          const total = data.reduce((sum, d) => sum + d.inscriptions, 0);
+          const globalTrendValue = data.reduce((sum, d) => sum + d.trend, 0) / data.length || 0;
+          setTrendChartProps({
+            type: 'multi',
+            data,
+            totalLabel: 'Inscriptions totales',
+            totalValue: total,
+            globalTrend: {
+              value: Math.abs(Math.round(globalTrendValue)),
+              isPositive: globalTrendValue >= 0,
+              label: 'vs période précédente',
+            },
+          });
+        } else {
+          setTrendChartProps(null);
+        }
+      } catch (err) {
+        console.error(err);
+        setTrendChartProps(null);
+      } finally {
+        setTrendChartLoading(false);
+      }
+    };
+    loadTrendData();
+  }, [formations, getMonthlyInscriptions, getPopularityStats]);
+
+  // Handlers
   const handleRefresh = async () => {
-    setIsLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    const fresh = generateMockFormations(8);
-    setFormations(fresh);
-    setStats(computeStats(fresh));
-    setIsLoading(false);
-    toast.success('Formations actualisées');
+    await getAll();
+    await getStats();
+    await getTrends();
+    await getSparklines();
+    toast.success('Données actualisées');
   };
 
-  const handleExport = () => {
-    toast.success('Export des formations (simulé)');
-  };
-
-  const handleAddFormation = () => {
-    toast.info('Formulaire d’ajout de formation (à connecter)');
-  };
-
-  const handleView = (formation: Formation) => {
+  const handleAddFormation = () => navigate(PROTECTED_ROUTES.FORMATIONS.CREATE);
+  const handleView = (formation: Formation) =>
     navigate(route(PROTECTED_ROUTES.FORMATIONS.DETAIL(formation.id), { id: formation.id }));
-  };
-
-  const handleEdit = (formation: Formation) => {
-    toast.info(`Modifier la formation : ${formation.nom}`);
-  };
-
+  const handleEdit = (formation: Formation) =>
+    navigate(route(PROTECTED_ROUTES.FORMATIONS.EDIT(formation.id), { id: formation.id }));
   const handleToggleActive = async (formation: Formation) => {
-    await new Promise((r) => setTimeout(r, 600));
-    setFormations((prev) =>
-      prev.map((f) => (f.id === formation.id ? { ...f, actif: !f.actif } : f))
-    );
-    setStats(computeStats(formations.map((f) => (f.id === formation.id ? { ...f, actif: !f.actif } : f))));
-    toast.success(`Formation ${formation.actif ? 'désactivée' : 'activée'}`);
+    try {
+      await updateFormation(formation.id, { actif: !formation.actif });
+    } catch {
+      toast.error('Erreur lors du changement de statut');
+    }
   };
+  const handleExport = () => toast.info('Export des formations (à implémenter)');
 
-  const handleViewTarifs = (formation: Formation) => {
-    toast.info(`Historique des tarifs pour ${formation.nom}`);
-  };
-
-  // ── Actions du tableau ───────────────────────────────────────────────────
+  // Actions du tableau
   const actions = {
     onView: handleView,
     onEdit: canEdit ? handleEdit : undefined,
     onToggleActive: isAdmin ? handleToggleActive : undefined,
-    onViewTarifs: isAdmin ? handleViewTarifs : undefined,
   };
 
-  // Enrichissements (formatage des heures)
+  // Chargement asynchrone du nombre d’inscriptions pour chaque formation
+  const [inscriptionsMap, setInscriptionsMap] = React.useState<Map<number, number>>(new Map());
+
+  React.useEffect(() => {
+    const loadAllInscriptions = async () => {
+      const map = new Map<number, number>();
+      for (const f of formations) {
+        try {
+          const nb = await getNbInscriptions(f.id);
+          map.set(f.id, nb);
+        } catch {
+          map.set(f.id, 0);
+        }
+      }
+      setInscriptionsMap(map);
+    };
+    if (formations.length) {
+      loadAllInscriptions();
+    }
+  }, [formations, getNbInscriptions]);
+
+  // Enrichissements pour le tableau
   const enrichments = {
     getDureeFormatee: (f: Formation) => `${f.heuresCode}h code / ${f.heuresConduite}h conduite`,
-    getNbInscriptions: (f: Formation) => Math.floor(Math.random() * 50) + 10, // Mocké
+    getNbInscriptions: (f: Formation) => inscriptionsMap.get(f.id) ?? 0,
   };
 
-  const variant = isAdmin ? 'admin' : 'secretaire';
+  // État de chargement global (tous les composants partagent le même indicateur)
+  const isLoading = isBusy;
 
   return (
     <div className="space-y-5 p-4 md:p-1 pb-10">
@@ -243,66 +232,48 @@ export default function FormationsListPage(): React.JSX.Element {
                 variant="outline"
                 className="text-[10px] h-4 px-1.5 border-0 bg-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
               >
-                {stats.totalFormations} formations
+                {formations.length} formations
               </Badge>
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport} className="h-8 gap-1 text-xs">
-            <Download className="h-3.5 w-3.5" />
-            Exporter
-          </Button>
-
-          <PageBreadcrumb className="hidden lg:flex" />
-        </div>
+        <PageBreadcrumb className="hidden lg:flex" />
       </div>
 
+      {/* Section Statistiques + Graphique */}
+      <div className="space-y-2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Cartes statistiques - 2/3 de la largeur */}
+          <div className="lg:col-span-2">
+            <FormationsStatsCards
+              stats={stats!}
+              trends={trends || undefined}
+              formationsActivesSparkline={sparklines?.formationsActivesSparkline}
+              prixMoyenSparkline={sparklines?.prixMoyenSparkline}
+              totalInscriptionsSparkline={sparklines?.totalInscriptionsSparkline}
+              inscriptionsMoisSparkline={sparklines?.inscriptionsMoisSparkline}
+              isLoading={isLoading}
+              className="h-full"
+            />
+          </div>
+          {/* Graphique de tendances - 1/3 de la largeur */}
+          <div className="lg:col-span-1">
+
+            <FormationTrendChart
+              {...trendChartProps!}
+              title="Tendances des inscriptions"
+              isLoading={isLoading}
+            />
 
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-2">
-        <div className="lg:col-span-2">
-
-          <FormationsStatsCards
-            stats={stats}
-            trends={trends}
-            formationsActivesSparkline={sparklines.formationsActivesSparkline}
-            prixMoyenSparkline={sparklines.prixMoyenSparkline}
-            totalInscriptionsSparkline={sparklines.totalInscriptionsSparkline}
-            inscriptionsMoisSparkline={sparklines.inscriptionsMoisSparkline}
-            isLoading={isLoading}
-            className='h-full'
-            onCardClick={(id) => {
-              if (id === 'formations-actives') toast.info('Voir les formations actives');
-              else if (id === 'prix-moyen') toast.info('Prix moyen des formations');
-              else if (id === 'total-inscriptions') toast.info('Total des inscriptions');
-              else if (id === 'inscriptions-mois') toast.info('Inscriptions du mois');
-            }}
-          />
-        </div>
-        <div className="lg:col-span-1">
-          <FormationTrendChart
-            data={[
-              { name: 'Permis B', inscriptions: 45, trend: 12 },
-              { name: 'Permis A', inscriptions: 32, trend: 5 },
-              { name: 'Permis C', inscriptions: 24, trend: -2 },
-              { name: 'Permis D', inscriptions: 18, trend: 8 },
-              { name: 'Conduite accompagnée', inscriptions: 15, trend: 3 },
-            ]}
-            totalLabel="Inscriptions totales"
-            totalValue={134}
-            globalTrend={{ value: 8.5, isPositive: true, label: 'vs mois dernier' }}
-
-            title="Popularité des formations"
-            description="Classement par nombre d'inscriptions"
-          />
+          </div>
         </div>
       </div>
 
       {/* Tableau des formations */}
       <FormationsTable
         formations={formations}
-        variant={variant}
+        variant={isAdmin ? 'admin' : 'secretaire'}
         enrichments={enrichments}
         actions={actions}
         enablePagination
@@ -312,11 +283,10 @@ export default function FormationsListPage(): React.JSX.Element {
         isLoading={isLoading}
         title="Catalogue des formations"
         description="Gérez les offres pédagogiques proposées"
-        showAddButton={canEdit}
+
         onAddClick={handleAddFormation}
-        showViewAll={false}
+        onExportClick={handleExport}
         asCard
-        className="w-full"
         emptyMessage="Aucune formation trouvée."
       />
     </div>

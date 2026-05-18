@@ -75,7 +75,7 @@ function formatKm(km: number): string {
  * Icône par défaut pour les véhicules (fallback).
  * @internal
  */
-const DEFAULT_VEHICLE_ICON = '/images/brand/brand-00.svg';
+const DEFAULT_VEHICLE_ICON = '/images/brand/car.png';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COLONNES FIXES
@@ -115,16 +115,17 @@ function colMarqueModele(enrichments: VehiculesEnrichments, variant: 'admin' | '
       accessorKey: 'marque',
       title: 'Marque / Modèle',
       icon: Car,
-      getAvatarUrl: (v) => getAvatarUrl?.(v) ?? DEFAULT_VEHICLE_ICON,
+      getAvatarUrl: (v) => DEFAULT_VEHICLE_ICON ?? getAvatarUrl?.(v),
       getInitials: (v) => getInitials?.(v) ?? `${v.marque[0]}${v.modele[0]}`,
       getPrimaryText: (v) => libelle(v),
       avatarSize: 'md',
+
+      img: true,
       enableSorting: true,
       size: 240,
       cellClassName: 'text-sm font-medium',
     });
   }
-  // Version simplifiée (secrétaire)
   return {
     accessorKey: 'marque',
     header: ({ column }) => <DataTableColumnHeader column={column} title="Marque / Modèle" />,
@@ -310,8 +311,8 @@ export function getVehiculesColumns({
 
   const cols: ColumnDef<Vehicule>[] = [];
 
-  if (showImmatriculation) cols.push(colImmatriculation());
   if (showMarqueModele) cols.push(colMarqueModele(enrichments, variant));
+  if (showImmatriculation) cols.push(colImmatriculation());
   if (showCategorie && variant === 'admin') cols.push(colCategorie());
   if (showKilometrage && variant === 'admin') cols.push(colKilometrage());
   if (showStatut) cols.push(colStatut());

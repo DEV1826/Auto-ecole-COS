@@ -64,7 +64,7 @@ import {
     isWithinInterval,
 } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { RefreshCw, ChevronRight, PlusCircle, FileText } from 'lucide-react';
+import { RefreshCw, ChevronRight, PlusCircle, FileText, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { DataTable } from '@/components/tables/data-table';
@@ -149,6 +149,9 @@ export interface DocumentsTableProps {
 
     /** Callback du bouton « Ajouter un document » */
     onAddClick?: () => void;
+
+    /** Callback dubouton « Exporter un document » */
+    onExport?: () => void;
 
     /** En‑tête : titre principal */
     title?: string;
@@ -299,6 +302,7 @@ export function DocumentsTable({
     onViewAll,
     showAddButton = false,
     onAddClick,
+    onExport,
     title = 'Documents',
     description,
     asCard = true,
@@ -308,6 +312,8 @@ export function DocumentsTable({
     className,
 }: DocumentsTableProps): React.JSX.Element {
     const isMobile = useIsMobile();
+    const isAdmin = variant === 'admin';
+    const isSecretaire = variant === 'secretaire';
     const [periodFilter, setPeriodFilter] = React.useState<DocumentsPeriodFilter>(defaultPeriodFilter);
     const [refreshing, setRefreshing] = React.useState(false);
 
@@ -452,12 +458,31 @@ export function DocumentsTable({
                 </div>
             </div>
             <div className="flex items-center gap-1">
-                {showAddButton && onAddClick && (
-                    <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={onAddClick}>
-                        <PlusCircle className="h-3.5 w-3.5" />
-                        Ajouter
+
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefresh}
+                    disabled={isLoading}
+                    className="h-8 gap-1.5 text-xs"
+                >
+                    <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                    Actualiser
+                </Button>
+
+                {(isAdmin || isSecretaire) && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onExport}
+                        className="h-8 gap-1.5 text-xs"
+                    >
+                        <Download className="h-3.5 w-3.5" />
+                        Exporter
                     </Button>
                 )}
+
+
                 {extraActions}
             </div>
         </div>

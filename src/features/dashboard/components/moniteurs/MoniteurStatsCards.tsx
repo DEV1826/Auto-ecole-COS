@@ -181,7 +181,7 @@ export function MoniteurStatsCards({
       title: 'Mes candidats',
       value: formatCompactNumber(mesCandidats),
       icon: <Users className="size-5" />,
-      iconBg: 'bg-blue-500',
+      Color: 'blue-500',
       description: 'Actifs',
       trend: mesCandidatsTrend,
       sparklineData: mesCandidatsSparkline
@@ -197,7 +197,7 @@ export function MoniteurStatsCards({
       title: 'Leçons à venir',
       value: formatCompactNumber(leconsAVenir),
       icon: <Calendar className="size-5" />,
-      iconBg: 'bg-emerald-500',
+      Color: 'emerald-500',
       description: 'Prochains 7 jours',
       trend: leconsAVenirTrend,
       sparklineData: leconsAVenirSparkline
@@ -213,7 +213,7 @@ export function MoniteurStatsCards({
       title: 'Heures de conduite',
       value: `${formatHours(heuresConduiteMois)} h`,
       icon: <Clock className="size-5" />,
-      iconBg: 'bg-amber-500',
+      Color: 'amber-500',
       description: 'Ce mois',
       trend: heuresConduiteMoisTrend,
       sparklineData: heuresConduiteMoisSparkline
@@ -229,7 +229,7 @@ export function MoniteurStatsCards({
       title: 'Taux de réussite',
       value: `${tauxReussite}%`,
       icon: <TrendingUp className="size-5" />,
-      iconBg: 'bg-purple-500',
+      Color: 'purple-500',
       description: 'Moyenne candidats suivis',
       trend: tauxReussiteTrend,
       sparklineData: tauxReussiteSparkline
@@ -249,7 +249,7 @@ export function MoniteurStatsCards({
       typeof card.value === 'number'
         ? card.value
         : parseFloat(String(card.value).replace(/[^0-9.-]/g, ''));
-    return !isNaN(numericValue) && numericValue > 0;
+    return !isNaN(numericValue);
   });
 
   if (!hasData && !isLoading) {

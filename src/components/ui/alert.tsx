@@ -11,6 +11,9 @@ const alertVariants = cva(
         default: 'bg-card text-card-foreground',
         destructive:
           'bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current',
+        alert: 'bg-yellow-50 text-yellow-900 *:data-[slot=alert-description]:text-yellow-700 *:[svg]:text-yellow-900',
+        success: 'bg-green-50 text-green-900 *:data-[slot=alert-description]:text-green-700 *:[svg]:text-green-900',
+        info: 'bg-blue-50 text-blue-900 *:data-[slot=alert-description]:text-blue-700 *:[svg]:text-blue-900',
       },
     },
     defaultVariants: {
@@ -62,7 +65,7 @@ function AlertDescription({ className, ...props }: React.ComponentProps<'div'>) 
 
 function AlertAction({ className, ...props }: React.ComponentProps<'div'>) {
   return (
-    <div data-slot="alert-action" className={cn('absolute top-2 end-2', className)} {...props} />
+    <div data-slot="alert-action" className={cn('absolute top-2 inset-e-2', className)} {...props} />
   );
 }
 

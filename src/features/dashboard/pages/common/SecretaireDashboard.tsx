@@ -42,7 +42,7 @@ import { CandidatsTable } from '@/features/candidats/components/CandidatsTable';
 import type { Session, Utilisateur } from '@/types/auth.types';
 import type { Candidat } from '@/types/candidats.types';
 import { getAvatarUrl } from '@/lib/utils';
-import { CaisseMouvementsRecentCard } from '../../components/admin/CaisseMouvementsRecentCard';
+import { CaisseMouvementsRecentCard } from '../../../caisse/components/CaisseMouvementsRecentCard';
 import type { CaisseStats, MouvementCaisse, } from '@/types/caisse.types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -346,7 +346,6 @@ export default function SecretaireDashboard({
         <div className="lg:col-span-1">
           <CaisseMouvementsRecentCard
             mouvements={MOCK_MOUVEMENTS_RECENTS}
-            caisseStats={MOCK_CAISSE_STATS}
             maxItems={5}
             isLoading={false}
             onViewAll={() => navigate('/caisse')}

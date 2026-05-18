@@ -175,7 +175,7 @@ export function SecretaireStatsCards({
       title: 'Candidats actifs',
       value: formatCompactNumber(totalCandidats),
       icon: <Users className="size-5" />,
-      iconBg: 'bg-blue-500',
+      Color: 'blue-500',
       description: 'En cours de formation',
       trend: totalCandidatsTrend,
       sparklineData: totalCandidatsSparkline
@@ -191,7 +191,7 @@ export function SecretaireStatsCards({
       title: 'Factures impayées',
       value: formatCompactNumber(facturesImpayees),
       icon: <FileText className="size-5" />,
-      iconBg: 'bg-rose-500',
+      Color: 'rose-500',
       description: 'En attente de règlement',
       trend: facturesImpayeesTrend,
       sparklineData: facturesImpayeesSparkline
@@ -207,7 +207,7 @@ export function SecretaireStatsCards({
       title: 'Leçons du jour',
       value: formatCompactNumber(leconsAujourdhui),
       icon: <Calendar className="size-5" />,
-      iconBg: 'bg-emerald-500',
+      Color: 'emerald-500',
       description: 'Programmées aujourd’hui',
       trend: leconsAujourdhuiTrend,
       sparklineData: leconsAujourdhuiSparkline
@@ -223,7 +223,7 @@ export function SecretaireStatsCards({
       title: 'Examens programmés',
       value: formatCompactNumber(examensProgrammes),
       icon: <ClipboardList className="size-5" />,
-      iconBg: 'bg-purple-500',
+      Color: 'purple-500',
       description: 'À venir (7 jours)',
       trend: examensProgrammesTrend,
       sparklineData: examensProgrammesSparkline
@@ -244,7 +244,7 @@ export function SecretaireStatsCards({
       typeof card.value === 'number'
         ? card.value
         : parseInt(String(card.value).replace(/[^0-9.-]/g, ''), 10);
-    return !isNaN(numericValue) && numericValue > 0;
+    return !isNaN(numericValue);
   });
 
   // État vide

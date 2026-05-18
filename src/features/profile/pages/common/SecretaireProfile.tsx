@@ -215,7 +215,6 @@ export default function SecretaireDashboard({
   const handleManagePlanning = () => navigate(PROTECTED_ROUTES.PLANNING.CALENDAR);
   const handleManageCandidats = () => navigate(PROTECTED_ROUTES.CANDIDATS.LIST);
   const handleManagePayments = () => navigate(PROTECTED_ROUTES.PAIEMENTS.LIST);
-  const handleManageExamens = () => navigate(PROTECTED_ROUTES.EXAMENS.LIST);
   const handleManageFactures = () => navigate(PROTECTED_ROUTES.FACTURES.LIST);
   const handleManageRapports = () => navigate(PROTECTED_ROUTES.RAPPORTS.FINANCIER);
   const handleViewAllCandidats = () => navigate(PROTECTED_ROUTES.CANDIDATS.LIST);
@@ -252,7 +251,6 @@ export default function SecretaireDashboard({
         onManagePlanning={handleManagePlanning}
         onManageCandidats={handleManageCandidats}
         onManagePayments={handleManagePayments}
-        onManageExamens={handleManageExamens}
         onManageFactures={handleManageFactures}
         onManageRapports={handleManageRapports}
         showDate

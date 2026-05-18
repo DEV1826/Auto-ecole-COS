@@ -83,7 +83,6 @@ import { DocumentsTable } from '@/features/documents/components/DocumentsTable';
 import { StatsGrid } from '@/features/dashboard/components/common/StatsCard';
 
 // Types
-import type { Candidat } from '@/types/candidats.types';
 import type { Paiement } from '@/types/paiements.types';
 import type { Lecon } from '@/types/planning.types';
 import type { Examen } from '@/types/examens.types';
@@ -147,6 +146,7 @@ export default function CandidatDetailPage(): React.JSX.Element {
         toast.error('Candidat introuvable', {
           description: detailError || "Le candidat n'existe pas ou a été supprimé.",
         });
+        console.log(err)
         navigate(PROTECTED_ROUTES.CANDIDATS.LIST);
       }
     };
@@ -192,7 +192,7 @@ export default function CandidatDetailPage(): React.JSX.Element {
         getDocuments(currentCandidat.id),
       ]);
       toast.success('Données actualisées');
-    } catch (err) {
+    } catch {
       toast.error('Erreur lors du rafraîchissement');
     } finally {
       setIsRefreshing(false);
@@ -242,16 +242,14 @@ export default function CandidatDetailPage(): React.JSX.Element {
       title: 'Solde dû',
       value: `${soldeDu.toLocaleString('fr-FR')} FCFA`,
       icon: <Wallet />,
-      iconBg: 'bg-blue-600/10',
-      iconColor: 'text-blue-600',
+      Color: 'blue-600',
     },
     {
       id: 'lecons',
       title: 'Leçons',
       value: totalLeconsEffectuees,
       icon: <BookOpen />,
-      iconBg: 'bg-emerald-600/10',
-      iconColor: 'text-emerald-600',
+      Color: 'emerald-600',
       secondaryValue: `${lecons.length} au total`,
     },
     {
@@ -259,16 +257,14 @@ export default function CandidatDetailPage(): React.JSX.Element {
       title: 'Examens',
       value: totalExamens,
       icon: <GraduationCap />,
-      iconBg: 'bg-purple-600/10',
-      iconColor: 'text-purple-600',
+      Color: 'purple-600',
     },
     {
       id: 'documents',
       title: 'Documents',
       value: totalDocuments,
       icon: <FileText />,
-      iconBg: 'bg-amber-600/10',
-      iconColor: 'text-amber-600',
+      Color: 'amber-600',
     },
   ];
 
@@ -300,7 +296,6 @@ export default function CandidatDetailPage(): React.JSX.Element {
     navigate(route(PROTECTED_ROUTES.FACTURES.DETAIL(facture.id), { id: facture.id }));
   };
   const handleViewDocument = (doc: Document) => {
-    // Ouvrir le document dans un nouvel onglet (chemin absolu ou URL)
     if (doc.chemin) window.open(doc.chemin, '_blank');
     else toast.info('Aperçu non disponible');
   };
@@ -314,7 +309,7 @@ export default function CandidatDetailPage(): React.JSX.Element {
   };
   const leconsEnrichments = {
     getCandidatNomComplet: () => `${currentCandidat.prenom} ${currentCandidat.nom}`,
-    getMoniteurNomComplet: () => 'À définir', // À adapter si l’API fournit le moniteur
+    getMoniteurNomComplet: () => 'À définir',
   };
   const examensEnrichments = {
     getCandidatNomComplet: () => `${currentCandidat.prenom} ${currentCandidat.nom}`,
@@ -436,6 +431,7 @@ export default function CandidatDetailPage(): React.JSX.Element {
             enrichments={paiementsEnrichments}
             actions={{ onView: handleViewPaiement }}
             enablePagination
+            defaultPeriodFilter="all"
             enableToolbar
             onRefresh={handleRefresh}
             defaultPageSize={5}
@@ -471,6 +467,7 @@ export default function CandidatDetailPage(): React.JSX.Element {
             enrichments={examensEnrichments}
             onAddClick={handleRegisterExam}
             showAddButton
+            defaultPeriodFilter='all'
             actions={{ onView: handleViewExamen }}
             enablePagination
             defaultPageSize={5}
@@ -483,6 +480,7 @@ export default function CandidatDetailPage(): React.JSX.Element {
           <FacturesTable
             factures={factures}
             variant="admin"
+            defaultPeriodFilter='all'
             enrichments={facturesEnrichments}
             actions={{ onView: handleViewFacture }}
             enablePagination
@@ -501,6 +499,7 @@ export default function CandidatDetailPage(): React.JSX.Element {
           <DocumentsTable
             documents={documents}
             variant="admin"
+            defaultPeriodFilter='all'
             enrichments={documentsEnrichments}
             actions={{ onView: handleViewDocument }}
             enablePagination

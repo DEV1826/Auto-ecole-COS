@@ -107,8 +107,8 @@ const sizePadding: Record<EmptyStateSize, string> = {
 };
 
 const variantClasses: Record<EmptyStateVariant, string> = {
-  dashed: 'border-dashed border-2 border-emerald-200 dark:border-emerald-800/50',
-  solid: 'border border-solid border-emerald-100 dark:border-emerald-900/30',
+  dashed: 'border-dashed border-2 border-blue-200 dark:border-blue-800/50',
+  solid: 'border border-solid border-blue-100 dark:border-blue-900/30',
   none: 'border-0 ring-0 shadow-none bg-transparent',
 };
 
@@ -152,11 +152,11 @@ export function EmptyState({
       return (
         <div
           className={cn(
-            'mx-auto rounded-full bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center',
+            'mx-auto rounded-full bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center',
             iconSize[size]
           )}
         >
-          <Icon className="h-2/3 w-2/3 text-emerald-600 dark:text-emerald-400" />
+          <Icon className="h-2/3 w-2/3 text-blue-600 dark:text-blue-400" />
         </div>
       );
     }
@@ -175,7 +175,7 @@ export function EmptyState({
   return (
     <Card
       className={cn(
-        'text-center bg-card shadow-sm transition-all',
+        'text-center bg-card shadow-sm  transition-all justify-center h-full',
         variantClasses[variant],
         sizePadding[size],
         className
@@ -200,10 +200,10 @@ export function EmptyState({
                 variant={action.variant || 'default'}
                 disabled={action.disabled}
                 className={cn(
-                  'gap-2 bg-emerald-600 hover:bg-emerald-700 text-white h-10',
+                  'gap-2 bg-blue-600 hover:bg-blue-700 text-white h-10',
                   action.variant === 'outline' &&
-                    'border-emerald-200 text-emerald-700 hover:bg-emerald-50',
-                  action.variant === 'ghost' && 'text-emerald-600 hover:bg-emerald-50',
+                  'border-blue-200 text-blue-700 hover:bg-blue-50',
+                  action.variant === 'ghost' && 'text-blue-600 hover:bg-blue-50',
                   action.className
                 )}
               >

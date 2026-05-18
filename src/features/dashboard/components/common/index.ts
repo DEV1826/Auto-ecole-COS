@@ -20,16 +20,8 @@ export type {
 export { LoadingSkeleton } from './LoadingSkeleton';
 export type { LoadingSkeletonProps, SkeletonType } from './LoadingSkeleton';
 
-export { NotificationCard } from './NotificationCard';
-export type { NotificationCardProps } from './NotificationCard';
-
 export { StatsCard } from './StatsCard';
 export type { StatsCardProps } from './StatsCard';
 
 export { WelcomeHeader } from './WelcomeHeader';
-export type {
-  WelcomeHeaderProps,
-  WelcomeAction,
-  ContextSegment,
-  WelcomeAlert,
-} from './WelcomeHeader';
+export type { WelcomeHeaderProps, WelcomeAction, ContextSegment } from './WelcomeHeader';

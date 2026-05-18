@@ -81,36 +81,6 @@ export interface Formation {
 }
 
 /**
- * Tarif – correspond au modèle Prisma `Tarif`.
- * Historise les changements de prix d’une formation.
- *
- * @interface Tarif
- * @property {number} id - Identifiant unique
- * @property {number} formationId - Formation concernée
- * @property {number} prix - Prix à la date de début
- * @property {Date | string} dateDebut - Date à partir de laquelle ce tarif s’applique
- * @property {Date | string | null} [dateFin] - Date de fin d’application (optionnelle)
- *
- * @example
- * ```ts
- * const tarif: Tarif = {
- *   id: 1,
- *   formationId: 1,
- *   prix: 240000,
- *   dateDebut: '2023-01-01T00:00:00Z',
- *   dateFin: '2024-01-01T00:00:00Z',
- * };
- * ```
- */
-export interface Tarif {
-  id: number;
-  formationId: number;
-  prix: number;
-  dateDebut: Date | string;
-  dateFin?: Date | string | null;
-}
-
-/**
  * FormationCandidat – correspond au modèle Prisma `FormationCandidat`.
  * Lie un candidat à une formation avec suivi des heures effectuées.
  *
@@ -273,7 +243,6 @@ export interface FormationsTableActions {
   onView?: (formation: Formation) => void;
   onEdit?: (formation: Formation) => void;
   onToggleActive?: (formation: Formation) => Promise<void>;
-  onViewTarifs?: (formation: Formation) => void;
 }
 
 /**
@@ -314,4 +283,150 @@ export interface FormationsColumnsOptions {
   actions?: FormationsTableActions;
   enrichments?: FormationsEnrichments;
   variant?: 'admin' | 'secretaire';
+}
+
+// ============================================================
+// PARAMÈTRES ET RÉPONSES POUR L’API
+// ============================================================
+
+/**
+ * Paramètres pour la liste paginée des formations.
+ */
+export interface FormationsListParams {
+  /** Page courante (1-indexed) */
+  page?: number;
+  /** Nombre d’éléments par page */
+  limit?: number;
+  /** Terme de recherche (nom) */
+  search?: string;
+  /** Catégorie de permis */
+  categorie?: string;
+  /** Filtrer par statut actif/inactif */
+  actif?: boolean;
+}
+
+/**
+ * Réponse paginée pour la liste des formations.
+ */
+export interface FormationsPaginatedResponse {
+  formations: Formation[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/**
+ * Données mensuelles pour une formation (inscriptions par mois).
+ */
+export interface MonthlyInscriptionData {
+  /** Libellé du mois (ex: "Jan 2024") */
+  month: string;
+  /** Nombre d'inscriptions ce mois‑là */
+  inscriptions: number;
+}
+
+/**
+ * Données des sparklines pour le dashboard formations.
+ */
+export interface FormationsSparklineData {
+  formationsActivesSparkline: { values: number[]; labels?: string[] };
+  prixMoyenSparkline: { values: number[]; labels?: string[] };
+  totalInscriptionsSparkline: { values: number[]; labels?: string[] };
+  inscriptionsMoisSparkline: { values: number[]; labels?: string[] };
+}
+
+export interface PopularityStat {
+  formationId: number;
+  name: string;
+  inscriptions: number;
+  trend: number;
+}
+
+// ============================================================
+// API WINDOW (exposée par le preload Electron)
+// ============================================================
+
+/**
+ * Interface de l’API formations exposée au renderer via `window.api.formations`.
+ *
+ * ## Canaux IPC utilisés
+ * | Méthode                 | Canal IPC                         |
+ * |-------------------------|-----------------------------------|
+ * | getAll                  | formations:getAll                 |
+ * | getById                 | formations:getById                |
+ * | create                  | formations:create                 |
+ * | update                  | formations:update                 |
+ * | delete                  | formations:delete                 |
+ * | getStats                | formations:getStats               |
+ * | getTrends               | formations:getTrends              |
+ * | getSparklines           | formations:getSparklines          |
+ * | getMonthlyInscriptions  | formations:getMonthlyInscriptions |
+ * | getCandidatsByFormation | formations:getCandidatsByFormation|
+ */
+export interface FormationsApi {
+  /**
+   * Récupère la liste paginée des formations avec filtres.
+   */
+  getAll: (params?: FormationsListParams) => Promise<FormationsPaginatedResponse>;
+
+  /**
+   * Récupère une formation par son ID.
+   */
+  getById: (id: number) => Promise<Formation>;
+
+  /**
+   * Crée une nouvelle formation.
+   */
+  create: (data: Omit<Formation, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Formation>;
+
+  /**
+   * Met à jour une formation.
+   */
+  update: (
+    id: number,
+    data: Partial<Omit<Formation, 'id' | 'createdAt' | 'updatedAt'>>
+  ) => Promise<Formation>;
+
+  /**
+   * Supprime une formation.
+   */
+  delete: (id: number) => Promise<{ success: boolean; message: string }>;
+
+  /**
+   * Récupère les statistiques agrégées.
+   */
+  getStats: () => Promise<FormationsStats>;
+
+  /**
+   * Récupère les tendances évolutives.
+   */
+  getTrends: () => Promise<FormationsTrends>;
+
+  /**
+   * Récupère les données des sparklines (évolutions sur 12 mois).
+   */
+  getSparklines: () => Promise<FormationsSparklineData>;
+
+  /**
+   * Récupère le nombre d’inscriptions mensuelles pour une formation.
+   */
+  getMonthlyInscriptions: (formationId: number) => Promise<MonthlyInscriptionData[]>;
+
+  /**
+   * Récupère la liste des candidats inscrits à une formation.
+   */
+  getCandidatsByFormation: (formationId: number) => Promise<Candidat[]>;
+
+  /**
+   * Récupère les statistiques de popularité pour chaque formation active.
+   */
+  getPopularityStats: () => Promise<PopularityStat[]>;
+
+  /**
+   *
+   * @param formationId
+   * @returns
+   */
+  getNbInscriptions: (formationId: number) => Promise<number>;
 }

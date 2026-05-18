@@ -71,7 +71,7 @@ import {
     isWithinInterval,
 } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { RefreshCw, ChevronRight, PlusCircle, GraduationCap } from 'lucide-react';
+import { RefreshCw, ChevronRight, PlusCircle, GraduationCap, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { DataTable } from '@/components/tables/data-table';
@@ -172,6 +172,8 @@ export interface ExamensTableProps {
 
     /** Callback de rafraîchissement (affiche un bouton) */
     onRefresh?: () => Promise<void>;
+
+    onExport?: () => void;
 
     /** Message personnalisé lorsque la liste est vide */
     emptyMessage?: string;
@@ -292,7 +294,7 @@ export function ExamensTable({
     columnConfig,
     enrichments = {},
     actions = {},
-    defaultPeriodFilter = 'month',
+    defaultPeriodFilter = 'all',
     showPeriodFilter = true,
     maxItems = 5,
     enablePagination = false,
@@ -302,6 +304,7 @@ export function ExamensTable({
     onViewAll,
     showAddButton = false,
     onAddClick,
+    onExport,
     title = 'Examens',
     description,
     asCard = true,
@@ -484,12 +487,11 @@ export function ExamensTable({
                 </div>
             </div>
             <div className="flex items-center gap-1">
-                {showAddButton && onAddClick && (
-                    <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={onAddClick}>
-                        <PlusCircle className="h-3.5 w-3.5" />
-                        Ajouter
-                    </Button>
-                )}
+                <Button variant="outline" size="sm" onClick={onExport} className="h-8 gap-1 text-xs">
+                    <Download className="h-3.5 w-3.5" />
+                    Exporter
+                </Button>
+
                 {extraActions}
             </div>
         </div>

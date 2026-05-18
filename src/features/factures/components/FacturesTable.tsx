@@ -78,6 +78,7 @@ import type {
     FacturesEnrichments,
     FacturesTableActions,
     FacturesColumnConfig,
+    FacturesStatsExtended,
 } from '@/types/factures.types';
 import { STATUT_FACTURE_CONFIG } from '@/types/enums';
 import { Button } from '@/components/ui/button';
@@ -107,6 +108,9 @@ export type FacturesPeriodFilter = 'today' | 'week' | 'month' | 'all';
 export interface FacturesTableProps {
     /** Liste des factures à afficher */
     factures: Facture[];
+
+    /** Métriques statistiques des factures */
+    stats?: FacturesStatsExtended;
 
     /** Variante d’affichage (influence les colonnes) */
     variant?: 'admin' | 'secretaire';
@@ -237,20 +241,6 @@ function countEnAttente(factures: Facture[]): number {
 }
 
 /**
- * Calcule le montant total impayé (pour les factures non PAYEE).
- * @param getMontantPaye - Fonction d’enrichissement pour connaître le montant déjà payé
- * @internal
- */
-function sumImpaye(factures: Facture[], getMontantPaye?: (f: Facture) => number): number {
-    if (!getMontantPaye) return 0;
-    return factures.reduce((acc, f) => {
-        if (f.statut === 'PAYEE') return acc;
-        const paye = getMontantPaye(f);
-        return acc + (f.montantTotal - paye);
-    }, 0);
-}
-
-/**
  * Formate un montant en FCFA compact.
  * @internal
  */
@@ -288,6 +278,7 @@ function getPeriodTitle(period: FacturesPeriodFilter, baseTitle: string): string
  */
 export function FacturesTable({
     factures,
+    stats,
     variant = 'admin',
     columnConfig,
     enrichments = {},
@@ -346,10 +337,7 @@ export function FacturesTable({
     // ── Statistiques rapides ──────────────────────────────────────────────
     const totalCount = filteredFactures.length;
     const enAttenteCount = React.useMemo(() => countEnAttente(filteredFactures), [filteredFactures]);
-    const totalImpaye = React.useMemo(
-        () => sumImpaye(filteredFactures, enrichments.getMontantPaye),
-        [filteredFactures, enrichments.getMontantPaye]
-    );
+    const totalImpaye = stats?.montantImpaye || 0;
 
     // ── Colonnes ───────────────────────────────────────────────────────────
     const columns = React.useMemo(() => {

@@ -4,35 +4,27 @@
  * @module features/admin/components/StatsAuditLogs
  * @description
  * Grille de cartes statistiques pour les logs d’audit.
- * Affiche : total d’événements, succès, échecs, actions les plus fréquentes.
- *
- * ## Métriques affichées
- * - **Total événements** : nombre total de logs sur la période sélectionnée
+ * Utilise les métriques étendues (`AdminStats`) pour afficher :
+ * - **Total événements** : nombre total de logs d’audit
  * - **Succès** : nombre d’actions réussies (SUCCESS)
  * - **Échecs** : nombre d’actions en échec (FAILED)
- * - **Taux de succès** : (succès / total) * 100
- * - **Top 3 actions** : les trois actions les plus fréquentes (optionnel)
+ * - **Taux de succès** : pourcentage de réussite (succès / total)
  *
  * Chaque carte supporte :
- * - Valeur formatée
- * - Tendance (évolution vs période précédente) optionnelle
- * - Icône personnalisée
+ * - Valeur formatée (nombre court K/M)
+ * - Tendance (évolution par rapport à la période précédente) – via `AdminTrends`
+ * - Icône personnalisée avec fond coloré
  * - État de chargement (skeleton)
  * - Clic sur la carte (callback)
  *
- * @see {@link AuditLogsStats}
- *
  * @author Stive Junior
- * @version 1.0.0
- *
- * @example
- * ```tsx
- * <StatsAuditLogs stats={stats} isLoading={false} showTrends />
- * ```
+ * @version 2.0.0
+ * @see {@link AdminStats} – Métriques agrégées des logs d’audit
+ * @see {@link AdminTrends} – Tendances évolutives
  */
 
 import React from 'react';
-import { TrendingUp, Activity, CheckCircle, XCircle, BarChart3 } from 'lucide-react';
+import { TrendingUp, Activity, CheckCircle, XCircle } from 'lucide-react';
 import {
     StatsGrid,
     type StatsCardProps,
@@ -40,33 +32,25 @@ import {
 } from '@/features/dashboard/components/common/StatsCard';
 import { EmptyState } from '@/features/dashboard/components/common/EmptyState';
 import { cn } from '@/lib/utils';
+import type { AdminStats, AdminTrends } from '@/types/admin.types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Statistiques agrégées pour les logs d’audit.
- */
-export interface AuditLogsStats {
-    total: number;
-    successCount: number;
-    failedCount: number;
-    last7Days: number;
-    thisMonth: number;
-}
-
 export interface StatsAuditLogsProps {
-    /** Statistiques des logs d’audit */
-    stats: AuditLogsStats;
-    /** Afficher les tendances (évolution) */
-    showTrends?: boolean;
-    /** État de chargement */
+    /** Métriques statistiques des logs d’audit (peut être null pendant le chargement) */
+    stats: AdminStats | null;
+    /** Tendances évolutives (optionnelles) */
+    trends?: Partial<AdminTrends>;
+    /** Afficher l’état de chargement (skeleton) */
     isLoading?: boolean;
-    /** Callback au clic sur une carte */
+    /** Callback déclenché au clic sur une carte (reçoit l’identifiant) */
     onCardClick?: (cardId: string) => void;
-    /** Classes additionnelles */
+    /** Classes additionnelles pour la grille */
     className?: string;
+    /** Permet de remplacer entièrement les cartes (utilisation avancée) */
+    customCards?: StatsCardProps[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -74,24 +58,25 @@ export interface StatsAuditLogsProps {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Formate un nombre.
+ * Formate un nombre en notation courte (K, M) pour l’affichage.
  * @internal
  */
 function formatNumber(num: number): string {
-    if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + 'M';
-    if (num >= 1_000) return (num / 1_000).toFixed(1) + 'k';
+    if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, '') + 'k';
     return num.toString();
 }
 
 /**
- * Construit une tendance fictive (pour l’exemple).
+ * Construit un objet StatsTrend à partir d’une valeur et d’un label optionnel.
  * @internal
  */
-function buildTrend(value: number): StatsTrend {
+function buildTrend(value: number | undefined, label?: string): StatsTrend | undefined {
+    if (value === undefined) return undefined;
     return {
         value,
         isPositive: value > 0,
-        label: 'vs période précédente',
+        label: label ?? 'vs période précédente',
         neutralLabel: 'Stable',
         isPercentage: true,
     };
@@ -101,47 +86,69 @@ function buildTrend(value: number): StatsTrend {
 // Composant principal
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Grille de cartes statistiques pour les logs d’audit.
+ * Affiche : total événements, succès, échecs, taux de succès.
+ */
 export function StatsAuditLogs({
     stats,
-    showTrends = false,
+    trends = {},
     isLoading = false,
     onCardClick,
     className,
+    customCards,
 }: StatsAuditLogsProps): React.JSX.Element {
     const handleClick = (id: string) => onCardClick?.(id);
 
-    const successRate = stats.total > 0 ? (stats.successCount / stats.total) * 100 : 0;
+    // Affichage des squelettes pendant le chargement ou si stats est null
+    if (isLoading || !stats) {
+        const skeletonCards: StatsCardProps[] = [
+            { id: 'skeleton-1', title: '', value: '', icon: null, Color: 'gray' },
+            { id: 'skeleton-2', title: '', value: '', icon: null, Color: 'gray' },
+            { id: 'skeleton-3', title: '', value: '', icon: null, Color: 'gray' },
+            { id: 'skeleton-4', title: '', value: '', icon: null, Color: 'gray' },
+        ];
+        return (
+            <StatsGrid
+                cards={skeletonCards}
+                cols={4}
+                className={cn('w-full', className)}
+                isLoading={true}
+            />
+        );
+    }
 
+    const successRate = stats.logsTotal > 0 ? (stats.logsSuccess / stats.logsTotal) * 100 : 0;
 
-    const cards: StatsCardProps[] = [
+    const defaultCards: StatsCardProps[] = [
         {
             id: 'total-events',
             title: 'Total événements',
-            value: formatNumber(stats.total),
+            value: formatNumber(stats.logsTotal),
             icon: <Activity className="size-5" />,
-            iconBg: 'bg-slate-500',
+            Color: 'slate-500',
             description: 'Toutes actions confondues',
-            trend: showTrends ? buildTrend(8.5) : undefined,
+            trend: buildTrend(trends.logsTotal, 'vs période précédente'),
             onClick: () => handleClick('total-events'),
         },
         {
             id: 'success',
             title: 'Succès',
-            value: formatNumber(stats.successCount),
+            value: formatNumber(stats.logsSuccess),
             icon: <CheckCircle className="size-5" />,
-            iconBg: 'bg-emerald-500',
+            Color: 'emerald-500',
             description: 'Actions réussies',
-            trend: showTrends ? buildTrend(5.2) : undefined,
+            trend: buildTrend(trends.logsSuccess, 'vs période précédente'),
             onClick: () => handleClick('success'),
         },
         {
             id: 'failed',
             title: 'Échecs',
-            value: formatNumber(stats.failedCount),
+            value: formatNumber(stats.logsFailed),
             icon: <XCircle className="size-5" />,
-            iconBg: 'bg-red-500',
+            Color: 'red-500',
             description: 'Actions échouées',
-            trend: showTrends ? buildTrend(-2.1) : undefined,
+            trend: buildTrend(trends.logsFailed, 'vs période précédente'),
             onClick: () => handleClick('failed'),
         },
         {
@@ -149,15 +156,25 @@ export function StatsAuditLogs({
             title: 'Taux de succès',
             value: `${successRate.toFixed(1)}%`,
             icon: <TrendingUp className="size-5" />,
-            iconBg: 'bg-blue-500',
+            Color: 'blue-500',
             description: 'Réussite / total',
-            trend: showTrends ? buildTrend(1.8) : undefined,
+            trend: buildTrend(trends.logsSuccess, 'vs période précédente'), // réutilisation de logsSuccess pour la tendance
             onClick: () => handleClick('success-rate'),
         },
     ];
 
+    const cards = customCards ?? defaultCards;
 
-    if (!isLoading && stats.total === 0) {
+    // Vérification de données significatives
+    const hasData = cards.some((card) => {
+        const numericValue =
+            typeof card.value === 'number'
+                ? card.value
+                : parseFloat(String(card.value).replace(/[^0-9.-]/g, ''));
+        return !isNaN(numericValue);
+    });
+
+    if (!hasData && !isLoading) {
         return (
             <div className={cn('w-full', className)}>
                 <EmptyState
@@ -171,5 +188,14 @@ export function StatsAuditLogs({
         );
     }
 
-    return <StatsGrid cards={cards} className={cn('w-full', className)} isLoading={isLoading} />;
+    return (
+        <StatsGrid
+            cards={cards}
+            cols={4}
+            className={cn('w-full', className)}
+            isLoading={isLoading}
+        />
+    );
 }
+
+export default StatsAuditLogs;

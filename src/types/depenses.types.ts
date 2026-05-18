@@ -182,6 +182,7 @@ export interface DepensesColumnConfig {
   showMontant?: boolean;
   showDescription?: boolean;
   showFournisseur?: boolean;
+  showReference?: boolean;
   showVehicule?: boolean;
   showActions?: boolean;
 }
@@ -250,4 +251,283 @@ export interface DepensesColumnsOptions {
   actions?: DepensesTableActions;
   enrichments?: DepensesEnrichments;
   variant?: 'admin' | 'secretaire';
+}
+
+// ============================================================
+// PARAMÈTRES & ENTRÉES (DTOs)
+// ============================================================
+
+/**
+ * Paramètres de filtrage et pagination pour la liste des dépenses.
+ *
+ * @interface DepensesListParams
+ * @description
+ * Utilisé par `DepensesApi.getAll()` et le canal IPC `depenses:getAll`.
+ *
+ * @property {number} [page=1] - Page courante (1-indexed)
+ * @property {number} [limit=20] - Nombre d'éléments par page (max 200)
+ * @property {string} [search] - Recherche textuelle : description, fournisseur, référence
+ * @property {CategorieDepense} [categorie] - Filtrer par catégorie
+ * @property {number} [vehiculeId] - Filtrer par véhicule
+ * @property {string} [dateDebut] - Date de début (ISO 8601)
+ * @property {string} [dateFin] - Date de fin (ISO 8601)
+ * @property {'today' | 'week' | 'month' | 'all'} [period] - Période prédéfinie
+ * @property {'date' | 'montant' | 'createdAt'} [sortBy='date'] - Champ de tri
+ * @property {'asc' | 'desc'} [sortOrder='desc'] - Sens du tri
+ */
+export interface DepensesListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  categorie?: CategorieDepense;
+  vehiculeId?: number;
+  dateDebut?: string;
+  dateFin?: string;
+  period?: 'today' | 'week' | 'month' | 'all';
+  sortBy?: 'date' | 'montant' | 'createdAt';
+  sortOrder?: 'asc' | 'desc';
+}
+
+/**
+ * Données d'entrée pour créer une nouvelle dépense.
+ *
+ * @interface CreateDepenseInput
+ * @description
+ * Tous les champs requis sont présents ; les champs optionnels sont optionnels.
+ *
+ * @property {CategorieDepense} categorie - Catégorie de la dépense
+ * @property {number} montant - Montant en FCFA (>0)
+ * @property {string} [description] - Description libre
+ * @property {string} [date] - Date ISO 8601 (défaut : maintenant)
+ * @property {string} [fournisseur] - Nom du fournisseur
+ * @property {string} [reference] - Référence externe (facture, bon de commande)
+ * @property {number|null} [vehiculeId] - Véhicule associé (optionnel)
+ */
+export interface CreateDepenseInput {
+  categorie: CategorieDepense;
+  montant: number;
+  description?: string;
+  date?: string;
+  fournisseur?: string | null;
+  reference?: string | null;
+  vehiculeId?: number | null;
+}
+
+/**
+ * Données d'entrée pour mettre à jour une dépense.
+ *
+ * @interface UpdateDepenseInput
+ * @description
+ * Tous les champs sont optionnels (patch partiel).
+ */
+export interface UpdateDepenseInput {
+  categorie?: CategorieDepense;
+  montant?: number;
+  description?: string | null;
+  date?: string;
+  fournisseur?: string | null;
+  reference?: string | null;
+  vehiculeId?: number | null;
+}
+
+// ============================================================
+// RÉPONSES DE L'API
+// ============================================================
+
+/**
+ * Réponse paginée pour la liste des dépenses.
+ *
+ * @interface DepensesPaginatedResponse
+ * @property {Depense[]} depenses - Liste des dépenses de la page (avec véhicule associé)
+ * @property {number} total - Nombre total de dépenses
+ * @property {number} page - Page courante
+ * @property {number} limit - Limite par page
+ * @property {number} totalPages - Nombre total de pages
+ */
+export interface DepensesPaginatedResponse {
+  depenses: Depense[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/**
+ * Statistiques étendues des dépenses pour le dashboard.
+ *
+ * @interface DepensesStatsExtended
+ * @extends DepensesStats
+ * @property {number} montantJour - Total des dépenses d'aujourd'hui
+ * @property {number} montantAnnee - Total des dépenses de l'année
+ * @property {number} evolutionTotal - Évolution du total (en %)
+ */
+export interface DepensesStatsExtended extends DepensesStats {
+  montantJour: number;
+  montantAnnee: number;
+  evolutionTotal: number;
+}
+
+/**
+ * Données des sparklines pour les dépenses (12 derniers mois).
+ *
+ * @interface DepensesSparklineData
+ * @property {{ values: number[]; labels?: string[] }} totalSparkline - Total des dépenses par mois
+ * @property {{ values: number[]; labels?: string[] }} carburantSparkline - Dépenses carburant par mois
+ * @property {{ values: number[]; labels?: string[] }} entretienSparkline - Dépenses entretien par mois
+ */
+export interface DepensesSparklineData {
+  totalSparkline: { values: number[]; labels?: string[] };
+  carburantSparkline: { values: number[]; labels?: string[] };
+  entretienSparkline: { values: number[]; labels?: string[] };
+}
+
+// ============================================================
+// DONNÉES POUR LE GRAPHIQUE DE TENDANCES (STACKED BAR CHART)
+// ============================================================
+
+/**
+ * Point de données mensuel pour une catégorie de dépense.
+ */
+export interface MonthlyDepenseByCategory {
+  /** Mois au format "MMM YYYY" (ex: "Mar 2024") */
+  month: string;
+  /** Montant total pour la catégorie CARBURANT */
+  CARBURANT: number;
+  /** Montant total pour la catégorie ENTRETIEN_VEHICULE */
+  ENTRETIEN_VEHICULE: number;
+  /** Montant total pour la catégorie SALAIRE */
+  SALAIRE: number;
+  /** Montant total pour la catégorie LOYER */
+  LOYER: number;
+  /** Montant total pour la catégorie ELECTRICITE */
+  ELECTRICITE: number;
+  /** Montant total pour la catégorie TELEPHONE */
+  TELEPHONE: number;
+  /** Montant total pour la catégorie ASSURANCE */
+  ASSURANCE: number;
+  /** Montant total pour la catégorie PUBLICITE */
+  PUBLICITE: number;
+  /** Montant total pour la catégorie FOURNITURES */
+  FOURNITURES: number;
+  /** Montant total pour la catégorie TAXES */
+  TAXES: number;
+  /** Montant total pour la catégorie AUTRE */
+  AUTRE: number;
+  [key: string]: string | number; // Permet d’accéder dynamiquement aux catégories
+}
+
+/**
+ * Réponse de l'API pour le graphique des dépenses.
+ */
+export interface DepensesTrendChartData {
+  /** Données mensuelles agrégées par catégorie (6 derniers mois) */
+  data: MonthlyDepenseByCategory[];
+  /** Configuration des couleurs et libellés par catégorie */
+  config: Record<string, { label: string; color: string }>;
+  /** Tendance globale en pourcentage (mois courant vs mois précédent) */
+  globalTrend: number;
+  /** Période affichée (ex: "Jan 2025 - Juin 2025") */
+  periodLabel: string;
+}
+
+// ============================================================
+// API WINDOW — DepensesApi
+// ============================================================
+
+/**
+ * Interface de l'API dépenses exposée au renderer via `window.api.depenses`.
+ *
+ * @interface DepensesApi
+ * @description
+ * Toutes les méthodes sont asynchrones et communiquent via IPC Electron.
+ *
+ * ## Canaux IPC utilisés
+ * | Méthode               | Canal IPC                         |
+ * |-----------------------|-----------------------------------|
+ * | getAll                | depenses:getAll                   |
+ * | getById               | depenses:getById                  |
+ * | create                | depenses:create                   |
+ * | update                | depenses:update                   |
+ * | delete                | depenses:delete                   |
+ * | getStats              | depenses:getStats                 |
+ * | getTrends             | depenses:getTrends                |
+ * | getSparklines         | depenses:getSparklines            |
+ * | getByVehicule         | depenses:getByVehicule            |
+ * | attachReceipt         | depenses:attachReceipt            |
+ */
+export interface DepensesApi {
+  /**
+   * Récupère la liste paginée des dépenses avec filtres.
+   * @param params - Pagination, filtres et tri
+   * @returns Liste paginée
+   */
+  getAll: (params?: DepensesListParams) => Promise<DepensesPaginatedResponse>;
+
+  /**
+   * Récupère une dépense par son identifiant (avec véhicule associé).
+   * @param id - Identifiant de la dépense
+   * @returns Dépense complète
+   */
+  getById: (id: number) => Promise<Depense>;
+
+  /**
+   * Crée une nouvelle dépense.
+   * @param data - Données de la dépense
+   * @returns Dépense créée
+   */
+  create: (data: CreateDepenseInput) => Promise<Depense>;
+
+  /**
+   * Met à jour une dépense existante (patch partiel).
+   * @param id - Identifiant de la dépense
+   * @param data - Champs à modifier
+   * @returns Dépense mise à jour
+   */
+  update: (id: number, data: UpdateDepenseInput) => Promise<Depense>;
+
+  /**
+   * Supprime définitivement une dépense.
+   * @param id - Identifiant de la dépense
+   * @returns Résultat de l'opération
+   */
+  delete: (id: number) => Promise<{ success: boolean; message: string }>;
+
+  /**
+   * Récupère les statistiques agrégées des dépenses.
+   * @returns Métriques étendues
+   */
+  getStats: () => Promise<DepensesStatsExtended>;
+
+  /**
+   * Récupère les tendances évolutives (mois vs précédent).
+   * @returns Variations en pourcentage
+   */
+  getTrends: () => Promise<DepensesTrends>;
+
+  /**
+   * Récupère les données des tendances évolutives des dépenses pour les graphiques.
+   * @returns Données de tendance
+   */
+  getTrendChartData: () => Promise<DepensesTrendChartData>;
+
+  /**
+   * Récupère les données des sparklines pour les 12 derniers mois.
+   * @returns Sparklines (total, carburant, entretien)
+   */
+  getSparklines: () => Promise<DepensesSparklineData>;
+
+  /**
+   * Récupère toutes les dépenses associées à un véhicule.
+   * @param vehiculeId - Identifiant du véhicule
+   * @returns Liste des dépenses du véhicule
+   */
+  getByVehicule: (vehiculeId: number) => Promise<Depense[]>;
+
+  /**
+   * Joint un reçu (PDF) à une dépense (stub – à implémenter).
+   * @param id - Identifiant de la dépense
+   * @param filePath - Chemin du fichier PDF
+   * @returns Résultat de l'opération
+   */
+  attachReceipt: (id: number, filePath: string) => Promise<{ success: boolean; message: string }>;
 }

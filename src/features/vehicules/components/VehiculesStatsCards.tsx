@@ -3,57 +3,28 @@
 /**
  * @module features/vehicules/components/VehiculesStatsCards
  * @description
- * Grille de cartes statistiques pour la gestion des véhicules.
- * Utilisable par l'administrateur et le secrétariat.
- *
- * ## Métriques affichées (par défaut)
- * - **Total véhicules** : taille du parc
- * - **Véhicules disponibles** : libres pour les leçons
- * - **En leçon** : actuellement utilisés
- * - **En entretien** : en maintenance
- * - **Hors service** : indisponibles
- * - **Kilométrage moyen** : km moyen du parc
- * - **Entretiens (année)** : nombre d'interventions
+ * Grille de 4 cartes statistiques pour la gestion des véhicules.
+ * Utilise les métriques étendues (`VehiculesStatsExtended`) pour afficher :
+ * - **Total véhicules** : taille du parc, avec en valeur secondaire le détail des véhicules en entretien et hors service.
+ * - **Disponibles** : véhicules libres, avec en valeur secondaire le nombre de véhicules actuellement en leçon.
+ * - **Entretiens (année)** : nombre d’interventions, avec en valeur secondaire le coût total des entretiens.
+ * - **Kilométrage moyen** : km moyen du parc, avec en valeur secondaire le kilométrage total cumulé.
  *
  * Chaque carte supporte :
- * - Valeur formatée (nombre, km)
- * - Tendance (évolution)
- * - Sparkline optionnelle
- * - Icône personnalisée
- * - État de chargement
- * - Clic sur la carte
- *
- * @example
- * ```tsx
- * <VehiculesStatsCards
- *   stats={{
- *     totalVehicules: 12,
- *     disponibles: 5,
- *     enLecon: 4,
- *     enEntretien: 2,
- *     horsService: 1,
- *     kilometrageMoyen: 24500,
- *     entretiensAnnee: 18,
- *   }}
- *   trends={{
- *     disponibles: -2,
- *     kilometrageMoyen: 5.3,
- *   }}
- *   disponiblesSparkline={{
- *     values: [7, 6, 5, 5, 5],
- *     labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai'],
- *   }}
- *   isLoading={false}
- * />
- * ```
+ * - Valeur formatée (nombre, km, FCFA)
+ * - Tendance (évolution par rapport à la période précédente)
+ * - Sparkline optionnelle (évolution sur plusieurs mois)
+ * - Icône personnalisée avec fond coloré
+ * - État de chargement (skeleton)
+ * - Clic sur la carte (callback)
  *
  * @author Stive Junior
- * @version 1.0.0
- * @see {@link VehiculesStats} – Métriques agrégées
+ * @version 3.0.0
+ * @see {@link VehiculesStatsExtended} – Métriques étendues
  * @see {@link VehiculesTrends} – Tendances évolutives
  */
 
-import { Car, CheckCircle, Clock, Gauge } from 'lucide-react';
+import { Car, CheckCircle, Wrench, Gauge } from 'lucide-react';
 import {
   StatsGrid,
   type StatsCardProps,
@@ -61,7 +32,7 @@ import {
 } from '@/features/dashboard/components/common/StatsCard';
 import { EmptyState } from '@/features/dashboard/components/common/EmptyState';
 import { cn } from '@/lib/utils';
-import type { VehiculesStats, VehiculesTrends } from '@/types/vehicules.types';
+import type { VehiculesStatsExtended, VehiculesTrends } from '@/types/vehicules.types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -73,16 +44,23 @@ export interface VehiculesSparklineData {
 }
 
 export interface VehiculesStatsCardsProps {
-  stats: VehiculesStats;
+  /** Métriques statistiques étendues des véhicules (peut être null pendant le chargement) */
+  stats: VehiculesStatsExtended | null;
+  /** Tendances évolutives (optionnelles) */
   trends?: Partial<VehiculesTrends>;
+
   totalSparkline?: VehiculesSparklineData;
   disponiblesSparkline?: VehiculesSparklineData;
-  enLeconSparkline?: VehiculesSparklineData;
-  kilometrageSparkline?: VehiculesSparklineData;
   entretiensSparkline?: VehiculesSparklineData;
+  kilometrageSparkline?: VehiculesSparklineData;
+
+  /** Afficher l’état de chargement (skeleton) */
   isLoading?: boolean;
+  /** Callback déclenché au clic sur une carte (reçoit l’identifiant) */
   onCardClick?: (cardId: string) => void;
+  /** Classes additionnelles pour la grille */
   className?: string;
+  /** Permet de remplacer entièrement les cartes (utilisation avancée) */
   customCards?: StatsCardProps[];
 }
 
@@ -90,16 +68,38 @@ export interface VehiculesStatsCardsProps {
 // Utilitaires
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Formate un nombre en notation compacte (k, M).
+ * @internal
+ */
 function formatCompact(num: number): string {
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
   if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, '') + 'k';
   return num.toString();
 }
 
+/**
+ * Formate un kilométrage (ex: "12 500 km").
+ * @internal
+ */
 function formatKm(km: number): string {
-  return formatCompact(km) + ' km';
+  return km.toLocaleString('fr-FR') + ' km';
 }
 
+/**
+ * Formate un montant en FCFA (ex: "2.5M FCFA").
+ * @internal
+ */
+function formatCurrency(num: number): string {
+  if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M FCFA';
+  if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, '') + 'k FCFA';
+  return num.toLocaleString('fr-FR') + ' FCFA';
+}
+
+/**
+ * Construit un objet StatsTrend à partir d’une valeur et d’un label optionnel.
+ * @internal
+ */
 function buildTrend(value: number | undefined, label?: string): StatsTrend | undefined {
   if (value === undefined) return undefined;
   return {
@@ -115,86 +115,108 @@ function buildTrend(value: number | undefined, label?: string): StatsTrend | und
 // Composant principal
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Grille de 4 cartes statistiques pour les véhicules.
+ * Affiche les indicateurs clés : total, disponibles, entretiens (année), kilométrage moyen.
+ * Les métriques secondaires sont placées dans `secondaryValue`.
+ */
 export function VehiculesStatsCards({
   stats,
   trends = {},
   totalSparkline,
   disponiblesSparkline,
-  enLeconSparkline,
+  entretiensSparkline,
   kilometrageSparkline,
   isLoading = false,
   onCardClick,
   className,
   customCards,
 }: VehiculesStatsCardsProps): React.JSX.Element {
-  const handleClick = (id: string) => onCardClick?.(id);
+  const handleCardClick = (cardId: string) => onCardClick?.(cardId);
 
+  // Affichage des squelettes pendant le chargement ou si stats est null
+  if (isLoading || !stats) {
+    const skeletonCards: StatsCardProps[] = [
+      { id: 'skeleton-1', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-2', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-3', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-4', title: '', value: '', icon: null, Color: 'gray' },
+    ];
+    return (
+      <StatsGrid
+        cards={skeletonCards}
+        cols={2}
+        className={cn('w-full', className)}
+        isLoading={true}
+      />
+    );
+  }
+
+  // Cartes par défaut (4 cartes)
   const defaultCards: StatsCardProps[] = [
     {
       id: 'total-vehicules',
       title: 'Total véhicules',
       value: formatCompact(stats.totalVehicules),
+      secondaryValue: `${stats.enEntretien} en entretien · ${stats.horsService} hors service`,
       icon: <Car className="size-5" />,
-      iconBg: 'bg-blue-500/10',
-      iconColor: 'text-blue-500',
-      description: 'Parc total',
+      Color: 'blue-500',
       trend: buildTrend(trends.totalVehicules),
       sparklineData: totalSparkline
         ? { values: totalSparkline.values, labels: totalSparkline.labels }
         : undefined,
-      onClick: () => handleClick('total-vehicules'),
+      onClick: () => handleCardClick('total-vehicules'),
     },
     {
       id: 'disponibles',
       title: 'Disponibles',
       value: formatCompact(stats.disponibles),
+      secondaryValue: `${stats.enLecon} en leçon actuellement`,
       icon: <CheckCircle className="size-5" />,
-      iconBg: 'bg-emerald-500/10',
-      iconColor: 'text-emerald-500',
-      description: 'Prêts à rouler',
+      Color: 'emerald-500',
       trend: buildTrend(trends.disponibles),
       sparklineData: disponiblesSparkline
         ? { values: disponiblesSparkline.values, labels: disponiblesSparkline.labels }
         : undefined,
-      onClick: () => handleClick('disponibles'),
+      onClick: () => handleCardClick('disponibles'),
     },
     {
-      id: 'en-lecon',
-      title: 'En leçon',
-      value: formatCompact(stats.enLecon),
-      icon: <Clock className="size-5" />,
-      iconBg: 'bg-amber-500/10',
-      iconColor: 'text-amber-500',
-      description: 'Actuellement utilisés',
-      sparklineData: enLeconSparkline
-        ? { values: enLeconSparkline.values, labels: enLeconSparkline.labels }
+      id: 'entretiens-annee',
+      title: 'Entretiens (année)',
+      value: formatCompact(stats.totalEntretiens),
+      secondaryValue: `Coût total : ${formatCurrency(stats.coutEntretiensAnnee)}`,
+      icon: <Wrench className="size-5" />,
+      Color: 'purple-500',
+      trend: buildTrend(trends.entretiensAnnee),
+      sparklineData: entretiensSparkline
+        ? { values: entretiensSparkline.values, labels: entretiensSparkline.labels }
         : undefined,
-      onClick: () => handleClick('en-lecon'),
+      onClick: () => handleCardClick('entretiens-annee'),
     },
     {
       id: 'kilometrage-moyen',
       title: 'Kilométrage moyen',
       value: formatKm(stats.kilometrageMoyen),
+      secondaryValue: `Total parc : ${formatKm(stats.kilometrageTotal)}`,
       icon: <Gauge className="size-5" />,
-      iconBg: 'bg-indigo-500/10',
-      iconColor: 'text-indigo-500',
-      description: 'Moyenne du parc',
+      Color: 'indigo-500',
       trend: buildTrend(trends.kilometrageMoyen),
       sparklineData: kilometrageSparkline
         ? { values: kilometrageSparkline.values, labels: kilometrageSparkline.labels }
         : undefined,
-      onClick: () => handleClick('kilometrage-moyen'),
+      onClick: () => handleCardClick('kilometrage-moyen'),
     },
   ];
 
   const cards = customCards ?? defaultCards;
 
+  // Vérification de données significatives
   const hasData = cards.some((card) => {
-    const v =
+    const numericValue =
       typeof card.value === 'number'
         ? card.value
-        : parseFloat(String(card.value).replace(/\D/g, ''));
-    return !isNaN(v) && v > 0;
+        : parseFloat(String(card.value).replace(/[^0-9.-]/g, ''));
+    return !isNaN(numericValue);
   });
 
   if (!hasData && !isLoading) {
@@ -202,8 +224,9 @@ export function VehiculesStatsCards({
       <div className={cn('w-full', className)}>
         <EmptyState
           title="Aucune statistique disponible"
-          description="Les données sur les véhicules seront affichées ici."
+          description="Les données sur les véhicules seront affichées ici une fois disponibles."
           icon={Car}
+          className='h-full justify-center'
           variant="dashed"
           size="md"
         />
@@ -212,7 +235,12 @@ export function VehiculesStatsCards({
   }
 
   return (
-    <StatsGrid cards={cards} cols={2} className={cn('w-full', className)} isLoading={isLoading} />
+    <StatsGrid
+      cards={cards}
+      cols={2}
+      className={cn('w-full', className)}
+      isLoading={isLoading}
+    />
   );
 }
 

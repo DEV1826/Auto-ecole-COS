@@ -87,12 +87,16 @@ export interface FormWrapperProps {
     description?: string;
     /** Icône Lucide pour l'en-tête */
     icon?: LucideIcon;
+    /* Couleur de fond de l'icône (ex: "bg-blue-700") */
+    iconColor?: string;
     /** Callback de soumission (appelé par le bouton Enregistrer) */
     onSubmit: () => void;
     /** Callback d'annulation (retour page précédente) */
     onCancel?: () => void;
     /** État de chargement (désactive le bouton, affiche le spinner) */
     isSubmitting?: boolean;
+    /** Valide le formulaire */
+    isValid?: boolean;
     /** Mode édition (change le label du bouton) */
     isEditMode?: boolean;
     /** Contenu du formulaire */
@@ -116,11 +120,12 @@ export interface FormWrapperProps {
 interface PreviewPanelProps {
     title: string;
     children: React.ReactNode;
+    className?: string;
 }
 
-function PreviewPanel({ title, children }: PreviewPanelProps) {
+function PreviewPanel({ title, children, className }: PreviewPanelProps) {
     return (
-        <div className="bg-card border rounded-md shadow-sm overflow-hidden">
+        <div className={cn("bg-card border rounded-md shadow-sm overflow-hidden", className)}>
             {/* En-tête du panneau */}
             <div className="px-4 py-3 border-b bg-linear-to-r from-blue-50/80 to-transparent dark:from-blue-950/30 flex items-center gap-2">
                 <div className="flex items-center justify-center h-6 w-6 rounded-md bg-blue-100 dark:bg-blue-900/50">
@@ -153,8 +158,10 @@ export default function FormWrapper({
     title,
     description,
     icon: Icon,
+    iconColor = 'bg-blue-700',
     onSubmit,
     onCancel,
+    isValid,
     isSubmitting = false,
     isEditMode = false,
     children,
@@ -211,7 +218,7 @@ export default function FormWrapper({
                                         className="overflow-hidden"
                                     >
                                         <div className="pt-3">
-                                            <PreviewPanel title={previewTitle}>{preview}</PreviewPanel>
+                                            <PreviewPanel title={previewTitle} className="sticky top-6">{preview}</PreviewPanel>
                                         </div>
                                     </motion.div>
                                 )}
@@ -233,7 +240,7 @@ export default function FormWrapper({
                         <div className="px-6 pt-6 pb-5 border-b bg-linear-to-br from-blue-50/60 via-transparent to-transparent dark:from-blue-950/25 dark:via-transparent">
                             <div className="flex items-start gap-3">
                                 {Icon && (
-                                    <div className="flex items-center justify-center h-11 w-11 rounded-md bg-blue-700 text-white shadow-md shrink-0 mt-0.5">
+                                    <div className={`flex items-center justify-center h-11 w-11 rounded-md ${iconColor} text-white shadow-md shrink-0 mt-0.5`}>
                                         <Icon className="h-5 w-5" />
                                     </div>
                                 )}
@@ -289,7 +296,7 @@ export default function FormWrapper({
                             <Button
                                 type="button"
                                 onClick={onSubmit}
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || (!isValid && !isEditMode) || (!isValid && isEditMode)}
                                 className={cn(
                                     'min-w-47.5 h-10 rounded-md text-sm font-semibold text-white gap-2',
                                     'bg-blue-700 hover:bg-blue-800',

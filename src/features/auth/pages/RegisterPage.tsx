@@ -1,5 +1,6 @@
 import { AuthLayout } from '@/components/layout/AuthLayout';
-import { RegisterForm } from '@/features/auth/components';
+import { InitialSetupForm } from '@/features/auth/components';
+import { useLocation } from 'react-router-dom';
 
 /**
  * @module features/auth/pages/RegisterPage
@@ -12,10 +13,14 @@ import { RegisterForm } from '@/features/auth/components';
  * ```
  */
 export default function RegisterPage() {
+  const location = useLocation();
+  const setupAccessToken = (location.state as { setupAccessToken?: string } | null)
+    ?.setupAccessToken;
+
   return (
     <>
       <AuthLayout>
-        <RegisterForm />
+        <InitialSetupForm accessToken={setupAccessToken ?? ''} />
       </AuthLayout>
     </>
   );

@@ -1,8 +1,9 @@
+// src/features/examens/components/CandidatsExamsCard.tsx
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// src/features/examens/components/CandidatsExamensCard.tsx
 
 /**
- * @module features/examens/components/CandidatsExamensCard
+ * @module features/examens/components/CandidatsExamsCard
  * @description
  * Carte affichant une liste **limitée** des candidats prioritaires pour les examens à venir.
  * Design épuré, taille fixe, avec badge de total supplémentaire.
@@ -11,15 +12,18 @@
  * - Affiche au maximum 5 candidats
  * - Si plus que la limite, affiche un badge « +X autres »
  * - Chaque ligne : avatar, nom complet, catégorie, date d’examen (format relatif), badge de résultat
- * - Aucun défilement interne (hauteur fixe)
+ * - État de chargement (skeleton)
+ * - Clic sur un candidat pour voir sa fiche
  *
  * @see {@link Candidat}
  * @see {@link Examen}
+ * @see {@link useExamens}
  *
  * @example
  * ```tsx
  * <CandidatsExamsCard
  *   candidats={candidatsAvecExamens}
+ *   isLoading={loading}
  *   onCandidatClick={(c) => navigate(`/candidats/${c.id}`)}
  *   maxItems={5}
  * />
@@ -29,21 +33,24 @@
 import * as React from 'react';
 import { differenceInDays, format, isToday, isTomorrow } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, ListChecks } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn, getAvatarUrl } from '@/lib/utils';
 import type { Candidat } from '@/types/candidats.types';
 import type { Examen } from '@/types/examens.types';
-
+import { EmptyState } from '@/features/dashboard/components/common';
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface CandidatsExamsCardProps {
-    /** Liste des candidats (les examens peuvent être optionnels) */
-    candidats: Candidat[];   // au lieu de (Candidat & { examens: Examen[] })[]
+    /** Liste des candidats (les examens doivent être chargés via la relation) */
+    candidats: Candidat[];
+    /** État de chargement (affiche des squelettes) */
+    isLoading?: boolean;
     /** Callback au clic sur un candidat */
     onCandidatClick?: (candidat: Candidat) => void;
     /** Titre de la carte (défaut : "Prochains examens") */
@@ -100,14 +107,13 @@ function getResultatConfig(resultat: string) {
 }
 
 /**
- * Indicateur de solde simplifié (mock). À adapter aux vraies données.
+ * Indicateur de solde simplifié (à adapter aux vraies données).
  */
 function getSoldeInfo(candidat: Candidat): { label: string; isPositive: boolean } {
     const solde = (candidat as any).solde ?? 0;
     const isPositive = solde <= 0;
     return { label: isPositive ? 'Soldé' : `${solde.toLocaleString('fr-FR')} FCFA`, isPositive };
 }
-
 
 /**
  * Retourne les initiales d’un candidat.
@@ -122,53 +128,80 @@ function getInitials(c: Candidat): string {
 
 export function CandidatsExamsCard({
     candidats,
+    isLoading = false,
     onCandidatClick,
     title = 'Prochains examens',
     maxItems = 5,
     className,
 }: CandidatsExamsCardProps): React.JSX.Element {
+
     const { visibleCandidats, remainingCount } = React.useMemo(() => {
-        const filtered = candidats
-            .filter((c) => c.examens?.length)
+        // Filtrer les candidats qui ont au moins un examen
+        const avecExamens = candidats.filter((c) => c.examens?.length);
+        const filtered = avecExamens
             .map((c) => ({ candidat: c, nextExam: getNextExamen(c) }))
             .filter((item) => item.nextExam !== undefined)
             .sort((a, b) => {
                 const dateA = new Date(a.nextExam!.date).getTime();
                 const dateB = new Date(b.nextExam!.date).getTime();
                 if (dateA !== dateB) return dateA - dateB;
+                // Priorité aux candidats avec solde nul
                 const soldeA = (a.candidat as any).solde ?? 0;
                 const soldeB = (b.candidat as any).solde ?? 0;
                 return (soldeA > 0 ? 0 : 1) - (soldeB > 0 ? 0 : 1);
             });
+
+        console.log('Candidats avec examens triés :', filtered)
 
         const visible = filtered.slice(0, maxItems).map((item) => item.candidat);
         const remaining = filtered.length - visible.length;
         return { visibleCandidats: visible, remainingCount: remaining };
     }, [candidats, maxItems]);
 
-    if (visibleCandidats.length === 0) {
+    // Affichage du chargement (squelettes)
+    if (isLoading) {
         return (
-            <Card className={cn('rounded-md border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3', className)}>
-                <CardHeader>
-                    <CardTitle className="text-base font-semibold">{title}</CardTitle>
+            <Card className={cn('rounded-md border shadow-sm', className)}>
+                <CardHeader className="pb-2">
+                    <Skeleton className="h-5 w-32" />
                 </CardHeader>
-                <CardContent className="flex h-64 items-center justify-center text-sm text-muted-foreground">
-                    Aucun examen programmé
+                <CardContent className="space-y-3">
+                    {Array.from({ length: maxItems }).map((_, i) => (
+                        <div key={i} className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-3">
+                                <Skeleton className="h-9 w-9 rounded-full" />
+                                <div className="space-y-1">
+                                    <Skeleton className="h-4 w-24" />
+                                    <Skeleton className="h-3 w-16" />
+                                </div>
+                            </div>
+                            <Skeleton className="h-6 w-16" />
+                        </div>
+                    ))}
                 </CardContent>
             </Card>
         );
     }
 
+    if (visibleCandidats.length === 0) {
+        return (
+            <EmptyState
+                title="Aucun examen à venir"
+                icon={ListChecks}
+                description="Aucun candidat n’a d’examen programmé pour le moment."
+                className={cn('w-full h-48', className)}
+            />
+        );
+    }
+
     return (
-        <Card className={cn('rounded-md border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3', className)}>
-            <div className="px-3 flex items-center  justify-between">
+        <Card className={cn('rounded-md border shadow-sm', className)}>
+            <div className="flex items-center justify-between px-4 pt-4">
                 <CardTitle className="text-base font-semibold">{title}</CardTitle>
                 {remainingCount > 0 && (
-                    <div className="pt-1 text-center">
-                        <Badge variant="outline" className="text-xs border-0 bg-muted/50">
-                            + {remainingCount} autre{remainingCount > 1 ? 's' : ''} candidat{remainingCount > 1 ? 's' : ''}
-                        </Badge>
-                    </div>
+                    <Badge variant="outline" className="text-xs border-0 bg-muted/50">
+                        + {remainingCount} autre{remainingCount > 1 ? 's' : ''} candidat{remainingCount > 1 ? 's' : ''}
+                    </Badge>
                 )}
             </div>
             <CardContent className="pt-2">
@@ -190,7 +223,9 @@ export function CandidatsExamsCard({
                                         <AvatarFallback className="text-[11px]">{getInitials(candidat)}</AvatarFallback>
                                     </Avatar>
                                     <div className="min-w-0">
-                                        <p className="text-sm font-semibold truncate">{candidat.prenom} {candidat.nom}</p>
+                                        <p className="text-sm font-semibold truncate">
+                                            {candidat.prenom} {candidat.nom}
+                                        </p>
                                         <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                                             <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-0 bg-muted/40">
                                                 {candidat.categorie}
@@ -207,15 +242,19 @@ export function CandidatsExamsCard({
                                     </div>
                                 </div>
                                 <div className="text-right shrink-0">
-                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">{formatExamenDate(examen.date)}</p>
-                                    <Badge variant="outline" className={cn('mt-1 text-[10px] border-0', resultatCfg.bgColor)}>
+                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-400">
+                                        {formatExamenDate(examen.date)}
+                                    </p>
+                                    <Badge
+                                        variant="outline"
+                                        className={cn('mt-1 text-[10px] border-0', resultatCfg.bgColor)}
+                                    >
                                         {resultatCfg.label}
                                     </Badge>
                                 </div>
                             </div>
                         );
                     })}
-
                 </div>
             </CardContent>
         </Card>

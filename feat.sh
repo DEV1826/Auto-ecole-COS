@@ -217,3 +217,45 @@ create_file "$FEATURES_DIR/index.ts" "// Auto-generated global exports\n\n$GLOBA
 
 echo -e "${GREEN}🎉 Génération terminée !${NC}"
 echo -e "${YELLOW}📌 Structure générée dans $FEATURES_DIR/${NC}"
+
+
+
+
+
+const handleSubmit = useCallback(async () => {
+    if (!isFormValid) {
+        toast.error('Formulaire incomplet', {
+            description: 'Veuillez renseigner tous les champs obligatoires.',
+        });
+        return;
+    }
+
+    setIsSubmitting(true);
+    try {
+        const payload = { ...formData, montant: Number(formData.montant) } as CreatePaiementInput;
+        const newPaiement = await create(payload);
+
+        // Si aucune facture n'est associée, proposer d'en créer une
+        if (!payload.factureId) {
+            const shouldCreateInvoice = window.confirm(
+                `Paiement enregistré (${newPaiement.montant.toLocaleString()} FCFA).\nSouhaitez-vous créer une facture pour ce paiement ?`
+            );
+            if (shouldCreateInvoice) {
+                // Appeler une API pour créer une facture avec le montant du paiement
+                // Par exemple : await createFacture({ candidatId: newPaiement.candidatId, montant: newPaiement.montant, paiementId: newPaiement.id });
+                toast.info('Fonctionnalité de création de facture à implémenter');
+            }
+        }
+
+        toast.success('Paiement enregistré avec succès', {
+            description: `${newPaiement.montant.toLocaleString('fr-FR')} FCFA – ${newPaiement.mode}`,
+        });
+        navigate(PROTECTED_ROUTES.PAIEMENTS.DETAIL(newPaiement.id));
+    } catch (err: any) {
+        toast.error('Erreur lors de l’enregistrement', {
+            description: err?.message ?? 'Une erreur inattendue est survenue.',
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
+}, [isFormValid, formData, create, navigate]);

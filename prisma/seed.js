@@ -42,11 +42,11 @@ async function clearDatabase() {
   await prisma.passwordResetCode.deleteMany();
   await prisma.utilisateur.deleteMany();
   await prisma.candidat.deleteMany();
+  await prisma.tarif.deleteMany(); // Delete tarif BEFORE formation (foreign key)
   await prisma.formation.deleteMany();
   await prisma.moniteur.deleteMany();
   await prisma.vehicule.deleteMany();
   await prisma.companyConfig.deleteMany();
-  await prisma.tarif.deleteMany();
 
   console.log('✅ Base de données nettoyée');
 }
@@ -58,12 +58,12 @@ async function seedCompanyConfig() {
   await prisma.companyConfig.create({
     data: {
       nom: 'COS Auto-École',
-      adresse: '123 Avenue de la Conduite, Yaoundé, Cameroun',
+      adresse: 'Universite Yaoundé 1, Cameroun',
       telephone: '+237 6 00 00 00 00',
       email: 'contact@cos-autoecole.com',
       siteWeb: 'https://www.cos-autoecole.com',
       numeroFiscal: 'CI-2025-001234',
-      logoPath: '/images/logo-cos.png',
+      logoPath: '/icons/hero.png',
     },
   });
   console.log('🏢 Configuration entreprise créée');
@@ -78,7 +78,7 @@ async function seedFormations() {
       data: {
         nom: 'Permis B (Voiture)',
         description: 'Formation complète pour l’obtention du permis de conduire catégorie B.',
-        prixTotal: 250000,
+        prixTotal: 90000,
         heuresCode: 12,
         heuresConduite: 20,
         categorie: 'B',
@@ -89,7 +89,7 @@ async function seedFormations() {
       data: {
         nom: 'Permis A (Moto)',
         description: 'Formation pour le permis moto, incluant plateau et circulation.',
-        prixTotal: 220000,
+        prixTotal: 900000,
         heuresCode: 10,
         heuresConduite: 18,
         categorie: 'A',
@@ -100,21 +100,10 @@ async function seedFormations() {
       data: {
         nom: 'Permis C (Poids lourd)',
         description: 'Formation pour conduite de camions et poids lourds.',
-        prixTotal: 350000,
+        prixTotal: 900000,
         heuresCode: 15,
         heuresConduite: 25,
         categorie: 'C',
-        actif: true,
-      },
-    }),
-    prisma.formation.create({
-      data: {
-        nom: 'Conduite accompagnée',
-        description: 'Préparation à la conduite accompagnée (AAC) pour les jeunes conducteurs.',
-        prixTotal: 300000,
-        heuresCode: 10,
-        heuresConduite: 20,
-        categorie: 'B',
         actif: true,
       },
     }),
@@ -146,7 +135,7 @@ async function seedUsers() {
 
   const secretaire = await prisma.utilisateur.create({
     data: {
-      email: 'secretaire@cos-autoecole.com',
+      email: 'secretaire@cos.com',
       nom: 'Secrétaire',
       prenom: 'Alpha',
       passwordHash: secretairePassword,
@@ -158,7 +147,7 @@ async function seedUsers() {
 
   const moniteur1 = await prisma.utilisateur.create({
     data: {
-      email: 'moniteur.dubois@cos-autoecole.com',
+      email: 'moniteur.dubois@cos.com',
       nom: 'Dubois',
       prenom: 'Marc',
       passwordHash: moniteurPassword,
@@ -170,7 +159,7 @@ async function seedUsers() {
 
   const moniteur2 = await prisma.utilisateur.create({
     data: {
-      email: 'moniteur.martin@cos-autoecole.com',
+      email: 'moniteur.martin@cos.com',
       nom: 'Martin',
       prenom: 'Sophie',
       passwordHash: moniteurPassword,
@@ -472,7 +461,7 @@ async function seedLecons(candidats, moniteurs, vehicules) {
 async function seedExamens(candidats) {
   const examens = [
     {
-      date: new Date(2024, 4, 15, 9, 0), // 15 mai 2024
+      date: new Date(2024, 4, 15, 9, 0),
       type: 'CODE',
       resultat: 'RECU',
       note: 35,
@@ -628,15 +617,7 @@ async function main() {
   console.log('🌱 Démarrage du seeding...');
 
   await clearDatabase();
-  await seedCompanyConfig();
-  const formations = await seedFormations();
-  const users = await seedUsers();
-  const moniteurs = await seedMoniteurs(users);
-  const vehicules = await seedVehicules();
-  const candidats = await seedCandidats(formations, moniteurs);
-  await seedLecons(candidats, moniteurs, vehicules);
-  await seedExamens(candidats);
-  await seedFinances(candidats, formations);
+  await seedFormations();
 
   console.log('✅ Seeding terminé avec succès !');
 }

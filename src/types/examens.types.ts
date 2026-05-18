@@ -58,7 +58,7 @@ import type { Candidat } from '@/types/candidats.types';
  * const examen: Examen = {
  *   id: 1,
  *   date: '2024-05-15T09:00:00Z',
- *   type: 'CONDUIT',
+ *   type: 'CONDUITE',
  *   resultat: 'RECU',
  *   note: 18.5,
  *   centre: 'Piste de Mvog-Mbi, Yaoundé',
@@ -267,4 +267,231 @@ export interface ExamensColumnsOptions {
   actions?: ExamensTableActions;
   enrichments?: ExamensEnrichments;
   variant?: 'admin' | 'secretaire' | 'moniteur';
+}
+
+// ============================================================
+// PARAMÈTRES & ENTRÉES (DTOs)
+// ============================================================
+
+/**
+ * Paramètres de filtrage et pagination pour la liste des examens.
+ *
+ * @interface ExamensListParams
+ * @description
+ * Utilisé par `ExamensApi.getAll()` et le canal IPC `examens:getAll`.
+ *
+ * @property {number} [page=1] - Page courante (1-indexed)
+ * @property {number} [limit=20] - Nombre d'éléments par page (max 200)
+ * @property {string} [search] - Recherche textuelle : nom candidat, centre
+ * @property {TypeExamen} [type] - Filtrer par type (CODE, CONDUIT)
+ * @property {ResultatExamen} [resultat] - Filtrer par résultat
+ * @property {number} [candidatId] - Filtrer par candidat
+ * @property {string} [dateDebut] - Date de début (ISO 8601)
+ * @property {string} [dateFin] - Date de fin (ISO 8601)
+ * @property {'today' | 'week' | 'month' | 'all'} [period] - Période prédéfinie
+ * @property {'date' | 'note' | 'createdAt'} [sortBy='date'] - Champ de tri
+ * @property {'asc' | 'desc'} [sortOrder='desc'] - Sens du tri
+ */
+export interface ExamensListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  type?: TypeExamen;
+  resultat?: ResultatExamen;
+  candidatId?: number;
+  dateDebut?: string;
+  dateFin?: string;
+  period?: 'today' | 'week' | 'month' | 'all';
+  sortBy?: 'date' | 'note' | 'createdAt';
+  sortOrder?: 'asc' | 'desc';
+}
+
+/**
+ * Données d'entrée pour créer un nouvel examen.
+ *
+ * @interface CreateExamenInput
+ * @description
+ * Tous les champs obligatoires doivent être fournis.
+ *
+ * @property {Date|string} date - Date et heure de l’examen
+ * @property {TypeExamen} type - Type d’examen (CODE ou CONDUIT)
+ * @property {number} candidatId - Identifiant du candidat
+ * @property {string} [centre] - Lieu de passage (optionnel)
+ * @property {string} [notes] - Commentaires (optionnels)
+ */
+export interface CreateExamenInput {
+  date: Date | string;
+  type: TypeExamen;
+  candidatId: number;
+  centre?: string | null;
+  notes?: string | null;
+}
+
+/**
+ * Données d'entrée pour mettre à jour un examen (patch partiel).
+ *
+ * @interface UpdateExamenInput
+ * @description
+ * Seuls certains champs peuvent être modifiés après création.
+ *
+ * @property {Date|string} [date] - Nouvelle date
+ * @property {ResultatExamen} [resultat] - Nouveau résultat
+ * @property {number} [note] - Note (sur 20, pour le conduite)
+ * @property {string} [centre] - Nouveau centre
+ * @property {string} [notes] - Nouvelles remarques
+ */
+export interface UpdateExamenInput {
+  date?: Date | string;
+  resultat?: ResultatExamen;
+  note?: number | null;
+  centre?: string | null;
+  notes?: string | null;
+}
+
+// ============================================================
+// RÉPONSES DE L'API
+// ============================================================
+
+/**
+ * Réponse paginée pour la liste des examens.
+ *
+ * @interface ExamensPaginatedResponse
+ * @property {Examen[]} examens - Examens de la page (avec candidat)
+ * @property {number} total - Nombre total d’examens
+ * @property {number} page - Page courante
+ * @property {number} limit - Limite par page
+ * @property {number} totalPages - Nombre total de pages
+ */
+export interface ExamensPaginatedResponse {
+  examens: Examen[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/**
+ * Statistiques étendues des examens pour le dashboard.
+ *
+ * @interface ExamensStatsExtended
+ * @extends ExamensStats
+ * @property {number} examensMois - Nombre d’examens passés ce mois
+ * @property {number} reussitesMois - Nombre de réussites ce mois
+ * @property {number} noteMoyenneConduite - Note moyenne des examens de conduite
+ * @property {number} evolutionReussite - Évolution du taux de réussite (en points)
+ */
+export interface ExamensStatsExtended extends ExamensStats {
+  examensMois: number;
+  reussitesMois: number;
+  noteMoyenneConduite: number;
+  evolutionReussite: number;
+}
+
+/**
+ * Données des sparklines pour les examens (12 derniers mois).
+ *
+ * @interface ExamensSparklineData
+ * @property {{ values: number[]; labels?: string[] }} examensSparkline - Nombre d’examens par mois
+ * @property {{ values: number[]; labels?: string[] }} reussitesSparkline - Réussites par mois
+ * @property {{ values: number[]; labels?: string[] }} tauxReussiteSparkline - Taux de réussite mensuel (%)
+ */
+export interface ExamensSparklineData {
+  examensSparkline: { values: number[]; labels?: string[] };
+  reussitesSparkline: { values: number[]; labels?: string[] };
+  tauxReussiteSparkline: { values: number[]; labels?: string[] };
+}
+
+// ============================================================
+// API WINDOW — ExamensApi
+// ============================================================
+
+/**
+ * Interface de l'API examens exposée au renderer via `window.api.examens`.
+ *
+ * @interface ExamensApi
+ * @description
+ * Toutes les méthodes sont asynchrones et communiquent via IPC Electron.
+ *
+ * ## Canaux IPC utilisés
+ * | Méthode               | Canal IPC                     |
+ * |-----------------------|-------------------------------|
+ * | getAll                | examens:getAll                |
+ * | getById               | examens:getById               |
+ * | create                | examens:create                |
+ * | update                | examens:update                |
+ * | delete                | examens:delete                |
+ * | getStats              | examens:getStats              |
+ * | getTrends             | examens:getTrends             |
+ * | getSparklines         | examens:getSparklines         |
+ * | getByCandidat         | examens:getByCandidat         |
+ * | printCertificate      | examens:printCertificate      |
+ */
+export interface ExamensApi {
+  /**
+   * Récupère la liste paginée des examens avec filtres.
+   * @param params - Pagination, filtres et tri
+   * @returns Liste paginée
+   */
+  getAll: (params?: ExamensListParams) => Promise<ExamensPaginatedResponse>;
+
+  /**
+   * Récupère un examen par son identifiant (avec candidat).
+   * @param id - Identifiant de l’examen
+   * @returns Examen complet
+   */
+  getById: (id: number) => Promise<Examen>;
+
+  /**
+   * Crée un nouvel examen.
+   * @param data - Données de l’examen (date, type, candidatId)
+   * @returns Examen créé
+   */
+  create: (data: CreateExamenInput) => Promise<Examen>;
+
+  /**
+   * Met à jour un examen existant (patch partiel – résultat, note, date, centre, notes).
+   * @param id - Identifiant de l’examen
+   * @param data - Champs à modifier
+   * @returns Examen mis à jour
+   */
+  update: (id: number, data: UpdateExamenInput) => Promise<Examen>;
+
+  /**
+   * Supprime définitivement un examen.
+   * @param id - Identifiant de l’examen
+   * @returns Résultat de l’opération
+   */
+  delete: (id: number) => Promise<{ success: boolean; message: string }>;
+
+  /**
+   * Récupère les statistiques agrégées des examens.
+   * @returns Métriques étendues
+   */
+  getStats: () => Promise<ExamensStatsExtended>;
+
+  /**
+   * Récupère les tendances évolutives (mois vs précédent).
+   * @returns Variations en pourcentage
+   */
+  getTrends: () => Promise<ExamensTrends>;
+
+  /**
+   * Récupère les données des sparklines pour les 12 derniers mois.
+   * @returns Sparklines (nombre, réussites, taux de réussite)
+   */
+  getSparklines: () => Promise<ExamensSparklineData>;
+
+  /**
+   * Récupère tous les examens d’un candidat spécifique.
+   * @param candidatId - Identifiant du candidat
+   * @returns Liste des examens (triés par date décroissante)
+   */
+  getByCandidat: (candidatId: number) => Promise<Examen[]>;
+
+  /**
+   * Génère / imprime l’attestation (ou certificat) pour un examen réussi.
+   * @param id - Identifiant de l’examen
+   * @returns Chemin du PDF généré
+   */
+  printCertificate: (id: number) => Promise<{ success: boolean; path?: string; message?: string }>;
 }

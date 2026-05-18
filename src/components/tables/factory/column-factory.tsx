@@ -245,6 +245,7 @@ export function createAvatarWithTextColumn<TData>(
     getSecondaryText,
     getBadge,
     avatarSize = 'md',
+    img = false,
     enableSorting = true,
     enableHiding = true,
     size,
@@ -267,14 +268,24 @@ export function createAvatarWithTextColumn<TData>(
       return (
         <div className={cn('flex items-center gap-2.5 min-w-0', cellClassName)}>
           {/* Avatar */}
-          <Avatar className={cn(avatarClass, 'shrink-0')}>
-            <AvatarImage src={avatarUrl} alt={primaryText} />
-            <AvatarFallback
-              className={cn('bg-primary/10 text-primary font-semibold', fallbackClass)}
-            >
-              {initials}
-            </AvatarFallback>
-          </Avatar>
+          {!img ? (
+            <Avatar className={cn(avatarClass, 'shrink-0')}>
+              <AvatarImage src={avatarUrl} alt={primaryText} />
+              <AvatarFallback
+                className={cn('bg-primary/10 text-primary font-semibold', fallbackClass)}
+              >
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+          ) :
+            (
+              <img src={avatarUrl} alt={primaryText} className='shrink-0 h-7 w-auto' />
+
+            )
+          }
+
+
+
 
           {/* Textes */}
           <div className="flex flex-col min-w-0 gap-0.5">

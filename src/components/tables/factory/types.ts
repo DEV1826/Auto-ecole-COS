@@ -8,7 +8,6 @@
  * @version 2.0.0
  */
 
-import type { ColumnDef } from '@tanstack/react-table';
 import { z } from 'zod';
 
 /**
@@ -183,6 +182,7 @@ export interface AvatarWithTextColumnConfig<TData> {
   getBadge?: (row: TData) => { label: string; colorClass?: string } | undefined;
   /** Taille de l'avatar : 'sm' (h-7 w-7) ou 'md' (h-9 w-9, défaut) */
   avatarSize?: 'sm' | 'md';
+  img?: boolean;
   /** Activer le tri (défaut : true) */
   enableSorting?: boolean;
   /** Activer le masquage (défaut : true) */

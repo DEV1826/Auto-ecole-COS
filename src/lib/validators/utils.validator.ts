@@ -21,7 +21,7 @@ export function validateOrThrow<T>(schema: z.Schema<T>, data: unknown): T {
   } catch (error) {
     if (error instanceof ZodError) {
       const validationError = fromZodError(error);
-      throw new Error(`Erreur de validation : ${validationError.message}`, { cause: error });
+      throw new Error(`Erreur de validation : ${validationError.message}`);
     }
     throw error;
   }

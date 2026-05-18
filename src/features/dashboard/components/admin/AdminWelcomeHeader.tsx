@@ -47,12 +47,11 @@
  *   onManageMoniteurs={() => navigate('/moniteurs')}
  *   onManageVehicules={() => navigate('/vehicules')}
  *   onManageFinances={() => navigate('/paiements')}
- *   onSystemSettings={() => navigate('/settings')}
  * />
  * ```
  */
 
-import { Users, GraduationCap, UserRound, Car, CreditCard, Settings } from 'lucide-react';
+import { Users, GraduationCap, UserRound, Car, CreditCard } from 'lucide-react';
 import { WelcomeHeader, type WelcomeAction, type ContextSegment } from '../common/WelcomeHeader';
 import { cn } from '@/lib/utils';
 
@@ -70,6 +69,8 @@ export interface AdminWelcomeHeaderProps {
   avatarUrl?: string;
   /** Initiales de secours */
   avatarFallback?: string;
+
+  isLoading?: boolean; // Indique si les données sont en cours de chargement (affiche un skeleton)
 
   // ── Greeting ──────────────────────────────────────────────
   /** Message de salutation personnalisé (sinon automatique) */
@@ -110,8 +111,6 @@ export interface AdminWelcomeHeaderProps {
   onManageVehicules?: () => void;
   /** Gérer les finances (paiements, factures) */
   onManageFinances?: () => void;
-  /** Accéder aux paramètres système */
-  onSystemSettings?: () => void;
 
   // ── Style ────────────────────────────────────────────────
   /** Afficher la date dans la HoverCard (défaut : true) */
@@ -192,6 +191,7 @@ export function AdminWelcomeHeader({
   adminName,
   adminTitle = 'Administrateur',
   avatarUrl,
+  isLoading = false,
   avatarFallback,
   greetingMessage,
   lastLoginAt,
@@ -207,10 +207,11 @@ export function AdminWelcomeHeader({
   onManageMoniteurs,
   onManageVehicules,
   onManageFinances,
-  onSystemSettings,
   showDate = true,
   className,
 }: AdminWelcomeHeaderProps): React.JSX.Element {
+
+
   // ── Actions principales (boutons) ─────────────────────────
   const mainActions: WelcomeAction[] = [];
 
@@ -260,14 +261,6 @@ export function AdminWelcomeHeader({
     });
   }
 
-  if (onSystemSettings) {
-    mainActions.push({
-      label: 'Paramètres',
-      icon: Settings,
-      onClick: onSystemSettings,
-      variant: 'outline',
-    });
-  }
 
   // ── Message contextuel ────────────────────────────────────
   const contextMessage = buildContextMessage(
@@ -305,6 +298,7 @@ export function AdminWelcomeHeader({
     <WelcomeHeader
       userName={adminName}
       Role={'ADMIN'}
+      isLoading={isLoading}
       subtitle={adminTitle}
       avatarUrl={avatarUrl}
       avatarFallback={avatarFallback}

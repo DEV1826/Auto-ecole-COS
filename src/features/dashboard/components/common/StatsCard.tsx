@@ -147,17 +147,11 @@ export interface StatsCardProps {
 
   // ── Icône ────────────────────────────────────────────────
   /**
-   * Classe Tailwind du fond de l'icône.
-   * Défaut : `"bg-primary"`
+   * Classe Tailwind de la couleur et le fond de l'icône.
    * @example "bg-emerald-500" | "bg-amber-400" | "bg-slate-700"
+   * Défaut : `"white"`
    */
-  iconBg?: string;
-
-  /**
-   * Classe Tailwind de la couleur de l'icône.
-   * Défaut : `"text-white"`
-   */
-  iconColor?: string;
+  Color?: string;
 
   /**
    * Configuration du badge affiché sous la valeur.
@@ -352,8 +346,7 @@ export function StatsCard({
   value,
   secondaryValue,
   icon,
-  iconBg = 'bg-primary',
-  iconColor = 'text-white',
+  Color = 'white',
   trend,
   sparklineData,
   badge,
@@ -390,6 +383,9 @@ export function StatsCard({
     isPositive && 'text-emerald-600 dark:text-emerald-400',
     !isNeutral && !isPositive && 'text-red-500 dark:text-red-400'
   );
+
+  const text = `text-${Color}`;
+  const bg = `bg-${Color}/10`;
 
   return (
     <Card
@@ -430,9 +426,8 @@ export function StatsCard({
         {icon && (
           <div
             className={cn(
-              'flex size-12 shrink-0 items-center justify-center rounded-md',
-              `${iconBg}`,
-              iconColor
+              'flex size-12 shrink-0 items-center justify-center rounded-md', text, bg
+
             )}
             aria-hidden="true"
           >

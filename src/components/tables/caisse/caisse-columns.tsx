@@ -24,7 +24,7 @@
  * | `type`          | toutes          | Badge Entrée / Sortie (avec icône)               |
  * | `montant`       | toutes          | Montant (formaté, vert/rouge selon le type)      |
  * | `soldeApres`    | toutes          | Solde après l’opération (format compact)         |
- * | `description`   | toutes          | Description (texte tronqué avec tooltip)         |
+ * | `description`   | toutes          | Description enrichie (avatar + infos candidat/véhicule si disponible) |
  * | `reference`     | admin           | Référence externe (facture, paiement, etc.)      |
  * | `actions`       | admin           | Menu (voir détail, imprimer)                     |
  *
@@ -33,14 +33,7 @@
  * @see {@link CaisseEnrichments}
  *
  * @author Stive Junior
- * @version 1.0.0
- *
- * @example
- * ```tsx
- * const columns = getAdminCaisseColumns(actions, {
- *   getVehiculeLibelle: (m) => m.vehicule?.immatriculation,
- * });
- * ```
+ * @version 2.0.0
  */
 
 import type { ColumnDef } from '@tanstack/react-table';
@@ -63,6 +56,7 @@ import type { MouvementCaisse, CaisseEnrichments, CaisseColumnsOptions, CaisseTa
 import type { TypeMouvement } from '@/types/enums';
 import { TYPE_MOUVEMENT_CONFIG } from '@/types/enums';
 import type { RowActionsConfig, CustomRowAction } from '@/components/tables/types';
+import { createAvatarWithTextColumn } from '../factory/column-factory';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UTILITAIRES
@@ -158,13 +152,13 @@ function colType(): ColumnDef<MouvementCaisse> {
 function colMontant(): ColumnDef<MouvementCaisse> {
     return {
         accessorKey: 'montant',
-        header: ({ column }) => <DataTableColumnHeader column={column} title="Montant" icon={Wallet} />,
+        header: ({ column }) => <DataTableColumnHeader column={column} title="Montant (fcfa)" icon={Wallet} />,
         cell: ({ row }) => {
             const mouvement = row.original;
             const isEntree = mouvement.type === 'ENTREE';
             return (
                 <span className={cn('text-sm font-semibold tabular-nums', isEntree ? 'text-emerald-600' : 'text-red-600')}>
-                    {isEntree ? '+' : '−'}{formatMontant(mouvement.montant)}
+                    {isEntree ? '+' : '−'}{mouvement.montant}
                 </span>
             );
         },
@@ -191,24 +185,79 @@ function colSoldeApres(): ColumnDef<MouvementCaisse> {
 }
 
 /**
- * Colonne "Description" – texte tronqué avec tooltip.
+ * Colonne "Description" – enrichie avec avatar + texte principal + texte secondaire (candidat/véhicule).
+ * @param enrichments - Fonctions d’enrichissement pour obtenir les noms et avatars
  * @internal
  */
-function colDescription(): ColumnDef<MouvementCaisse> {
+function colDescription(enrichments?: CaisseEnrichments): ColumnDef<MouvementCaisse> {
+
+    const hasCandidateEnrichment = enrichments?.getNomCandidat || enrichments?.getCandidatAvatarUrl;
+
+
+    // Construction du texte principal : la description originale ou une description générique
+    const getPrimaryText = (mouvement: MouvementCaisse) => {
+        if (mouvement.description) return mouvement.description;
+        if (mouvement.type === 'ENTREE') return 'Encaissement';
+        return 'Décaissement';
+    };
+
+    // Texte secondaire : nom du candidat ou véhicule
+    const getSecondaryText = (mouvement: MouvementCaisse) => {
+        if (enrichments?.getNomCandidat) {
+            const nom = enrichments.getNomCandidat(mouvement);
+            if (nom) return `Candidat : ${nom}`;
+        }
+        if (enrichments?.getVehiculeLibelle) {
+            const vehicule = enrichments.getVehiculeLibelle(mouvement);
+            if (vehicule) return `Véhicule : ${vehicule}`;
+        }
+        return '';
+    };
+
+    // Avatar : uniquement si on a des données candidat
+    const getAvatarUrl = (mouvement: MouvementCaisse) => enrichments?.getCandidatAvatarUrl?.(mouvement) ?? '';
+    const getInitials = (mouvement: MouvementCaisse) => {
+        if (enrichments?.getCandidatInitials) return enrichments.getCandidatInitials(mouvement);
+        const nom = enrichments?.getNomCandidat?.(mouvement) || enrichments?.getVehiculeLibelle?.(mouvement);
+        if (nom) return nom.slice(0, 2).toUpperCase();
+        return '?';
+    };
+
+    const hasAvatar = hasCandidateEnrichment && (getAvatarUrl({} as MouvementCaisse) || getInitials({} as MouvementCaisse));
+
+    if (hasAvatar && enrichments) {
+        return createAvatarWithTextColumn<MouvementCaisse>({
+            accessorKey: 'description',
+            title: 'Description',
+            icon: FileText,
+            getAvatarUrl,
+            getInitials,
+            getPrimaryText,
+            getSecondaryText,
+            avatarSize: 'md',
+            img: false,
+            enableSorting: false,
+            size: 300,
+        });
+    }
+
+    // Fallback : colonne texte simple avec tooltip
     return {
         accessorKey: 'description',
         header: ({ column }) => <DataTableColumnHeader column={column} title="Description" icon={FileText} />,
         cell: ({ row }) => {
-            const desc = row.original.description;
-            if (!desc) return <span className="text-xs text-muted-foreground">—</span>;
-            const truncated = desc.length > 40 ? desc.slice(0, 40) + '…' : desc;
+            const mouvement = row.original;
+            const primary = getPrimaryText(mouvement);
+            const secondary = getSecondaryText(mouvement);
+            const fullText = secondary ? `${primary} (${secondary})` : primary;
+            const truncated = fullText.length > 40 ? fullText.slice(0, 40) + '…' : fullText;
             return (
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <span className="text-xs cursor-default">{truncated}</span>
                         </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">{desc}</TooltipContent>
+                        <TooltipContent className="max-w-xs">{fullText}</TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
             );
@@ -240,12 +289,6 @@ function colReference(): ColumnDef<MouvementCaisse> {
 // COLONNE D’ACTIONS
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Génère la colonne d’actions.
- * @param actions - Callbacks d’actions
- * @param variant - Rôle (admin seulement pour les actions)
- * @internal
- */
 function colActions(actions?: CaisseTableActions, variant: 'admin' | 'secretaire' = 'admin'): ColumnDef<MouvementCaisse> {
     if (variant !== 'admin') {
         return {
@@ -281,7 +324,6 @@ function colActions(actions?: CaisseTableActions, variant: 'admin' | 'secretaire
 
             const rowActionsConfig: RowActionsConfig<MouvementCaisse> = {
                 customActions,
-                // Pas de suppression ni modification sur la caisse
             };
             return <DataTableRowActions row={mouvement} actions={rowActionsConfig} />;
         },
@@ -295,24 +337,10 @@ function colActions(actions?: CaisseTableActions, variant: 'admin' | 'secretaire
 // FONCTION PRINCIPALE
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Génère le tableau de colonnes pour le tableau des mouvements de caisse.
- *
- * @param options - Options de configuration (variant, actions, enrichments, columnConfig)
- * @returns Tableau de colonnes TanStack Table
- *
- * @example
- * ```tsx
- * const columns = getCaisseColumns({
- *   variant: 'admin',
- *   actions: { onView: (m) => console.log(m) },
- * });
- * ```
- */
 export function getCaisseColumns({
     variant = 'admin',
     actions,
-    enrichments = {},
+    enrichments,
     columnConfig = {},
 }: CaisseColumnsOptions): ColumnDef<MouvementCaisse>[] {
     const {
@@ -331,7 +359,7 @@ export function getCaisseColumns({
     if (showType) cols.push(colType());
     if (showMontant) cols.push(colMontant());
     if (showSoldeApres) cols.push(colSoldeApres());
-    if (showDescription) cols.push(colDescription());
+    if (showDescription) cols.push(colDescription(enrichments));
     if (showReference && variant === 'admin') cols.push(colReference());
     if (showActions && actions && Object.keys(actions).length > 0) cols.push(colActions(actions, variant));
 
@@ -342,9 +370,6 @@ export function getCaisseColumns({
 // PRÉ‑SETS PAR RÔLE
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Colonnes pour la vue administrateur (toutes colonnes + actions)
- */
 export function getAdminCaisseColumns(
     actions?: CaisseTableActions,
     enrichments?: CaisseEnrichments,
@@ -367,9 +392,6 @@ export function getAdminCaisseColumns(
     });
 }
 
-/**
- * Colonnes pour la vue secrétaire (colonnes essentielles, sans actions)
- */
 export function getSecretaireCaisseColumns(
     actions?: CaisseTableActions,
     enrichments?: CaisseEnrichments,

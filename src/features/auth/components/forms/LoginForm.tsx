@@ -10,9 +10,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { ChevronLeftIcon, LogIn } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon, LogIn, Shield } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Field, FieldGroup, FieldLabel, FieldError } from '@/components/ui/field';
+import { Field, FieldGroup, FieldLabel, FieldError, FieldDescription } from '@/components/ui/field';
 import { EmailInput } from '@/components/forms/EmailInput';
 import { PasswordInput } from '@/components/forms/PasswordInput';
 import { LoadingButton } from '@/components/forms/LoadingButton';
@@ -141,6 +141,19 @@ export default function LoginForm() {
         >
           Se connecter
         </LoadingButton>
+
+
+
+
+        <FieldDescription className="text-center">
+          <Link
+            to={PUBLIC_ROUTES.AUTH.REGISTER_ACCESS}
+            className="inline-flex items-center text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Admin
+            <ChevronRightIcon className="size-5" />
+          </Link>
+        </FieldDescription>
       </FieldGroup>
     </form>
   );

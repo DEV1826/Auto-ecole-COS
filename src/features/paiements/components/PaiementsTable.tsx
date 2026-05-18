@@ -63,7 +63,7 @@ import {
     isWithinInterval,
 } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { RefreshCw, ChevronRight, PlusCircle, Receipt } from 'lucide-react';
+import { RefreshCw, ChevronRight, Receipt, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { DataTable } from '@/components/tables/data-table';
@@ -142,11 +142,12 @@ export interface PaiementsTableProps {
     /** Callback du bouton « Voir tout » */
     onViewAll?: () => void;
 
-    /** Afficher le bouton « Ajouter un paiement » */
-    showAddButton?: boolean;
 
     /** Callback du bouton « Ajouter un paiement » */
     onAddClick?: () => void;
+
+    /** Callback du bouton d'export */
+    onExport?: () => void;
 
     /** En‑tête : titre principal */
     title?: string;
@@ -284,8 +285,8 @@ export function PaiementsTable({
     enableToolbar = false,
     showViewAll = false,
     onViewAll,
-    showAddButton = false,
     onAddClick,
+    onExport,
     title = 'Paiements',
     description,
     asCard = true,
@@ -400,6 +401,12 @@ export function PaiementsTable({
                     <ChevronRight className="h-3.5 w-3.5" />
                 </Button>
             )}
+            {onExport && (
+                <Button variant="outline" size="sm" onClick={onExport} className="h-8 gap-1 text-xs">
+                    <Download className="h-3.5 w-3.5" />
+                    Exporter
+                </Button>
+            )}
         </div>
     );
 
@@ -436,12 +443,7 @@ export function PaiementsTable({
                 </div>
             </div>
             <div className="flex items-center gap-1">
-                {showAddButton && onAddClick && (
-                    <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={onAddClick}>
-                        <PlusCircle className="h-3.5 w-3.5" />
-                        Ajouter
-                    </Button>
-                )}
+
                 {extraActions}
             </div>
         </div>

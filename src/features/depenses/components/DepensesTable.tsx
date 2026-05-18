@@ -55,7 +55,7 @@ import {
     endOfMonth,
 } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { RefreshCw, ChevronRight, PlusCircle, Wallet } from 'lucide-react';
+import { RefreshCw, ChevronRight, Wallet, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { DataTable } from '@/components/tables/data-table';
@@ -134,8 +134,6 @@ export interface DepensesTableProps {
     /** Callback du bouton « Voir tout » */
     onViewAll?: () => void;
 
-    /** Afficher le bouton « Ajouter une dépense » */
-    showAddButton?: boolean;
 
     /** Callback du bouton « Ajouter une dépense » */
     onAddClick?: () => void;
@@ -154,6 +152,8 @@ export interface DepensesTableProps {
 
     /** Callback de rafraîchissement (affiche un bouton) */
     onRefresh?: () => Promise<void>;
+
+    onExport?: () => void;
 
     /** Message personnalisé lorsque la liste est vide */
     emptyMessage?: string;
@@ -276,8 +276,8 @@ export function DepensesTable({
     enableToolbar = false,
     showViewAll = false,
     onViewAll,
-    showAddButton = false,
     onAddClick,
+    onExport,
     title = 'Dépenses',
     description,
     asCard = true,
@@ -336,7 +336,6 @@ export function DepensesTable({
         setRefreshing(true);
         try {
             await onRefresh();
-            toast.success('Dépenses actualisées');
         } catch {
             toast.error("Erreur lors de l'actualisation");
         } finally {
@@ -428,10 +427,16 @@ export function DepensesTable({
                 </div>
             </div>
             <div className="flex items-center gap-1">
-                {showAddButton && onAddClick && (
-                    <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={onAddClick}>
-                        <PlusCircle className="h-3.5 w-3.5" />
-                        Ajouter
+
+                {onExport && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onExport}
+                        className="h-8 gap-1.5 text-xs"
+                    >
+                        <Download className="h-3.5 w-3.5" />
+                        Exporter
                     </Button>
                 )}
                 {extraActions}

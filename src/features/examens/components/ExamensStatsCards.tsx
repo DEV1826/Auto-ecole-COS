@@ -4,13 +4,11 @@
  * @module features/examens/components/ExamensStatsCards
  * @description
  * Grille de cartes statistiques pour la gestion des examens (code et conduite).
- * Utilisable par l'administrateur, le secrétariat et les moniteurs.
- *
- * ## Métriques affichées (par défaut)
- * - **Total examens** : nombre total d'examens passés (code + conduite)
+ * Utilise les métriques étendues (`ExamensStatsExtended`) pour afficher :
+ * - **Total examens** : nombre total d'examens passés (avec tendance)
  * - **Taux de réussite global** : pourcentage d'examens réussis (`RECU`)
- * - **Examens code** : nombre d'épreuves théoriques
- * - **Examens conduite** : nombre d'épreuves pratiques
+ * - **Examens du mois** : nombre d'examens passés ce mois-ci
+ * - **Note moyenne conduite** : moyenne des notes des examens pratiques
  *
  * Chaque carte supporte :
  * - Valeur formatée (nombre court ou pourcentage)
@@ -20,41 +18,13 @@
  * - État de chargement (skeleton)
  * - Clic sur la carte (callback)
  *
- * Le composant s'intègre au design system COS (gradient bleu, ombre subtile,
- * `backdrop-blur-2xl`, sans bordure). Il utilise `StatsGrid` et `StatsCard` du dossier commun.
- *
- * @example
- * ```tsx
- * // Dashboard admin
- * <ExamensStatsCards
- *   stats={{
- *     totalExamens: 84,
- *     examensCode: 45,
- *     examensConduite: 39,
- *     reussites: 62,
- *     echecs: 22,
- *     tauxReussiteGlobal: 73.8,
- *   }}
- *   trends={{
- *     totalExamens: 8,
- *     examensCode: 5,
- *     examensConduite: 12,
- *     tauxReussiteGlobal: 2.5,
- *   }}
- *   isLoading={false}
- *   onCardClick={(id) => console.log(id)}
- * />
- * ```
- *
  * @author Stive Junior
- * @version 1.0.0
- * @see {@link ExamensStats} – Métriques agrégées
+ * @version 2.0.0
+ * @see {@link ExamensStatsExtended} – Métriques étendues
  * @see {@link ExamensTrends} – Tendances évolutives
- * @see {@link StatsCard} – Carte de statistique réutilisable
- * @see {@link StatsGrid} – Grille responsive
  */
 
-import { ClipboardList, FileText, Car, Award } from 'lucide-react';
+import { ClipboardList, Award, Calendar, TrendingUp } from 'lucide-react';
 import {
   StatsGrid,
   type StatsCardProps,
@@ -62,39 +32,27 @@ import {
 } from '@/features/dashboard/components/common/StatsCard';
 import { EmptyState } from '@/features/dashboard/components/common/EmptyState';
 import { cn } from '@/lib/utils';
-import type { ExamensStats, ExamensTrends } from '@/types/examens.types';
+import type { ExamensStatsExtended, ExamensTrends } from '@/types/examens.types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Données d'un sparkline (courbe miniature) pour une métrique d'examen.
- */
 export interface ExamensSparklineData {
-  /** Liste des valeurs (ex: [120, 135, 140, 155]) */
   values: number[];
-  /** Étiquettes associées aux valeurs (optionnelles) */
   labels?: string[];
 }
 
-/**
- * Propriétés du composant `ExamensStatsCards`.
- */
 export interface ExamensStatsCardsProps {
-  /** Métriques statistiques des examens */
-  stats: ExamensStats;
+  /** Métriques statistiques étendues des examens (peut être null pendant le chargement) */
+  stats: ExamensStatsExtended | null;
   /** Tendances évolutives (optionnelles) */
   trends?: Partial<ExamensTrends>;
 
-  /** Sparkline pour le total des examens */
   totalSparkline?: ExamensSparklineData;
-  /** Sparkline pour le taux de réussite global */
   tauxReussiteSparkline?: ExamensSparklineData;
-  /** Sparkline pour les examens code */
-  codeSparkline?: ExamensSparklineData;
-  /** Sparkline pour les examens conduite */
-  conduiteSparkline?: ExamensSparklineData;
+  examensMoisSparkline?: ExamensSparklineData;
+  noteMoyenneSparkline?: ExamensSparklineData;
 
   /** Afficher l’état de chargement (skeleton) */
   isLoading?: boolean;
@@ -102,38 +60,28 @@ export interface ExamensStatsCardsProps {
   onCardClick?: (cardId: string) => void;
   /** Classes additionnelles pour la grille */
   className?: string;
-
-  /**
-   * Permet de remplacer entièrement les cartes (utilisation avancée).
-   * Si fourni, les props `stats` et `trends` sont ignorées.
-   */
+  /** Permet de remplacer entièrement les cartes (utilisation avancée) */
   customCards?: StatsCardProps[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fonctions utilitaires
+// Utilitaires
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Formate un nombre en notation courte (K, M) pour l’affichage.
- * @param num - Nombre à formater
- * @returns Chaîne formatée
- * @internal
- */
 function formatCompactNumber(num: number): string {
-  if (num >= 1_000_000) {
-    return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
-  }
-  if (num >= 1_000) {
-    return (num / 1_000).toFixed(1).replace(/\.0$/, '') + 'k';
-  }
+  if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, '') + 'k';
   return num.toString();
 }
 
-/**
- * Construit un objet StatsTrend à partir d’une valeur et d’un label optionnel.
- * @internal
- */
+function formatPercentage(value: number): string {
+  return `${value.toFixed(1)}%`;
+}
+
+function formatNote(value: number): string {
+  return value.toFixed(1);
+}
+
 function buildTrend(value: number | undefined, label?: string): StatsTrend | undefined {
   if (value === undefined) return undefined;
   return {
@@ -149,91 +97,90 @@ function buildTrend(value: number | undefined, label?: string): StatsTrend | und
 // Composant principal
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Grille de cartes statistiques pour les examens.
- * Affiche les indicateurs clés : total, taux de réussite, examens code, examens conduite.
- */
 export function ExamensStatsCards({
   stats,
   trends = {},
   totalSparkline,
   tauxReussiteSparkline,
-  codeSparkline,
-  conduiteSparkline,
+  examensMoisSparkline,
+  noteMoyenneSparkline,
   isLoading = false,
   onCardClick,
   className,
   customCards,
 }: ExamensStatsCardsProps): React.JSX.Element {
-  const handleCardClick = (cardId: string) => {
-    onCardClick?.(cardId);
-  };
+  const handleCardClick = (cardId: string) => onCardClick?.(cardId);
 
-  // Cartes par défaut
+  // Affichage des squelettes pendant le chargement ou si stats est null
+  if (isLoading || !stats) {
+    const skeletonCards: StatsCardProps[] = [
+      { id: 'skeleton-1', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-2', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-3', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-4', title: '', value: '', icon: null, Color: 'gray' },
+    ];
+    return (
+      <StatsGrid
+        cards={skeletonCards}
+        cols={2}
+        className={cn('w-full', className)}
+        isLoading={true}
+      />
+    );
+  }
+
+  // Cartes par défaut (4 cartes avec métriques étendues)
   const defaultCards: StatsCardProps[] = [
     {
       id: 'total-examens',
       title: 'Total examens',
       value: formatCompactNumber(stats.totalExamens),
+      secondaryValue: `${stats.examensMois} ce mois`,
       icon: <ClipboardList className="size-5" />,
-      iconBg: 'bg-blue-500',
-      description: 'Code + Conduite',
+      Color: 'blue-500',
       trend: buildTrend(trends.totalExamens, 'vs période précédente'),
       sparklineData: totalSparkline
-        ? {
-          values: totalSparkline.values,
-          labels: totalSparkline.labels,
-        }
+        ? { values: totalSparkline.values, labels: totalSparkline.labels }
         : undefined,
       onClick: () => handleCardClick('total-examens'),
     },
     {
       id: 'taux-reussite',
       title: 'Taux de réussite',
-      value: `${stats.tauxReussiteGlobal.toFixed(0)}%`,
+      value: formatPercentage(stats.tauxReussiteGlobal),
+      secondaryValue: `Évolution : ${stats.evolutionReussite >= 0 ? '+' : ''}${stats.evolutionReussite.toFixed(1)} pts`,
       icon: <Award className="size-5" />,
-      iconBg: 'bg-emerald-500',
-      description: 'Global (reçus)',
+      Color: 'emerald-500',
       trend: buildTrend(trends.tauxReussiteGlobal, 'vs période précédente'),
       sparklineData: tauxReussiteSparkline
-        ? {
-          values: tauxReussiteSparkline.values,
-          labels: tauxReussiteSparkline.labels,
-        }
+        ? { values: tauxReussiteSparkline.values, labels: tauxReussiteSparkline.labels }
         : undefined,
       onClick: () => handleCardClick('taux-reussite'),
     },
     {
-      id: 'examens-code',
-      title: 'Examens code',
-      value: formatCompactNumber(stats.examensCode),
-      icon: <FileText className="size-5" />,
-      iconBg: 'bg-amber-500',
-      description: 'Épreuves théoriques',
-      trend: buildTrend(trends.examensCode, 'vs période précédente'),
-      sparklineData: codeSparkline
-        ? {
-          values: codeSparkline.values,
-          labels: codeSparkline.labels,
-        }
+      id: 'examens-mois',
+      title: 'Examens du mois',
+      value: formatCompactNumber(stats.examensMois),
+      secondaryValue: `${stats.reussitesMois} réussites`,
+      icon: <Calendar className="size-5" />,
+      Color: 'amber-500',
+      sparklineData: examensMoisSparkline
+        ? { values: examensMoisSparkline.values, labels: examensMoisSparkline.labels }
         : undefined,
-      onClick: () => handleCardClick('examens-code'),
+      onClick: () => handleCardClick('examens-mois'),
     },
     {
-      id: 'examens-conduite',
-      title: 'Examens conduite',
-      value: formatCompactNumber(stats.examensConduite),
-      icon: <Car className="size-5" />,
-      iconBg: 'bg-purple-500',
-      description: 'Épreuves pratiques',
-      trend: buildTrend(trends.examensConduite, 'vs période précédente'),
-      sparklineData: conduiteSparkline
-        ? {
-          values: conduiteSparkline.values,
-          labels: conduiteSparkline.labels,
-        }
+      id: 'note-moyenne',
+      title: 'Note moyenne conduite',
+      value: formatNote(stats.noteMoyenneConduite),
+      secondaryValue: 'Moyenne sur 20',
+      icon: <TrendingUp className="size-5" />,
+      Color: 'purple-500',
+      trend: buildTrend(trends.tauxReussiteGlobal, 'vs période précédente'),
+      sparklineData: noteMoyenneSparkline
+        ? { values: noteMoyenneSparkline.values, labels: noteMoyenneSparkline.labels }
         : undefined,
-      onClick: () => handleCardClick('examens-conduite'),
+      onClick: () => handleCardClick('note-moyenne'),
     },
   ];
 
@@ -245,7 +192,7 @@ export function ExamensStatsCards({
       typeof card.value === 'number'
         ? card.value
         : parseFloat(String(card.value).replace(/[^0-9.-]/g, ''));
-    return !isNaN(numericValue) && numericValue > 0;
+    return !isNaN(numericValue);
   });
 
   if (!hasData && !isLoading) {
@@ -263,7 +210,12 @@ export function ExamensStatsCards({
   }
 
   return (
-    <StatsGrid cards={cards} cols={2} className={cn('w-full', className)} isLoading={isLoading} />
+    <StatsGrid
+      cards={cards}
+      cols={2}
+      className={cn('w-full', className)}
+      isLoading={isLoading}
+    />
   );
 }
 

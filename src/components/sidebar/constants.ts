@@ -15,13 +15,11 @@ import {
   LayoutDashboard,
   Users,
   GraduationCap,
-  School,
   Car,
   Calendar,
   ClipboardList,
   CreditCard,
   FileText,
-  Receipt,
   TrendingDown,
   Coins,
   BarChart3,
@@ -34,7 +32,6 @@ import {
   HelpCircle,
   Bell,
   FileOutput,
-  Truck,
   CalendarDays,
 } from 'lucide-react';
 import { PROTECTED_ROUTES } from '@/config/routes';
@@ -88,123 +85,13 @@ export const MAIN_NAV_ITEMS: Record<Role, NavItem[]> = {
       url: PROTECTED_ROUTES.DASHBOARD,
       icon: LayoutDashboard,
     },
+
     {
       title: 'Candidats',
-      url: '',
+      url: PROTECTED_ROUTES.CANDIDATS.LIST,
       icon: Users,
-      items: [
-        {
-          title: 'Liste des candidats',
-          url: PROTECTED_ROUTES.CANDIDATS.LIST,
-          icon: Users,
-        },
-        {
-          title: 'Nouveau candidat',
-          url: PROTECTED_ROUTES.CANDIDATS.CREATE,
-          icon: UserRound,
-        },
-      ],
     },
-    {
-      title: 'Formations',
-      url: '',
-      icon: GraduationCap,
-      items: [
-        {
-          title: 'Toutes les formations',
-          url: PROTECTED_ROUTES.FORMATIONS.LIST,
-          icon: School,
-        },
-        {
-          title: 'Nouvelle formation',
-          url: PROTECTED_ROUTES.FORMATIONS.CREATE,
-          icon: School,
-        },
-      ],
-    },
-    {
-      title: 'Moniteurs',
-      url: '',
-      icon: Users,
-      items: [
-        {
-          title: 'Tous les moniteurs',
-          url: PROTECTED_ROUTES.MONITEURS.LIST,
-          icon: Users,
-        },
-        {
-          title: 'Nouveau moniteur',
-          url: PROTECTED_ROUTES.MONITEURS.CREATE,
-          icon: UserRound,
-        },
-      ],
-    },
-    {
-      title: 'Véhicules',
-      url: '',
-      icon: Car,
-      items: [
-        {
-          title: 'Parc automobile',
-          url: PROTECTED_ROUTES.VEHICULES.LIST,
-          icon: Truck,
-        },
-        {
-          title: 'Ajouter un véhicule',
-          url: PROTECTED_ROUTES.VEHICULES.CREATE,
-          icon: Car,
-        },
-      ],
-    },
-    {
-      title: 'Planning',
-      url: '',
-      icon: Calendar,
-      items: [
-        {
-          title: 'Vue calendrier',
-          url: PROTECTED_ROUTES.PLANNING.CALENDAR,
-          icon: CalendarDays,
-        },
-        {
-          title: 'Nouvelle leçon',
-          url: PROTECTED_ROUTES.PLANNING.CREATE,
-          icon: ClipboardCheck,
-        },
-        {
-          title: 'Planning moniteur',
-          url: '#',
-          icon: Calendar,
-        },
-        {
-          title: 'Planning candidat',
-          url: '#',
-          icon: Calendar,
-        },
-      ],
-    },
-    {
-      title: 'Examens',
-      url: '',
-      icon: ClipboardList,
-      items: [
-        {
-          title: 'Tous les examens',
-          url: PROTECTED_ROUTES.EXAMENS.LIST,
-          icon: ClipboardList,
-        },
-        {
-          title: 'Inscrire à un examen',
-          url: PROTECTED_ROUTES.EXAMENS.CREATE,
-          icon: ClipboardCheck,
-        },
-        {
-          title: 'Résultats par candidat',
-          url: '#',
-          icon: Users,
-        },
-      ],
-    },
+
     {
       title: 'Finances',
       url: '',
@@ -220,11 +107,7 @@ export const MAIN_NAV_ITEMS: Record<Role, NavItem[]> = {
           url: PROTECTED_ROUTES.FACTURES.LIST,
           icon: FileText,
         },
-        {
-          title: 'Reçus',
-          url: PROTECTED_ROUTES.RECUS.LIST,
-          icon: Receipt,
-        },
+
         {
           title: 'Dépenses',
           url: PROTECTED_ROUTES.DEPENSES.LIST,
@@ -235,8 +118,58 @@ export const MAIN_NAV_ITEMS: Record<Role, NavItem[]> = {
           url: PROTECTED_ROUTES.CAISSE.INDEX,
           icon: Coins,
         },
+        {
+          title: 'Documents',
+          url: PROTECTED_ROUTES.DOCUMENTS.LIST,
+          icon: FileOutput,
+        },
       ],
     },
+
+    {
+      title: 'Formations',
+      url: PROTECTED_ROUTES.FORMATIONS.LIST,
+      icon: GraduationCap,
+    },
+    {
+      title: 'Moniteurs',
+      url: PROTECTED_ROUTES.MONITEURS.LIST,
+      icon: Users,
+    },
+    {
+      title: 'Véhicules',
+      url: PROTECTED_ROUTES.VEHICULES.LIST,
+      icon: Car,
+    },
+    {
+      title: 'Planning',
+      url: '',
+      icon: Calendar,
+      items: [
+        {
+          title: 'Vue calendrier',
+          url: PROTECTED_ROUTES.PLANNING.CALENDAR,
+          icon: CalendarDays,
+        },
+
+        {
+          title: 'Planning moniteur',
+          url: '#',
+          icon: Calendar,
+        },
+        {
+          title: 'Planning candidat',
+          url: '#',
+          icon: Calendar,
+        },
+      ],
+    },
+    {
+      title: 'Examens',
+      url: PROTECTED_ROUTES.EXAMENS.LIST,
+      icon: ClipboardList,
+    },
+
     {
       title: 'Rapports',
       url: PROTECTED_ROUTES.RAPPORTS.FINANCIER,
@@ -276,7 +209,7 @@ export const MAIN_NAV_ITEMS: Record<Role, NavItem[]> = {
     },
     {
       title: 'Administration',
-      url: PROTECTED_ROUTES.ADMIN.USERS.LIST,
+      url: '',
       icon: UserCog,
       items: [
         {
@@ -395,11 +328,6 @@ export const MAIN_NAV_ITEMS: Record<Role, NavItem[]> = {
           icon: FileText,
         },
         {
-          title: 'Reçus',
-          url: PROTECTED_ROUTES.RECUS.LIST,
-          icon: Receipt,
-        },
-        {
           title: 'Dépenses',
           url: PROTECTED_ROUTES.DEPENSES.LIST,
           icon: TrendingDown,
@@ -411,6 +339,12 @@ export const MAIN_NAV_ITEMS: Record<Role, NavItem[]> = {
         },
       ],
     },
+    {
+      title: 'Documents',
+      url: PROTECTED_ROUTES.DOCUMENTS.LIST,
+      icon: FileText,
+    },
+
     {
       title: 'Rapports',
       url: PROTECTED_ROUTES.RAPPORTS.FINANCIER,
@@ -499,7 +433,12 @@ export const MAIN_NAV_ITEMS: Record<Role, NavItem[]> = {
 export const PROJECTS: Record<Role, ProjectItem[]> = {
   ADMIN: [
     { name: 'Mon profil', url: PROTECTED_ROUTES.PROFILE, icon: User },
-    { name: 'Paramètres', url: PROTECTED_ROUTES.SETTINGS, icon: Settings },
+    {
+      name: 'Planning',
+      url: PROTECTED_ROUTES.PLANNING.CALENDAR,
+      icon: Calendar,
+    },
+
     { name: 'Notifications', url: PROTECTED_ROUTES.UTILS.NOTIFICATIONS, icon: Bell },
   ],
   SECRETAIRE: [

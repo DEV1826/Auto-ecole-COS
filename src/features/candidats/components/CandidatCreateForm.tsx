@@ -13,8 +13,8 @@
  * - Organisé en 4 sections sémantiques :
  *   1. **Identité** — nom, prénom, date de naissance, adresse
  *   2. **Contact** — email, téléphone
- *   3. **Formation** — catégorie de permis, statut, date d'inscription
- *   4. **Informations complémentaires** — numéro de permis, notes
+ *   3. **Formation** — sélection visuelle d'une formation (avec images par catégorie)
+ *   4. **Informations complémentaires** — statut, date d'inscription, numéro de permis, notes
  *
  * ## Thème
  * - Palette bleue (blue-700)
@@ -37,9 +37,10 @@
  * @see {@link createCandidatSchema}
  * @see {@link FormPageProps}
  * @see {@link FormWrapper}
+ * @see {@link FormationSelector}
  *
  * @author Stive Junior
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 import * as React from 'react';
@@ -72,18 +73,18 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 
 import { EmailInput } from '@/components/forms/EmailInput';
-import { PhoneInput } from '@/components/forms/PhoneInput';
+
 import { cn } from '@/lib/utils';
 
 import {
   createCandidatSchema,
-  CATEGORIE_PERMIS_VALUES,
   STATUT_CANDIDAT_VALUES,
   type CreateCandidatInput,
 } from '@/lib/validators/candidats.validator';
 import type { FormPageProps } from '@/components/forms/FormWrapper';
 import { DatePicker } from '@/components/ui/date-picker';
-import { CATEGORIE_PERMIS_CONFIG, STATUT_CANDIDAT_CONFIG } from '@/types/enums';
+import { CATEGORIE_PERMIS_CONFIG, STATUT_CANDIDAT_CONFIG, type CategoriePermis } from '@/types/enums';
+import { FormationSelector } from './FormationSelector';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types & constantes
@@ -93,8 +94,6 @@ type CandidatFormValues = z.infer<typeof createCandidatSchema>;
 
 /** Props du composant */
 export type CandidatFormProps = FormPageProps<Partial<CreateCandidatInput>>;
-
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sous-composant : en-tête de section
@@ -131,6 +130,7 @@ function SectionHeader({ icon: Icon, title, description }: SectionHeaderProps) {
 export default function CandidatCreateForm({ data, onChange, isSubmitting }: CandidatFormProps) {
   const {
     control,
+    setValue,
     formState: { isValid },
   } = useForm<CandidatFormValues>({
     resolver: zodResolver(createCandidatSchema),
@@ -151,6 +151,26 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
     },
   });
 
+  // ── État local pour la sélection de formation ───────────────────────────
+  const [selectedFormationId, setSelectedFormationId] = React.useState<number | undefined>(
+    data.formationId as number | undefined
+  );
+  const [formationCategorie, setFormationCategorie] = React.useState<CategoriePermis | undefined>(
+    data.categorie as CategoriePermis | undefined
+  );
+
+  // Callback du sélecteur de formation
+  const handleFormationSelect = React.useCallback(
+    (formationId: number, categorie: CategoriePermis) => {
+      setSelectedFormationId(formationId);
+      setFormationCategorie(categorie);
+      // Mise à jour des champs cachés du formulaire
+      setValue('formationId', formationId);
+      setValue('categorie', categorie);
+    },
+    [setValue]
+  );
+
   // ── Observation réactive des valeurs ────────────────────────────────────
   const watched = useWatch({
     control,
@@ -161,7 +181,6 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
       'telephone',
       'dateNaissance',
       'adresse',
-      'categorie',
       'statut',
       'numeroPermis',
       'notes',
@@ -176,14 +195,13 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
     telephone,
     dateNaissance,
     adresse,
-    categorie,
     statut,
     numeroPermis,
     notes,
     dateInscription,
   ] = watched;
 
-  // Données nettoyées mémoïsées
+  // Données nettoyées mémoïsées (on inclut formationId et categorie)
   const cleanData = React.useMemo(
     () => ({
       nom: nom || '',
@@ -192,15 +210,26 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
       telephone: telephone || '',
       dateNaissance: dateNaissance || '',
       adresse: adresse || '',
-      categorie: categorie || undefined,
+      categorie: formationCategorie || undefined,
       statut: statut || 'EN_ATTENTE',
       numeroPermis: numeroPermis || '',
       notes: notes || '',
+      formationId: selectedFormationId ?? undefined,
       dateInscription: dateInscription || '',
     }),
     [
-      nom, prenom, email, telephone, dateNaissance,
-      adresse, categorie, statut, numeroPermis, notes, dateInscription,
+      nom,
+      prenom,
+      email,
+      telephone,
+      dateNaissance,
+      adresse,
+      formationCategorie,
+      statut,
+      numeroPermis,
+      notes,
+      selectedFormationId,
+      dateInscription,
     ]
   );
 
@@ -208,6 +237,7 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
   React.useEffect(() => {
     onChange(cleanData as any, isValid);
   }, [cleanData, isValid, onChange]);
+
 
   // ── Rendu ──────────────────────────────────────────────────────────────
   return (
@@ -242,9 +272,7 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
                   disabled={isSubmitting}
                   aria-invalid={fieldState.invalid}
                 />
-                {fieldState.invalid && (
-                  <FieldError className="text-xs!" errors={[fieldState.error]} />
-                )}
+                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
               </Field>
             )}
           />
@@ -264,9 +292,7 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
                   disabled={isSubmitting}
                   aria-invalid={fieldState.invalid}
                 />
-                {fieldState.invalid && (
-                  <FieldError className="text-xs!" errors={[fieldState.error]} />
-                )}
+                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
               </Field>
             )}
           />
@@ -276,9 +302,7 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
             name="dateNaissance"
             control={control}
             render={({ field, fieldState }) => {
-              // Convertir la valeur stockée (string ISO) en Date pour l'affichage
               const selectedDate = field.value ? new Date(field.value) : undefined;
-
               return (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="candidat-dob">
@@ -287,18 +311,16 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
                       Date de naissance
                     </span>
                   </FieldLabel>
-
                   <DatePicker
                     date={selectedDate}
                     onSelect={(date) => field.onChange(date ? date.toISOString() : null)}
                     disabled={isSubmitting}
                     formatStr="dd/MM/yyyy"
-                    id='candidat-dob'
+                    id="candidat-dob"
                     placeholder="JJ/MM/AAAA"
                     className="w-full h-12"
                   />
-
-                  {fieldState.invalid && <FieldError className="text-xs!" errors={[fieldState.error]} />}
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                 </Field>
               );
             }}
@@ -325,9 +347,7 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
                   disabled={isSubmitting}
                   aria-invalid={fieldState.invalid}
                 />
-                {fieldState.invalid && (
-                  <FieldError className="text-xs!" errors={[fieldState.error]} />
-                )}
+                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
               </Field>
             )}
           />
@@ -357,14 +377,12 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
                   value={field.value ?? ''}
                   id="candidat-email"
                   placeholder="jean@example.com"
-                  className='h-12'
+                  className="h-12"
                   error={fieldState.invalid}
                   disabled={isSubmitting}
                 />
                 <FieldDescription>Optionnel — pour les rappels et convocations.</FieldDescription>
-                {fieldState.invalid && (
-                  <FieldError className="text-xs!" errors={[fieldState.error]} />
-                )}
+                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
               </Field>
             )}
           />
@@ -376,16 +394,16 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <FieldLabel htmlFor="candidat-phone">Téléphone</FieldLabel>
-                <PhoneInput
+                <Input
                   value={field.value ?? ''}
                   onChange={field.onChange}
                   placeholder="6XX XXX XXX"
                   disabled={isSubmitting}
+                  id="candidat-phone"
+                  className='h-12'
                 />
                 <FieldDescription>Indicatif Cameroun (+237) prédéfini.</FieldDescription>
-                {fieldState.invalid && (
-                  <FieldError className="text-xs!" errors={[fieldState.error]} />
-                )}
+                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
               </Field>
             )}
           />
@@ -394,51 +412,47 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
 
       <Separator className="my-2" />
 
-      {/* ── Section 3 : Formation ─────────────────────────────────────────── */}
+      {/* ── Section 3 : Formation (avec sélecteur visuel) ─────────────────── */}
       <section className="space-y-4">
         <SectionHeader
           icon={BookOpen}
           title="Formation"
-          description="Catégorie de permis visée et statut actuel de la formation."
+          description="Sélectionnez la formation souhaitée. La catégorie de permis sera automatiquement déterminée."
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Catégorie */}
-          <Controller
-            name="categorie"
-            control={control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="candidat-categorie">Catégorie de permis *</FieldLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value ?? ''}
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger
-                    id="candidat-categorie"
-                    className={cn('h-12!', fieldState.invalid && 'border-destructive')}
-                  >
-                    <SelectValue placeholder="Choisir une catégorie…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIE_PERMIS_VALUES.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        <span className="font-semibold mr-2">{cat}</span>
-                        <span className="text-muted-foreground text-xs">
-                          {CATEGORIE_PERMIS_CONFIG[cat].description}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {fieldState.invalid && (
-                  <FieldError className="text-xs!" errors={[fieldState.error]} />
-                )}
-              </Field>
-            )}
-          />
+        {/* Sélecteur de formation */}
+        <FormationSelector
+          defaultFormationId={selectedFormationId}
+          onSelect={handleFormationSelect}
+          isLoading={isSubmitting}
+        />
 
+        {/* Champs cachés pour la catégorie et l'ID de formation (nécessaires pour la validation) */}
+        <Controller
+          name="categorie"
+          control={control}
+          render={({ field }) => (
+            <input type="hidden" {...field} value={formationCategorie || ''} />
+          )}
+        />
+        <Controller
+          name="formationId"
+          control={control}
+          render={({ field }) => (
+            <input type="hidden" {...field} value={selectedFormationId || ''} />
+          )}
+        />
+
+        {/* Affichage informatif de la formation sélectionnée */}
+        {formationCategorie && (
+          <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 p-3 text-sm">
+            <span className="font-medium">Formation sélectionnée :</span>{' '}
+            {CATEGORIE_PERMIS_CONFIG[formationCategorie]?.label || formationCategorie}
+          </div>
+        )}
+
+        {/* Statut et date d'inscription */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Statut */}
           <Controller
             name="statut"
@@ -462,18 +476,21 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
                       <SelectItem key={s} value={s}>
                         <Badge
                           variant="outline"
-                          className={cn('text-[10px] rounded-md font-medium mr-2', STATUT_CANDIDAT_CONFIG[s].bgColor)}
+                          className={cn(
+                            'text-[10px] rounded-md font-medium mr-2',
+                            STATUT_CANDIDAT_CONFIG[s].bgColor
+                          )}
                         >
                           {STATUT_CANDIDAT_CONFIG[s].label.split('—')[0].trim()}
                         </Badge>
-                        <span className="text-xs text-muted-foreground">{STATUT_CANDIDAT_CONFIG[s].label}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {STATUT_CANDIDAT_CONFIG[s].label}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {fieldState.invalid && (
-                  <FieldError className="text-xs!" errors={[fieldState.error]} />
-                )}
+                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
               </Field>
             )}
           />
@@ -483,9 +500,7 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
             name="dateInscription"
             control={control}
             render={({ field, fieldState }) => {
-              // Convertir la valeur stockée (string ISO) en Date pour l'affichage
               const selectedDate = field.value ? new Date(field.value) : undefined;
-
               return (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="candidat-date-inscription">
@@ -494,7 +509,6 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
                       Date d'inscription
                     </span>
                   </FieldLabel>
-
                   <DatePicker
                     date={selectedDate}
                     onSelect={(date) => field.onChange(date ? date.toISOString() : null)}
@@ -503,13 +517,10 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
                     placeholder="JJ/MM/AAAA"
                     className="w-full h-12"
                   />
-
                   <FieldDescription>
                     Par défaut : la date du jour si laissée vide.
-
                   </FieldDescription>
-
-                  {fieldState.invalid && <FieldError className="text-xs!" errors={[fieldState.error]} />}
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                 </Field>
               );
             }}
@@ -536,10 +547,10 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
                   disabled={isSubmitting}
                   aria-invalid={fieldState.invalid}
                 />
-                <FieldDescription>Laissez vide si le permis n&apos;est pas encore obtenu.</FieldDescription>
-                {fieldState.invalid && (
-                  <FieldError className="text-xs!" errors={[fieldState.error]} />
-                )}
+                <FieldDescription>
+                  Laissez vide si le permis n&apos;est pas encore obtenu.
+                </FieldDescription>
+                {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
               </Field>
             )}
           />
@@ -580,9 +591,7 @@ export default function CandidatCreateForm({ data, onChange, isSubmitting }: Can
               <FieldDescription>
                 Maximum 500 caractères. Visibles uniquement par le personnel de l&apos;auto-école.
               </FieldDescription>
-              {fieldState.invalid && (
-                <FieldError className="text-xs!" errors={[fieldState.error]} />
-              )}
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}
         />

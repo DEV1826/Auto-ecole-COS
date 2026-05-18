@@ -8,9 +8,10 @@
  *
  * ## Métriques affichées
  * - **Solde actuel** : montant disponible en caisse (avec tendance)
- * - **Entrées du mois** : total des encaissements du mois en cours (avec tendance)
- * - **Sorties du mois** : total des décaissements du mois en cours (avec tendance)
- * - **Solde net du mois** : entrées - sorties du mois (avec tendance)
+ * - **Total entrées** : cumul de tous les encaissements (avec tendance)
+ * - **Total sorties** : cumul de tous les décaissements (avec tendance)
+ * - **Évolution du solde** : variation du solde (en %) entre le mois précédent et le mois courant,
+ *   avec affichage du solde du mois précédent en valeur secondaire.
  *
  * Chaque carte supporte :
  * - Valeur formatée (notation compacte K/M, devise FCFA)
@@ -23,39 +24,13 @@
  * Le composant s'intègre au design system COS (gradient bleu, ombre subtile,
  * `backdrop-blur-2xl`, sans bordure). Il utilise `StatsGrid` et `StatsCard` du dossier commun.
  *
- * @example
- * ```tsx
- * <CaisseStatsCards
- *   stats={{
- *     soldeActuel: 285000,
- *     totalEntrees: 1250000,
- *     totalSorties: 965000,
- *     entreesMois: 320000,
- *     sortiesMois: 210000,
- *   }}
- *   trends={{
- *     soldeActuel: 8.5,
- *     entreesMois: 5.2,
- *     sortiesMois: 7.4,
- *   }}
- *   entreesMoisSparkline={{
- *     values: [250000, 280000, 300000, 310000, 320000],
- *     labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai'],
- *   }}
- *   isLoading={false}
- *   onCardClick={(id) => console.log(id)}
- * />
- * ```
- *
  * @author Stive Junior
- * @version 1.0.0
- * @see {@link CaisseStats} – Métriques agrégées
+ * @version 2.0.0
+ * @see {@link CaisseStatsExtended} – Métriques étendues
  * @see {@link CaisseTrends} – Tendances évolutives
- * @see {@link StatsCard} – Carte de statistique réutilisable
- * @see {@link StatsGrid} – Grille responsive
  */
 
-import { Wallet, ArrowUpCircle, ArrowDownCircle, Coins } from 'lucide-react';
+import { Wallet, ArrowUpCircle, ArrowDownCircle, TrendingUp } from 'lucide-react';
 import {
     StatsGrid,
     type StatsCardProps,
@@ -63,7 +38,7 @@ import {
 } from '@/features/dashboard/components/common/StatsCard';
 import { EmptyState } from '@/features/dashboard/components/common/EmptyState';
 import { cn } from '@/lib/utils';
-import type { CaisseStats, CaisseTrends } from '@/types/caisse.types';
+import type { CaisseStatsExtended, CaisseTrends } from '@/types/caisse.types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -83,18 +58,18 @@ export interface CaisseSparklineData {
  * Propriétés du composant `CaisseStatsCards`.
  */
 export interface CaisseStatsCardsProps {
-    /** Métriques statistiques de la caisse */
-    stats: CaisseStats;
+    /** Métriques statistiques étendues de la caisse (inclut soldeMoisPrecedent et evolutionSolde) */
+    stats: CaisseStatsExtended;
     /** Tendances évolutives (optionnelles) */
     trends?: Partial<CaisseTrends>;
 
     /** Sparkline pour le solde actuel */
     soldeSparkline?: CaisseSparklineData;
-    /** Sparkline pour les entrées du mois */
+    /** Sparkline pour les entrées du mois (optionnel – non utilisé dans cette version, gardé pour compatibilité) */
     entreesMoisSparkline?: CaisseSparklineData;
-    /** Sparkline pour les sorties du mois */
+    /** Sparkline pour les sorties du mois (optionnel) */
     sortiesMoisSparkline?: CaisseSparklineData;
-    /** Sparkline pour le solde net du mois */
+    /** Sparkline pour l'évolution du solde (optionnel) */
     soldeNetSparkline?: CaisseSparklineData;
 
     /** Afficher l’état de chargement (skeleton) */
@@ -110,8 +85,7 @@ export interface CaisseStatsCardsProps {
      */
     customCards?: StatsCardProps[];
 
-
-    /** Nombre de colonnes dans la grille */
+    /** Nombre de colonnes dans la grille (défaut: 2) */
     cols?: 2 | 3 | 4;
 }
 
@@ -121,18 +95,14 @@ export interface CaisseStatsCardsProps {
 
 /**
  * Formate un montant en FCFA avec notation courte (K, M).
- * Exemples : 2 300 → "2.3k", 1 250 000 → "1.3M", 285 000 → "285k"
  * @param num - Montant en FCFA
  * @returns Chaîne formatée
- * @internal
  */
 function formatCurrency(num: number): string {
     if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M FCFA';
     if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, '') + 'k FCFA';
     return `${num.toLocaleString('fr-FR')} FCFA`;
 }
-
-
 
 /**
  * Construit un objet StatsTrend à partir d’une valeur et d’un label optionnel.
@@ -168,17 +138,48 @@ export function CaisseStatsCards({
 }: CaisseStatsCardsProps): React.JSX.Element {
     const handleClick = (id: string) => onCardClick?.(id);
 
-    // Solde net du mois
-    const soldeNet = stats.entreesMois - stats.sortiesMois;
-    const soldeNetPositif = soldeNet >= 0;
+    // Affichage des squelettes en cas de chargement
+    if (isLoading) {
+        const skeletonCards: StatsCardProps[] = [
+            { id: 'skeleton-1', title: '', value: '', icon: null, Color: 'gray' },
+            { id: 'skeleton-2', title: '', value: '', icon: null, Color: 'gray' },
+            { id: 'skeleton-3', title: '', value: '', icon: null, Color: 'gray' },
+            { id: 'skeleton-4', title: '', value: '', icon: null, Color: 'gray' },
+        ];
+        return (
+            <StatsGrid
+                cards={skeletonCards}
+                cols={cols}
+                className={cn('w-full', className)}
+                isLoading={true}
+            />
+        );
+    }
 
+    // Si pas de stats (et pas en chargement), afficher l'état vide
+    if (!stats) {
+        return (
+            <div className={cn('w-full', className)}>
+                <EmptyState
+                    title="Aucune statistique disponible"
+                    description="Les données de caisse seront affichées ici une fois disponibles."
+                    icon={Wallet}
+                    variant="dashed"
+                    size="md"
+                    className="h-full"
+                />
+            </div>
+        );
+    }
+
+    // Cartes par défaut (4 métriques)
     const defaultCards: StatsCardProps[] = [
         {
             id: 'solde-actuel',
             title: 'Solde actuel',
             value: formatCurrency(stats.soldeActuel),
             icon: <Wallet className="size-5" />,
-            iconBg: 'bg-blue-500',
+            Color: 'blue-500',
             description: 'Trésorerie disponible',
             trend: buildTrend(trends.soldeActuel, 'vs mois dernier'),
             sparklineData: soldeSparkline
@@ -187,54 +188,55 @@ export function CaisseStatsCards({
             onClick: () => handleClick('solde-actuel'),
         },
         {
-            id: 'entrees-mois',
-            title: 'Entrées (mois)',
-            value: formatCurrency(stats.entreesMois),
+            id: 'total-entrees',
+            title: 'Total entrées',
+            value: formatCurrency(stats.totalEntrees),
             icon: <ArrowUpCircle className="size-5" />,
-            iconBg: 'bg-emerald-500',
-            description: 'Encaissements',
-            trend: buildTrend(trends.entreesMois, 'vs mois dernier'),
+            Color: 'emerald-500',
+            description: 'Cumul des encaissements',
+            trend: buildTrend(trends.totalEntrees, 'vs période précédente'),
             sparklineData: entreesMoisSparkline
                 ? { values: entreesMoisSparkline.values, labels: entreesMoisSparkline.labels }
                 : undefined,
-            onClick: () => handleClick('entrees-mois'),
+            onClick: () => handleClick('total-entrees'),
         },
         {
-            id: 'sorties-mois',
-            title: 'Sorties (mois)',
-            value: formatCurrency(stats.sortiesMois),
+            id: 'total-sorties',
+            title: 'Total sorties',
+            value: formatCurrency(stats.totalSorties),
             icon: <ArrowDownCircle className="size-5" />,
-            iconBg: 'bg-amber-500',
-            description: 'Décaissements',
-            trend: buildTrend(trends.sortiesMois, 'vs mois dernier'),
+            Color: 'amber-500',
+            description: 'Cumul des décaissements',
+            trend: buildTrend(trends.totalSorties, 'vs période précédente'),
             sparklineData: sortiesMoisSparkline
                 ? { values: sortiesMoisSparkline.values, labels: sortiesMoisSparkline.labels }
                 : undefined,
-            onClick: () => handleClick('sorties-mois'),
+            onClick: () => handleClick('total-sorties'),
         },
         {
-            id: 'solde-net',
-            title: 'Solde net',
-            value: `${soldeNetPositif ? '+' : ''}${formatCurrency(soldeNet)}`,
-            icon: <Coins className="size-5" />,
-            iconBg: soldeNetPositif ? 'bg-emerald-500' : 'bg-red-500',
-            description: 'Entrées - Sorties',
+            id: 'evolution-solde',
+            title: 'Évolution du solde',
+            value: `${stats.evolutionSolde >= 0 ? '+' : ''}${stats.evolutionSolde.toFixed(1)}%`,
+            icon: <TrendingUp className="size-5" />,
+            Color: stats.evolutionSolde >= 0 ? 'emerald-500' : 'red-500',
+            description: `Solde mois précédent : ${formatCurrency(stats.soldeMoisPrecedent)}`,
             trend: undefined,
             sparklineData: soldeNetSparkline
                 ? { values: soldeNetSparkline.values, labels: soldeNetSparkline.labels }
                 : undefined,
-            onClick: () => handleClick('solde-net'),
+            onClick: () => handleClick('evolution-solde'),
         },
     ];
 
     const cards = customCards ?? defaultCards;
 
+    // Vérification que les données sont significatives
     const hasData = cards.some((card) => {
         const numericValue =
             typeof card.value === 'number'
                 ? card.value
                 : parseFloat(String(card.value).replace(/[^0-9.-]/g, ''));
-        return !isNaN(numericValue) && numericValue > 0;
+        return !isNaN(numericValue);
     });
 
     if (!hasData && !isLoading) {
@@ -252,7 +254,12 @@ export function CaisseStatsCards({
     }
 
     return (
-        <StatsGrid cards={cards} cols={cols} className={cn('w-full', className)} isLoading={isLoading} />
+        <StatsGrid
+            cards={cards}
+            cols={cols}
+            className={cn('w-full', className)}
+            isLoading={isLoading}
+        />
     );
 }
 

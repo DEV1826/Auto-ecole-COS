@@ -1,13 +1,14 @@
 // prisma/schema.prisma
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  output        = "../generated"
+  binaryTargets = ["native", "windows"]
 }
 
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
-
 // ===============================
 // ÉNUMÉRATIONS
 // ===============================
@@ -64,7 +65,7 @@ enum StatutLecon {
 
 enum TypeExamen {
   CODE
-  CONDUIT
+  CONDUITE
 }
 
 enum ResultatExamen {

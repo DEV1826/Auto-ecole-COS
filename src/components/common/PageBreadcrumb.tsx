@@ -36,7 +36,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChevronDownIcon, DotIcon } from 'lucide-react';
+import { ChevronDownIcon, DotIcon, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PROTECTED_ROUTES } from '@/config/routes';
 
@@ -109,8 +109,6 @@ function getIconForPathOrSegment(path: string, segmentLabel?: string): React.Rea
 
   // Profil & paramètres
   if (path === PROTECTED_ROUTES.PROFILE) return <User className="size-3.5" />;
-  if (path === PROTECTED_ROUTES.SETTINGS) return <Settings className="size-3.5" />;
-
   // Candidats
   if (path === PROTECTED_ROUTES.CANDIDATS.LIST) return <Users className="size-3.5" />;
   if (path.match(/\/candidats\/\d+$/)) return <UserRound className="size-3.5" />; // Détail candidat
@@ -164,7 +162,8 @@ function getIconForPathOrSegment(path: string, segmentLabel?: string): React.Rea
   if (path === PROTECTED_ROUTES.FACTURES.CREATE) return <FileText className="size-3.5" />;
   if (path.match(/\/factures\/\d+\/edit$/)) return <FileText className="size-3.5" />;
 
-  if (path === PROTECTED_ROUTES.RECUS.LIST) return <Receipt className="size-3.5" />;
+  if (path === PROTECTED_ROUTES.DOCUMENTS.LIST) return <FileText className="size-3.5" />;
+  if (path === PROTECTED_ROUTES.DOCUMENTS.UPLOAD) return <Upload className="size-3.5" />;
   if (path.match(/\/recus\/\d+$/)) return <Receipt className="size-3.5" />;
 
   if (path === PROTECTED_ROUTES.DEPENSES.LIST) return <TrendingDown className="size-3.5" />;
@@ -276,10 +275,6 @@ function generateSegmentsFromPath(pathname: string): BreadcrumbSegment[] {
       addSegment('Mon profil', undefined, undefined, <User className="size-3.5" />);
     }
 
-    // Paramètres
-    else if (currentPath === PROTECTED_ROUTES.SETTINGS) {
-      addSegment('Paramètres', undefined, undefined, <Settings className="size-3.5" />);
-    }
 
     // Gestion des candidats
     else if (currentPath === PROTECTED_ROUTES.CANDIDATS.LIST) {
@@ -288,8 +283,8 @@ function generateSegmentsFromPath(pathname: string): BreadcrumbSegment[] {
         undefined,
         [
           {
-            label: 'Nouveau candidat',
-            href: PROTECTED_ROUTES.CANDIDATS.CREATE,
+            label: 'Liste',
+            href: PROTECTED_ROUTES.CANDIDATS.LIST,
             icon: <UserRound className="size-3.5" />,
           },
         ],
@@ -310,8 +305,8 @@ function generateSegmentsFromPath(pathname: string): BreadcrumbSegment[] {
         undefined,
         [
           {
-            label: 'Nouvelle formation',
-            href: PROTECTED_ROUTES.FORMATIONS.CREATE,
+            label: 'Liste',
+            href: PROTECTED_ROUTES.FORMATIONS.LIST,
             icon: <School className="size-3.5" />,
           },
         ],
@@ -496,8 +491,8 @@ function generateSegmentsFromPath(pathname: string): BreadcrumbSegment[] {
     }
 
     // Reçus
-    else if (currentPath === PROTECTED_ROUTES.RECUS.LIST) {
-      addSegment('Reçus', undefined, undefined, <Receipt className="size-3.5" />);
+    else if (currentPath === PROTECTED_ROUTES.DOCUMENTS.LIST) {
+      addSegment('Documents', undefined, undefined, <FileText className="size-3.5" />);
     } else if (currentPath.match(/^\/recus\/\d+$/)) {
       addSegment(':id', undefined, undefined, <Receipt className="size-3.5" />);
     }

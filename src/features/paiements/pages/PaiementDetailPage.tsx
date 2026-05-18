@@ -1,22 +1,45 @@
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable react-hooks/static-components */
+// src/features/paiements/pages/PaiementDetailPage.tsx
+
 /**
- * @fileoverview Page de gestion détaillée des paiements - Interface ultra-professionnelle
- * 
- * Module principal pour l'affichage et la gestion des transactions de paiement.
- * Destiné à un environnement de gestion scolaire d'auto-école COS.
- * 
  * @module features/paiements/pages/PaiementDetailPage
- * @author Stive Junior <stive.junior@auto-ecole-cos.cm>
- * @version 2.1.0
- * @since 2024-01-10
- * @license MIT
+ * @description
+ * Page de détail d'un paiement — présentation complète en un seul bloc
+ * avec sections visuellement séparées. Pas d'ID technique exposé à l'utilisateur.
+ *
+ * Les données sont chargées depuis l’API Electron via le store `usePaiements`.
+ * Aucune donnée mockée n’est utilisée.
+ *
+ * ## Layout
+ * ```
+ * ┌────────────────────────────────────────────────────────────────┐
+ * │  Nav : retour | actions (imprimer, partager)   breadcrumb      │
+ * ├───────────────────────────────────────┬────────────────────────┤
+ * │  UN SEUL BLOC PRINCIPAL               │  Sidebar sticky        │
+ * │  ─ Aperçu (montant, mode, date)       │  ─ Actions             │
+ * │  ─ Séparateur                         │  ─ Formation candidat  │
+ * │  ─ Candidat                           │  ─ Autres paiements    │
+ * │  ─ Séparateur                         │                        │
+ * │  ─ Détails de la transaction          │                        │
+ * │  ─ Séparateur                         │                        │
+ * │  ─ Facture associée                   │                        │
+ * │  ─ Séparateur                         │                        │
+ * │  ─ Enregistrement                     │                        │
+ * └───────────────────────────────────────┴────────────────────────┘
+ * ```
+ *
+ * @author Stive Junior
+ * @version 4.0.0
  */
 
-'use strict';
+'use client';
 
 import * as React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, href } from 'react-router-dom';
 import { format, formatDistanceToNow, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { motion } from 'framer-motion';
 import {
   ArrowLeft,
   Calendar,
@@ -26,21 +49,30 @@ import {
   User,
   Mail,
   Phone,
-  Hash,
+  MapPin,
   Printer,
   Share2,
   Download,
   PlusCircle,
-  Activity,
+  CheckCircle2,
   Clock,
-  CheckCircle,
-  AlertCircle,
   Eye,
-  Edit3,
-  DollarSign,
+  Wallet,
+  Hash,
+  MessageSquare,
+  GraduationCap,
   TrendingUp,
-  MapPin,
-  Flag,
+  Banknote,
+  BadgeCheck,
+  RotateCcw,
+  Smartphone,
+  ChevronRight,
+  Car,
+  Link as LinkIcon,
+  Loader2,
+  type LucideIcon,
+  AlertTriangle,
+  Info,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -50,917 +82,1059 @@ import { PageBreadcrumb } from '@/components/common/PageBreadcrumb';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getAvatarUrl } from '@/lib/utils';
 
-// Composants UI
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
-// Types & Énums
 import type { Paiement } from '@/types/paiements.types';
-import { MODE_PAIEMENT_CONFIG } from '@/types/enums';
-import { generateMockPaiements } from './PaiementsListPage';
+import type { SoldeCandidat } from '@/types/paiements.types';
+import { MODE_PAIEMENT_CONFIG, STATUT_CANDIDAT_CONFIG, CATEGORIE_PERMIS_CONFIG, STATUT_FACTURE_CONFIG, type StatutFacture } from '@/types/enums';
+import { usePaiements } from '@/hooks/use.paiements';
+import { useCandidats } from '@/hooks/use.candidats';
+import { useFactures } from '@/hooks/use.factures';
+import type { Candidat } from '@/types/candidats.types';
+import type { Facture } from '@/types/factures.types';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
-// ═════════════════════════════════════════════════════════════════════════════
-// CONSTANTES & CONFIGURATIONS
-// ═════════════════════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Mapping des statuts de facturation avec leurs représentations visuelles.
- * 
- * @constant
- * @type {Record<string, {label: string; color: string; icon: React.ReactNode}>}
- */
-const FACTURE_STATUT_CONFIG = {
-  PAYEE: {
-    label: 'Payée',
-    color: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
-    icon: <CheckCircle className="h-4 w-4" />,
-  },
-  PARTIELLEMENT_PAYEE: {
-    label: 'Partiellement payée',
-    color: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
-    icon: <AlertCircle className="h-4 w-4" />,
-  },
-  EN_ATTENTE: {
-    label: 'En attente',
-    color: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
-    icon: <Clock className="h-4 w-4" />,
-  },
-  ANNULEE: {
-    label: 'Annulée',
-    color: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800',
-    icon: <AlertCircle className="h-4 w-4" />,
-  },
-} as const;
-
-
-
-// ═════════════════════════════════════════════════════════════════════════════
-// DONNÉES MOCKÉES
-// ═════════════════════════════════════════════════════════════════════════════
-
-/**
- * Récupère les données mockées d'un paiement par son identifiant.
- * 
- * @function
- * @param {string} id - Identifiant unique du paiement
- * @returns {Paiement | null} Objet paiement complète ou null si introuvable
- * 
- * @example
- * ```typescript
- * const payment = getMockPaiement('42');
- * if (payment) {
- *   console.log(`Montant: ${payment.montant} FCFA`);
- * }
- * ```
- */
-function getMockPaiement(id: string): Paiement | null {
-  const candidat = {
-    id: 42,
-    nom: 'Dupont',
-    prenom: 'Jean',
-    email: 'jean.dupont@example.com',
-    telephone: '691234567',
-    dateNaissance: new Date('1990-05-15'),
-    adresse: '123 Rue de la Paix, Yaoundé',
-    numeroPermis: 'DUPONT900515001',
-    categorie: 'B' as const,
-    statut: 'EN_COURS' as const,
-    dateInscription: new Date('2024-01-10'),
-    notes: 'Candidat assidu et dynamique',
-    createdAt: new Date('2024-01-10'),
-    updatedAt: new Date('2024-01-10'),
-    deletedAt: null,
-    paiements: [],
-    lecons: [],
-    examens: [],
-    factures: [],
-    formation: null,
-    documents: [],
-  };
-
-  const mockPaiements = generateMockPaiements(60).reduce((acc, p) => {
-    acc[p.id] = { ...p, candidat };
-    return acc;
-  }, {} as Record<number, Paiement>);
-
-  return mockPaiements[Number(id)] || null;
+function formatMontant(n: number): string {
+  return n.toLocaleString('fr-FR');
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// COMPOSANTS AUXILIAIRES
-// ═════════════════════════════════════════════════════════════════════════════
+function formatMontantCompact(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+  if (n >= 1_000) return (n / 1_000).toFixed(0) + 'k';
+  return n.toLocaleString('fr-FR');
+}
 
-/**
- * Affiche un squelette de chargement animé pour la page de détail.
- * 
- * Utilisé lors du chargement asynchrone des données du paiement.
- * 
- * @component
- * @returns {React.JSX.Element} Squelette avec disposition identique à la page réelle
- * 
- * @example
- * ```tsx
- * {isLoading && <DetailSkeleton />}
- * ```
- */
-function DetailSkeleton(): React.JSX.Element {
+/** Retourne l'icône lucide correspondant au mode de paiement */
+function getModeIcon(mode: string): LucideIcon {
+  const iconMap: Record<string, LucideIcon> = {
+    ESPECES: Banknote,
+    CHEQUE: FileText,
+    VIREMENT: TrendingUp,
+    CARTE: CreditCard,
+    MOBILE_MONEY: Smartphone,
+  };
+  return iconMap[mode] ?? CreditCard;
+}
+
+/** Retourne la couleur de fond du mode de paiement */
+function getModeColor(mode: string): string {
+  const colorMap: Record<string, string> = {
+    ESPECES: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+    CHEQUE: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+    VIREMENT: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+    CARTE: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+    MOBILE_MONEY: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  };
+  return colorMap[mode] ?? 'bg-gray-100 text-gray-700';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Squelette de chargement
+// ─────────────────────────────────────────────────────────────────────────────
+
+function PageSkeleton(): React.JSX.Element {
   return (
-    <div className="space-y-6 p-4 md:p-6 animate-pulse">
-      {/* Navigation */}
-      <div className="flex items-center justify-between gap-3">
-        <Skeleton className="h-8 w-40 rounded-lg" />
+    <div className="max-w-7xl px-4 sm:px-6 py-6 space-y-6 animate-pulse">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-8 w-36 rounded-lg" />
         <div className="flex gap-2">
           <Skeleton className="h-8 w-8 rounded-lg" />
           <Skeleton className="h-8 w-8 rounded-lg" />
         </div>
       </div>
-
-      {/* En-tête */}
-      <div className="p-6 rounded-md space-y-4">
-        <div className="flex items-start justify-between">
-          <div className="space-y-2 flex-1">
-            <Skeleton className="h-8 w-48" />
-            <div className="flex gap-2">
-              <Skeleton className="h-6 w-24 rounded-full" />
-              <Skeleton className="h-6 w-24 rounded-full" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Contenu principal */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-5">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-64 w-full rounded-md" />
-          ))}
+        <div className="lg:col-span-2">
+          <Skeleton className="h-180 rounded-2xl" />
         </div>
-        <div className="space-y-5">
-          {[1, 2].map((i) => (
-            <Skeleton key={i} className="h-48 w-full rounded-md" />
-          ))}
+        <div className="space-y-4">
+          <Skeleton className="h-56 rounded-2xl" />
+          <Skeleton className="h-48 rounded-2xl" />
+          <Skeleton className="h-56 rounded-2xl" />
         </div>
       </div>
     </div>
   );
 }
 
-/**
- * Carte d'information avec label et valeur.
- * 
- * @component
- * @param {Object} props - Propriétés du composant
- * @param {string} props.label - Libellé de l'information
- * @param {React.ReactNode} props.value - Valeur à afficher
- * @param {React.ReactNode} [props.icon] - Icône optionnelle
- * @param {string} [props.className] - Classes CSS supplémentaires
- * @returns {React.JSX.Element} Carte d'information formatée
- * 
- * @example
- * ```tsx
- * <InfoCard
- *   label="Référence"
- *   value="PAI-2024-001234"
- *   icon={<Hash className="h-4 w-4" />}
- * />
- * ```
- */
-function InfoCard({
+// ─────────────────────────────────────────────────────────────────────────────
+// Sous-composants internes (inchangés)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** En-tête de section dans le bloc principal */
+function SectionHeader({
+  icon: Icon,
+  label,
+  accent = 'emerald',
+}: {
+  icon: LucideIcon;
+  label: string;
+  accent?: 'emerald' | 'blue' | 'amber' | 'purple' | 'slate';
+}) {
+  const colors: Record<string, string> = {
+    emerald: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+    blue: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+    amber: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+    purple: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+    slate: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+  };
+  return (
+    <div className="flex items-center gap-2.5 mb-4">
+      <div className={cn('flex items-center justify-center h-7 w-7 rounded-lg shrink-0', colors[accent])}>
+        <Icon className="h-3.5 w-3.5" />
+      </div>
+      <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+        {label}
+      </span>
+    </div>
+  );
+}
+
+/** Champ d'information label + valeur */
+function InfoField({
   label,
   value,
-  icon,
+  icon: Icon,
+  mono = false,
+  href,
   className,
 }: {
   label: string;
   value: React.ReactNode;
-  icon?: React.ReactNode;
+  icon?: LucideIcon;
+  mono?: boolean;
+  href?: string;
   className?: string;
-}): React.JSX.Element {
+}) {
   return (
-    <div className={cn('space-y-1.5', className)}>
-      <div className="flex items-center gap-1.5">
-        {icon && <span className="text-emerald-600 dark:text-emerald-400">{icon}</span>}
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+    <div className={cn('space-y-1', className)}>
+      <div className="flex items-center gap-1">
+        {Icon && <Icon className="h-3 w-3 text-muted-foreground/60 shrink-0" />}
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
           {label}
         </span>
       </div>
-      <div className="text-sm font-semibold text-foreground">{value}</div>
-    </div>
-  );
-}
-
-/**
- * Statut badge avec icône et label.
- * 
- * @component
- * @param {Object} props - Propriétés
- * @param {string} props.statut - Code du statut
- * @param {Object} props.config - Configuration du statut
- * @returns {React.JSX.Element} Badge de statut
- */
-function StatutBadge({
-  config,
-}: {
-  config: (typeof FACTURE_STATUT_CONFIG)[keyof typeof FACTURE_STATUT_CONFIG];
-}): React.JSX.Element {
-  return (
-    <div className={cn('inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border', config.color)}>
-      {config.icon}
-      <span className="text-xs font-medium">{config.label}</span>
-    </div>
-  );
-}
-
-/**
- * Section avec titre et contenu organisé.
- * 
- * @component
- * @param {Object} props - Propriétés
- * @param {React.ReactNode} props.icon - Icône du titre
- * @param {string} props.title - Titre de la section
- * @param {string} [props.description] - Description optionnelle
- * @param {React.ReactNode} props.children - Contenu enfant
- * @returns {React.JSX.Element} Section formatée
- */
-function DetailSection({
-  icon,
-  title,
-  description,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  return (
-    <Card className="border shadow-sm">
-      <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <div className='p-3 bg-blue-500/10 flex items-center rounded-md'>
-            <span className="text-blue-700 dark:text-blue-400">{icon}</span>
-          </div>
-          <div>
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider">
-              {title}
-            </CardTitle>
-            {description && (
-              <CardDescription className="text-xs mt-0.5">{description}</CardDescription>
-            )}
-          </div>
+      {href ? (
+        <a
+          href={href}
+          className="text-sm font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 underline underline-offset-2"
+        >
+          {value}
+        </a>
+      ) : (
+        <div className={cn('text-sm font-semibold text-foreground', mono && 'font-mono tracking-wide')}>
+          {value}
         </div>
-      </CardHeader>
-      <CardContent className="pt-0">{children}</CardContent>
-    </Card >
+      )}
+    </div>
   );
 }
 
-/**
- * Panneau d'action avec boutons.
- * 
- * @component
- * @param {Object} props - Propriétés
- * @returns {React.JSX.Element} Panneau d'actions
- */
-function ActionPanel({
-  onPrintReceipt,
-  onDownloadPDF,
+/** Pilule de statut d'une facture */
+function FactureStatutPill({ statut }: { statut: StatutFacture }) {
+  const cfg = STATUT_FACTURE_CONFIG[statut] ?? STATUT_FACTURE_CONFIG.EN_ATTENTE;
+  const Icon = cfg.icon;
+  return (
+    <div className={cn('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold', cfg.textColor)}>
+      <Icon className="h-3 w-3 shrink-0" />
+      {cfg.label}
+    </div>
+  );
+}
+
+/** Mini timeline event (sans ID) */
+function TimelineEvent({
+  icon: Icon,
+  label,
+  date,
+  relative,
+  accent = 'slate',
+}: {
+  icon: LucideIcon;
+  label: string;
+  date: Date;
+  relative?: string;
+  accent?: 'emerald' | 'blue' | 'slate' | 'amber';
+}) {
+  const accents: Record<string, string> = {
+    emerald: 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+    blue: 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+    amber: 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+    slate: 'border-border bg-muted/30 text-muted-foreground',
+  };
+  return (
+    <div className="flex items-start gap-3">
+      <div className={cn('flex items-center justify-center h-7 w-7 rounded-full border shrink-0 mt-0.5', accents[accent])}>
+        <Icon className="h-3.5 w-3.5" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-foreground">{label}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {format(date, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
+        </p>
+        {relative && (
+          <p className="text-[10px] text-muted-foreground/60 mt-0.5 italic">{relative}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sidebar : Actions
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ActionsPanel({
+  onPrint,
+  onDownload,
   onCreateInvoice,
   onShare,
-  showCreateInvoice,
+  hasFacture,
 }: {
-  onPrintReceipt: () => void;
-  onDownloadPDF: () => void;
+  onPrint: () => void;
+  onDownload: () => void;
   onCreateInvoice: () => void;
   onShare: () => void;
-  showCreateInvoice: boolean;
-}): React.JSX.Element {
+  onEdit: () => void;
+  hasFacture: boolean;
+}) {
   return (
-    <Card className="border shadow-sm sticky top-6">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
-          <Activity className="h-4 w-4 text-emerald-700" />
-          Actions
+    <Card className="border shadow-sm overflow-hidden py-0">
+      <CardHeader className="pb-3 pt-4 px-4 border-b bg-linear-to-r from-emerald-50/60 to-transparent dark:from-emerald-950/20">
+        <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+          <Receipt className="h-3.5 w-3.5 text-emerald-700" />
+          Actions rapides
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-0 space-y-2 gap-1 grid grid-cols-2">
+      <CardContent className="px-4 py-3 space-y-2">
         <Button
-          className="w-full justify-start gap-2 bg-emerald-700 hover:bg-emerald-800 text-white"
-          onClick={onPrintReceipt}
+          className="w-full justify-start gap-2.5 h-12 text-sm font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-md"
+          onClick={onPrint}
         >
-          <Printer className="h-4 w-4" />
+          <Printer className="h-4 w-4 shrink-0" />
           Imprimer le reçu
         </Button>
         <Button
           variant="outline"
-          className="w-full justify-start gap-2"
-          onClick={onDownloadPDF}
+          className="w-full justify-start gap-2.5 h-12 text-sm rounded-md"
+          onClick={onDownload}
         >
-          <Download className="h-4 w-4" />
+          <Download className="h-4 w-4 shrink-0" />
           Télécharger (PDF)
         </Button>
-        {showCreateInvoice && (
+        {!hasFacture && (
           <Button
             variant="outline"
-            className="w-full justify-start gap-2"
+            className="w-full justify-start gap-2.5 h-12 text-sm rounded-md border-blue-200 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-950/30"
             onClick={onCreateInvoice}
           >
-            <PlusCircle className="h-4 w-4" />
-            Créer facture
+            <PlusCircle className="h-4 w-4 shrink-0" />
+            Créer une facture
           </Button>
         )}
+        <Separator className="my-1" />
         <Button
-          variant="outline"
-          className="w-full justify-start gap-2"
+          variant="ghost"
+          className="w-full justify-start gap-2.5 h-9 text-sm text-muted-foreground"
           onClick={onShare}
         >
-          <Share2 className="h-4 w-4" />
-          Partager
+          <Share2 className="h-4 w-4 shrink-0" />
+          Copier le lien
         </Button>
       </CardContent>
     </Card>
   );
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// COMPOSANT PRINCIPAL
-// ═════════════════════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────────────────────
+// Sidebar : Formation du candidat
+// ─────────────────────────────────────────────────────────────────────────────
+
+function FormationPanel({ candidat }: { candidat?: Candidat }) {
+  if (!candidat) return null;
+
+  const statutCfg = STATUT_CANDIDAT_CONFIG[candidat.statut] ?? {
+    label: candidat.statut ?? 'Statut inconnu',
+    description: 'Statut non défini',
+    bgColor: 'bg-gray-50 dark:bg-gray-950/30',
+    textColor: 'text-gray-700 dark:text-gray-300',
+    icon: Clock,
+  };
+  const categorieCfg = CATEGORIE_PERMIS_CONFIG[candidat.categorie] ?? {
+    label: candidat.categorie ?? 'Catégorie inconnue',
+    description: 'Catégorie non définie',
+    bgColor: 'bg-gray-50 dark:bg-gray-950/30',
+    textColor: 'text-gray-700 dark:text-gray-300',
+    icon: Car,
+  };
+  const StatutIcon = statutCfg.icon;
+  const CategorieIcon = categorieCfg.icon;
+
+  const Image = `/images/permis/${candidat.categorie}.png`;
+
+  return (
+    <Card className="border shadow-sm overflow-hidden py-0">
+      <CardHeader className="pb-3 pt-4 px-4 border-b bg-linear-to-r from-blue-50/60 to-transparent dark:from-blue-950/20">
+        <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+          <GraduationCap className="h-3.5 w-3.5 text-blue-700" />
+          Formation en cours
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-4 py-3 space-y-3">'
+
+        <img src={Image} />
+
+        <div className="flex items-center gap-2">
+
+          <div className={cn('flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-semibold border', categorieCfg.bgColor, categorieCfg.textColor)}>
+
+            <CategorieIcon className="h-3 w-3" />
+            {categorieCfg.label}
+          </div>
+        </div>
+
+        <div className={cn('flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium', statutCfg.bgColor, statutCfg.textColor)}>
+          <StatutIcon className="h-3.5 w-3.5 shrink-0" />
+          {statutCfg.label}
+        </div>
+
+        <Separator />
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Inscrit depuis</span>
+            <span className="font-semibold">
+              {candidat.dateInscription && !isNaN(new Date(candidat.dateInscription).getTime())
+                ? format(new Date(candidat.dateInscription), 'd MMM yyyy', { locale: fr })
+                : 'Date invalide'}
+            </span>
+          </div>
+          {candidat.numeroPermis && (
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">N° permis</span>
+              <code className="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded">
+                {candidat.numeroPermis}
+              </code>
+            </div>
+          )}
+        </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-1.5 h-8 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/30"
+          onClick={() => {
+            window.open(href(route(PROTECTED_ROUTES.CANDIDATS.DETAIL(candidat.id), { id: candidat.id })), '_blank');
+          }}
+        >
+          <Eye className="h-3.5 w-3.5" />
+          Voir la fiche candidat
+          <ChevronRight className="h-3 w-3 ml-auto" />
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sidebar : Autres paiements du candidat
+// ─────────────────────────────────────────────────────────────────────────────
+
+function AutresPaiementsPanel({
+  currentPaiementId,
+  paiements,
+  onViewPaiement,
+}: {
+  currentPaiementId: number;
+  paiements: Paiement[];
+  onViewPaiement: (p: Paiement) => void;
+}) {
+  const autres = paiements.filter((p) => p.id !== currentPaiementId).slice(0, 5);
+  if (autres.length === 0) return null;
+
+  return (
+    <Card className="border shadow-sm overflow-hidden py-0">
+      <CardHeader className="pb-3 pt-4 px-4 border-b bg-linear-to-r from-slate-50/60 to-transparent dark:from-slate-900/20">
+        <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+          <Wallet className="h-3.5 w-3.5" />
+          Autres paiements
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-4 py-2">
+        <div className="space-y-0.5">
+          {autres.map((p) => {
+            const modeCfg = MODE_PAIEMENT_CONFIG[p.mode];
+            const ModeIcon = getModeIcon(p.mode);
+            return (
+              <button
+                key={p.id}
+                onClick={() => onViewPaiement(p)}
+                className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-muted/50 transition-colors group text-left"
+              >
+                <div className={cn('flex items-center justify-center h-7 w-7 rounded-md shrink-0', getModeColor(p.mode))}>
+                  <ModeIcon className="h-3.5 w-3.5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground tabular-nums">
+                      {formatMontant(p.montant)} FCFA
+                    </span>
+                    <ChevronRight className="h-3 w-3 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors shrink-0" />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">
+                    {format(new Date(p.date), 'd MMM yyyy', { locale: fr })} · {modeCfg?.label ?? p.mode}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Composant principal
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Page de détail d'un paiement professionnel.
- * 
- * Affiche les informations complètes d'une transaction de paiement avec :
- * - Vue d'ensemble du paiement
- * - Détails du candidat et son statut
- * - Documents et factures associés
- * - Actions de gestion
- * - Audit trail
- * 
- * @component
- * @returns {React.JSX.Element} Page de détail avec navigation
- * 
- * @throws {Error} Si l'ID du paiement est invalide
- * 
- * @example
- * ```tsx
- * <Route 
- *   path={PROTECTED_ROUTES.PAIEMENTS.DETAIL(':id')}
- *   element={<PaiementDetailPage />}
- * />
- * ```
+ * Page de détail d'un paiement.
+ * Charge les données réelles depuis l’API via le store `usePaiements`.
  */
 export default function PaiementDetailPage(): React.JSX.Element {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // État du composant
-  // ─────────────────────────────────────────────────────────────────────────
+  // Stores
+  const {
+    currentPaiement,
+    detailLoading,
+    getById,
+    getByCandidat,
+    update,
+  } = usePaiements();
+  const {
+    getById: getCandidatById,
+    currentCandidat,
+    detailLoading: candidatLoading,
+    resetCurrentCandidat,
+  } = useCandidats();
+  const { getFacturesByCandidat } = useFactures();
+  const { getSoldeCandidat } = usePaiements();
 
-  const [paiement, setPaiement] = React.useState<Paiement | null>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const [autresPaiements, setAutresPaiements] = React.useState<Paiement[]>([]);
+  const [autresLoading, setAutresLoading] = React.useState(false);
+  const [facturesDuCandidat, setFacturesDuCandidat] = React.useState<Facture[]>([]);
+  const [facturesLoading, setFacturesLoading] = React.useState(false);
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [selectedFactureId, setSelectedFactureId] = React.useState<string>("none");
+  const [updatingFacture, setUpdatingFacture] = React.useState(false);
+  const [soldeCandidat, setSoldeCandidat] = React.useState<SoldeCandidat | null>(null);
+  const [soldeLoading, setSoldeLoading] = React.useState(false);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Effets - Chargement des données
-  // ─────────────────────────────────────────────────────────────────────────
 
-  /**
-   * Charge les données du paiement au montage du composant.
-   */
+  const [hasUninvoicedPayments, setHasUninvoicedPayments] = React.useState(false);
+  const [totalCandidatPayments, setTotalCandidatPayments] = React.useState(0);
+  const [uninvoicedPaymentsList, setUninvoicedPaymentsList] = React.useState<Paiement[]>([]);
+
+
+
+
+  // Chargement du paiement principal
   React.useEffect(() => {
     if (!id) {
-      setError('Identifiant de paiement invalide');
-      toast.error('Identifiant de paiement invalide');
+      toast.error('Identifiant paiement invalide');
       navigate(PROTECTED_ROUTES.PAIEMENTS.LIST);
       return;
     }
+    const paiementId = Number(id);
+    if (isNaN(paiementId)) {
+      toast.error('Identifiant paiement invalide');
+      navigate(PROTECTED_ROUTES.PAIEMENTS.LIST);
+      return;
+    }
+    getById(paiementId).catch((err) => {
+      console.error(err);
+      toast.error('Paiement introuvable');
+      navigate(PROTECTED_ROUTES.PAIEMENTS.LIST);
+    });
+  }, [id, getById, navigate]);
 
-    setIsLoading(true);
-    setError(null);
+  // Chargement du candidat et du solde dès que le paiement est disponible
+  React.useEffect(() => {
+    if (currentPaiement?.candidatId) {
+      // Réinitialiser l'ancien candidat pour éviter l'affichage périmé
+      resetCurrentCandidat();
+      // Charger le nouveau candidat
+      getCandidatById(currentPaiement.candidatId).catch((err) =>
+        console.error('Erreur chargement candidat:', err)
+      );
+      // Charger le solde
+      setSoldeLoading(true);
+      getSoldeCandidat(currentPaiement.candidatId)
+        .then(setSoldeCandidat)
+        .catch(console.error)
+        .finally(() => setSoldeLoading(false));
+    }
+  }, [currentPaiement, getCandidatById, getSoldeCandidat, resetCurrentCandidat]);
 
-    const timer = setTimeout(() => {
-      try {
-        const data = getMockPaiement(id);
-        if (!data) {
-          setError('Paiement introuvable');
-          toast.error('Paiement introuvable');
-          navigate(PROTECTED_ROUTES.PAIEMENTS.LIST);
-        } else {
-          setPaiement(data);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erreur inconnue');
-        toast.error('Erreur lors du chargement');
-      } finally {
-        setIsLoading(false);
-      }
-    }, 500);
+  // Charger les autres paiements du même candidat
+  React.useEffect(() => {
+    if (currentPaiement?.candidatId) {
+      setAutresLoading(true);
+      getByCandidat(currentPaiement.candidatId)
+        .then((paiements) => {
+          setAutresPaiements(paiements);
+          setAutresLoading(false);
+        })
+        .catch((err) => {
+          console.error('Erreur chargement autres paiements:', err);
+          setAutresLoading(false);
+        });
+    }
+  }, [currentPaiement?.candidatId, getByCandidat]);
 
-    return () => clearTimeout(timer);
-  }, [id, navigate]);
+  // Charger les factures du candidat pour le dialogue d'association
+  // Dans le composant principal, remplacez l'effet qui charge les factures par :
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Rendu conditionnel
-  // ─────────────────────────────────────────────────────────────────────────
+  React.useEffect(() => {
+    if (dialogOpen && currentPaiement?.candidatId) {
+      setFacturesLoading(true);
+      getFacturesByCandidat(currentPaiement.candidatId)
+        .then((factures) => {
+          setFacturesDuCandidat(factures);
+          setSelectedFactureId(currentPaiement.factureId?.toString() ?? "none");
+          setFacturesLoading(false);
+        })
+        .catch((err) => {
+          console.error('Erreur chargement factures:', err);
+          setFacturesDuCandidat([]);
+          setFacturesLoading(false);
+        });
+    }
+  }, [dialogOpen, currentPaiement?.candidatId, currentPaiement?.factureId, getFacturesByCandidat]);
 
-  if (isLoading) return <DetailSkeleton />;
-  if (error || !paiement) return <></>;
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Données extraites
-  // ─────────────────────────────────────────────────────────────────────────
+  const isLoading = detailLoading || candidatLoading || autresLoading || soldeLoading;
+  const paiement = currentPaiement;
+  const candidat = currentCandidat;
 
-  const candidat = paiement.candidat;
+
+  // Analyse des paiements non facturés
+  React.useEffect(() => {
+    if (!paiement || !candidat) return;
+
+    const allPayments = [paiement, ...autresPaiements];
+    const uninvoiced = allPayments.filter(p => !p.factureId);
+    setHasUninvoicedPayments(uninvoiced.length > 0);
+    setUninvoicedPaymentsList(uninvoiced);
+    const total = allPayments.reduce((sum, p) => sum + p.montant, 0);
+    setTotalCandidatPayments(total);
+  }, [paiement, candidat, autresPaiements]);
+
+  if (isLoading && !paiement) return <PageSkeleton />;
+  if (!paiement) return <></>;
+
   const facture = paiement.facture;
   const modeCfg = MODE_PAIEMENT_CONFIG[paiement.mode];
-  const ModeIcon = modeCfg?.icon || CreditCard;
+  const modeColor = getModeColor(paiement.mode);
   const paymentDate = new Date(paiement.date);
-  const creationDate = new Date(paiement.createdAt);
-  const daysSinceCreation = differenceInDays(new Date(), creationDate);
-
-  // Formatage des noms
+  const createdDate = new Date(paiement.createdAt);
   const fullName = candidat ? `${candidat.prenom} ${candidat.nom}` : `Candidat ${paiement.candidatId}`;
   const avatarUrl = candidat ? getAvatarUrl(fullName) : undefined;
   const initials = candidat
     ? `${candidat.prenom?.[0] ?? ''}${candidat.nom?.[0] ?? ''}`.toUpperCase()
     : `C${paiement.candidatId}`;
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Handlers
-  // ─────────────────────────────────────────────────────────────────────────
+  const montantPaye = facture
+    ? facture.paiements?.reduce((s: number, p: Paiement) => s + p.montant, 0) ?? paiement.montant
+    : 0;
+  const progressPct = facture
+    ? Math.min(100, Math.round((montantPaye / facture.montantTotal) * 100))
+    : 0;
+  const resteAPayer = facture ? Math.max(0, facture.montantTotal - montantPaye) : 0;
 
-  /**
-   * Imprime le reçu de paiement.
-   */
-  const handlePrintReceipt = (): void => {
-    toast.info('Préparation de l\'impression du reçu');
+  const daysSince = differenceInDays(new Date(), createdDate);
+  const relativeSince = formatDistanceToNow(createdDate, { addSuffix: true, locale: fr });
+
+  // Handlers
+  const handlePrint = () => {
+    toast.info("Préparation de l'impression…");
     setTimeout(() => window.print(), 300);
   };
-
-  /**
-   * Télécharge le PDF du paiement.
-   */
-  const handleDownloadPDF = (): void => {
+  const handleDownload = () => {
     if (facture?.pdfPath) {
-      toast.success(`Téléchargement de ${facture.pdfPath}`);
+      toast.success(`Téléchargement de ${facture.numero}`);
     } else {
-      toast.info('Aucun PDF disponible pour ce paiement');
+      toast.info('Aucun document PDF disponible pour ce paiement');
     }
   };
-
-  /**
-   * Lance la création d'une facture pour ce paiement.
-   */
-  const handleCreateInvoice = (): void => {
+  const handleCreateInvoice = () => {
     toast.info('Création d\'une facture pour ce paiement');
   };
-
-  /**
-   * Partage le lien du paiement.
-   */
-  const handleShare = (): void => {
+  const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
     toast.success('Lien copié dans le presse-papier');
   };
+  const handleEdit = () => {
+    toast.info('Modification du paiement');
+  };
+  const handleViewFacture = () => {
+    if (facture) navigate(route(PROTECTED_ROUTES.FACTURES.DETAIL(facture.id), { id: facture.id }));
+  };
+  const handleViewCandidat = () => {
+    if (candidat) navigate(route(PROTECTED_ROUTES.CANDIDATS.DETAIL(candidat.id), { id: candidat.id }));
+  };
 
-  /**
-   * Affiche la facture associée.
-   */
-  const handleViewFacture = (): void => {
-    if (facture) {
-      navigate(route(PROTECTED_ROUTES.FACTURES.DETAIL(facture.id), { id: facture.id }));
-    } else {
-      toast.info('Aucune facture associée à ce paiement');
+  // Association à une facture
+  const handleOpenAttachDialog = () => setDialogOpen(true);
+  const handleAttachFacture = async () => {
+    if (!paiement) return;
+    setUpdatingFacture(true);
+    try {
+      const newFactureId = selectedFactureId === "none" ? null : Number(selectedFactureId);
+      await update(paiement.id, { factureId: newFactureId });
+      toast.success('Facture associée avec succès');
+
+      await getById(paiement.id);
+      const updatedPayments = await getByCandidat(paiement.candidatId);
+      setAutresPaiements(updatedPayments);
+      setDialogOpen(false);
+    } catch (err) {
+      toast.error('Erreur lors de l\'association de la facture', {
+        description: err instanceof Error ? err.message : 'Une erreur inconnue est survenue',
+      });
+    } finally {
+      setUpdatingFacture(false);
     }
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Rendu
-  // ─────────────────────────────────────────────────────────────────────────
 
-  const factureStatut = facture ? FACTURE_STATUT_CONFIG[facture.statut] : null;
+  const ModeIcon = getModeIcon(paiement.mode);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 pb-12 space-y-6">
-
-      <div className="flex items-center justify-between gap-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-2 rounded-lg text-muted-foreground hover:text-foreground"
-          onClick={() => navigate(PROTECTED_ROUTES.PAIEMENTS.LIST)}
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Retour à la liste
-        </Button>
-
-        <div className="flex items-center gap-2">
-          <TooltipProvider>
+    <TooltipProvider delayDuration={200}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-14 space-y-6">
+        {/* Barre de navigation */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-muted-foreground hover:text-foreground rounded-lg"
+            onClick={() => navigate(PROTECTED_ROUTES.PAIEMENTS.LIST)}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour aux paiements
+          </Button>
+          <div className="flex items-center gap-1.5">
+            {!isMobile && <PageBreadcrumb className="mr-2" />}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 rounded-lg"
-                  onClick={handleShare}
-                >
+                <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={handleShare}>
                   <Share2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Partager ce paiement</TooltipContent>
+              <TooltipContent>Copier le lien</TooltipContent>
             </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 rounded-lg"
-                  onClick={handlePrintReceipt}
-                >
+                <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={handlePrint}>
                   <Printer className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Imprimer</TooltipContent>
+              <TooltipContent>Imprimer le reçu</TooltipContent>
             </Tooltip>
-          </TooltipProvider>
+          </div>
+        </div>
 
-          {!isMobile && <PageBreadcrumb className="ml-4" />}
+        {/* Grille principale */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          {/* Bloc principal (inchangé structurellement) */}
+          <motion.div className="lg:col-span-2" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }}>
+            <Card className="border shadow-md overflow-hidden p-0">
+              {/* Aperçu du paiement (inchangé) */}
+              <div className="bg-linear-to-br from-emerald-50 via-transparent to-transparent dark:from-emerald-950/25 dark:via-transparent px-6 py-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                      Montant encaissé
+                    </p>
+                    <div className="flex items-end gap-2">
+                      <span className="text-5xl sm:text-6xl font-black text-foreground tabular-nums leading-none">
+                        {formatMontant(paiement.montant)}
+                      </span>
+                      <span className="text-lg font-bold text-muted-foreground pb-1">FCFA</span>
+                    </div>
+                    {paiement.note && <p className="text-sm text-muted-foreground italic">{paiement.note}</p>}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className={cn('flex items-center gap-2 px-3 py-2 rounded-xl border', modeColor, 'border-current/20')}>
+                      <ModeIcon className="h-4 w-4 shrink-0" />
+                      <span className="text-sm font-semibold">{modeCfg?.label ?? paiement.mode}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl border bg-muted/40 text-muted-foreground text-sm font-semibold">
+                      <Calendar className="h-3.5 w-3.5" />
+                      {format(paymentDate, 'd MMM yyyy', { locale: fr })}
+                    </div>
+                    {paiement.reference && (
+                      <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl border bg-muted/40 text-muted-foreground">
+                        <Hash className="h-3.5 w-3.5" />
+                        <code className="text-xs font-mono font-semibold">{paiement.reference}</code>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {facture && (
+                  <div className="mt-4 p-3 rounded-xl bg-white/60 dark:bg-white/5 border border-border/40">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-xs font-semibold text-muted-foreground">Facture {facture.numero}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <FactureStatutPill statut={facture.statut} />
+                        <span className="text-xs font-bold tabular-nums">{progressPct}%</span>
+                      </div>
+                    </div>
+                    <Progress value={progressPct} className="h-1.5" indicatorClassName='bg-emerald-600' />
+                    <div className="flex justify-between mt-1.5">
+                      <span className="text-[10px] text-muted-foreground">
+                        Payé : <strong>{formatMontant(montantPaye)} FCFA</strong>
+                      </span>
+                      {resteAPayer > 0 && (
+                        <span className="text-[10px] text-amber-600 font-semibold">
+                          Reste : {formatMontant(resteAPayer)} FCFA
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+              {/* Section Candidat (identique mais avec solde) */}
+              <div className="px-6 py-5">
+                <SectionHeader icon={User} label="Candidat" accent="emerald" />
+                <div className="flex flex-col sm:flex-row items-start gap-5">
+                  <button onClick={handleViewCandidat} className="flex flex-col items-center gap-2 group shrink-0">
+                    <Avatar className="h-20 w-20 rounded-full border-4 border-background shadow-md ring-2 ring-emerald-200 group-hover:ring-emerald-400 transition-all duration-200 dark:ring-emerald-800">
+                      <AvatarImage src={avatarUrl} alt={fullName} className="object-cover" />
+                      <AvatarFallback className="bg-emerald-700 text-white text-xl font-bold">{initials}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-[10px] text-emerald-600 font-semibold group-hover:underline">Voir la fiche</span>
+                  </button>
+                  <div className="flex-1 min-w-0 space-y-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-foreground tracking-tight">{fullName}</h2>
+                      {candidat && (
+                        <div className="flex flex-wrap gap-2 mt-1.5">
+                          <Badge variant="outline" className={cn('text-[11px] font-semibold border-0', CATEGORIE_PERMIS_CONFIG[candidat.categorie]?.bgColor, CATEGORIE_PERMIS_CONFIG[candidat.categorie]?.textColor)}>
+                            {CATEGORIE_PERMIS_CONFIG[candidat.categorie]?.label}
+                          </Badge>
+                          <Badge variant="outline" className={cn('text-[11px] font-semibold border-0', STATUT_CANDIDAT_CONFIG[candidat.statut]?.bgColor, STATUT_CANDIDAT_CONFIG[candidat.statut]?.textColor)}>
+                            {STATUT_CANDIDAT_CONFIG[candidat.statut]?.label}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                    {/* Affichage du solde du candidat */}
+                    {soldeCandidat && (
+                      <div className="p-3 rounded-xl bg-muted/30 border border-border/40 space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">Total formation</span>
+                          <span className="font-semibold">{formatMontant(soldeCandidat.montantTotalFormation)} FCFA</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">Total payé</span>
+                          <span className="font-semibold">{formatMontant(soldeCandidat.totalPaye)} FCFA</span>
+                        </div>
+                        <div className="flex justify-between text-sm font-medium pt-1 border-t">
+                          <span>Solde restant dû</span>
+                          <span className={soldeCandidat.solde > 0 ? 'text-amber-600' : 'text-green-600'}>
+                            {formatMontant(soldeCandidat.solde)} FCFA
+                          </span>
+                        </div>
+                        {soldeCandidat.tropPerçu && (
+                          <div className="text-xs text-amber-600 flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            Crédit client : {formatMontant(soldeCandidat.totalPaye - soldeCandidat.montantTotalFormation)} FCFA
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {candidat?.email && (
+                        <InfoField label="Adresse e-mail" value={candidat.email} icon={Mail} href={`mailto:${candidat.email}`} />
+                      )}
+                      {candidat?.telephone && (
+                        <InfoField label="Téléphone" value={candidat.telephone} icon={Phone} href={`tel:${candidat.telephone}`} />
+                      )}
+                      {candidat?.dateNaissance && (
+                        <InfoField label="Date de naissance" value={format(new Date(candidat.dateNaissance), 'd MMMM yyyy', { locale: fr })} icon={Calendar} />
+                      )}
+                      {candidat?.adresse && (
+                        <InfoField label="Adresse" value={candidat.adresse} icon={MapPin} />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+              {/* Détails de la transaction (inchangé) */}
+              <div className="px-6 py-5">
+                <SectionHeader icon={Receipt} label="Détails de la transaction" accent="blue" />
+                <div className={cn('flex items-center gap-4 p-4 rounded-xl border mb-4', modeColor, 'border-current/20 bg-opacity-30')}>
+                  <div className={cn('flex items-center justify-center h-12 w-12 rounded-xl shrink-0', modeColor)}>
+                    <ModeIcon className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-base font-bold">{modeCfg?.label ?? paiement.mode}</p>
+                    <p className="text-xs text-current/70">{modeCfg?.description ?? 'Mode de paiement'}</p>
+                  </div>
+                  <BadgeCheck className="h-5 w-5 shrink-0 opacity-60" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <InfoField label="Date du paiement" value={format(paymentDate, "d MMMM yyyy 'à' HH:mm", { locale: fr })} icon={Calendar} />
+                  <InfoField label="Heure précise" value={format(paymentDate, 'HH:mm:ss')} icon={Clock} mono />
+                  {paiement.reference && <InfoField label="Référence externe" value={paiement.reference} icon={Hash} mono />}
+                  <InfoField label="Montant encaissé" value={<span className="text-emerald-700 dark:text-emerald-400 font-black text-lg tabular-nums">{formatMontant(paiement.montant)} FCFA</span>} icon={Wallet} />
+                </div>
+                {paiement.note && (
+                  <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-800">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <MessageSquare className="h-3 w-3 text-amber-600" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">Note interne</span>
+                    </div>
+                    <p className="text-sm text-amber-900 dark:text-amber-200">{paiement.note}</p>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+              {/* Section Facture associée avec bouton pour modifier */}
+              <div className="px-6 py-5">
+                <SectionHeader icon={FileText} label="Facture associée" accent="purple" />
+                {facture ? (
+                  <div className="space-y-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <code className="text-sm font-mono font-bold text-foreground bg-muted px-2 py-0.5 rounded">{facture.numero}</code>
+                        <FactureStatutPill statut={facture.statut} />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={handleViewFacture}>
+                          <Eye className="h-3.5 w-3.5" /> Ouvrir la facture
+                        </Button>
+                        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={handleOpenAttachDialog}>
+                          <LinkIcon className="h-3.5 w-3.5" /> Modifier
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="p-3 rounded-xl bg-muted/40 border border-border/40 text-center">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Total facture</p>
+                        <p className="text-base font-black tabular-nums">{formatMontantCompact(facture.montantTotal)}</p>
+                        <p className="text-[10px] text-muted-foreground">FCFA</p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800 text-center">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 mb-1">Déjà payé</p>
+                        <p className="text-base font-black tabular-nums text-emerald-700 dark:text-emerald-300">{formatMontantCompact(montantPaye)}</p>
+                        <p className="text-[10px] text-emerald-600">FCFA</p>
+                      </div>
+                      <div className={cn('p-3 rounded-xl border text-center', resteAPayer > 0 ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800' : 'bg-muted/40 border-border/40')}>
+                        <p className={cn('text-[10px] font-semibold uppercase tracking-wider mb-1', resteAPayer > 0 ? 'text-amber-600' : 'text-muted-foreground')}>Reste à payer</p>
+                        <p className={cn('text-base font-black tabular-nums', resteAPayer > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground')}>
+                          {resteAPayer > 0 ? formatMontantCompact(resteAPayer) : '—'}
+                        </p>
+                        <p className={cn('text-[10px]', resteAPayer > 0 ? 'text-amber-600' : 'text-muted-foreground')}>{resteAPayer > 0 ? 'FCFA' : 'soldée'}</p>
+                      </div>
+                    </div>
+                    {/* Avertissement si des paiements non facturés existent */}
+                    {hasUninvoicedPayments && (
+                      <Alert variant="alert" className="mt-4">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>Paiements sans facture</AlertTitle>
+                        <AlertDescription className="space-y-2">
+                          <p>
+                            Ce candidat a effectué <strong>{uninvoicedPaymentsList.length} paiement{uninvoicedPaymentsList.length > 1 ? 's' : ''}</strong>{" "}
+                            qui ne sont rattachés à aucune facture.
+                          </p>
+                          <p className="text-sm">
+                            Montant total payé par le candidat : <strong>{formatMontant(totalCandidatPayments)} FCFA</strong><br />
+                            Montant payé sur cette facture : <strong>{formatMontant(montantPaye)} FCFA</strong>
+                          </p>
+                          <p className="text-sm">
+                            Pour une comptabilité exacte, veuillez associer les paiements suivants à une facture :
+                          </p>
+                          <ul className="list-disc pl-5 text-sm">
+                            {uninvoicedPaymentsList.map(p => (
+                              <li key={p.id}>
+                                {format(new Date(p.date), 'dd/MM/yyyy')} – {formatMontant(p.montant)} FCFA ({p.mode})
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="h-auto p-0 ml-2 text-emerald-600"
+                                  onClick={() => {
+                                    navigate(PROTECTED_ROUTES.PAIEMENTS.DETAIL(p.id));
+                                  }}
+                                >
+                                  Associer
+                                </Button>
+                              </li>
+                            ))}
+                          </ul>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground font-medium">Taux de règlement</span>
+                        <span className="font-bold tabular-nums" >{progressPct}%</span>
+                      </div>
+                      <Progress value={progressPct} className="h-2.5" indicatorClassName='bg-emerald-700' />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3 py-4 text-center">
+                    {/* Alerte existante */}
+                    <Alert variant="alert" className="w-full bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800">
+                      <AlertTriangle className="h-4 w-4 text-amber-600" />
+                      <AlertTitle>Paiement sans facture</AlertTitle>
+                      <AlertDescription>
+                        Ce paiement n’est actuellement rattaché à aucune facture.
+                        Vous pouvez l’associer à une facture existante ou en créer une.
+                      </AlertDescription>
+                    </Alert>
+
+                    {/* Si d’autres paiements sans facture existent aussi, on peut le signaler */}
+                    {hasUninvoicedPayments && uninvoicedPaymentsList.length > 1 && (
+                      <Alert variant="info" className="w-full">
+                        <Info className="h-4 w-4" />
+                        <AlertTitle>Autres paiements sans facture</AlertTitle>
+                        <AlertDescription>
+                          Le candidat a {uninvoicedPaymentsList.length - 1} autre paiement sans facture.
+                          Pensez à les régulariser.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {/* Icône et bouton existants */}
+                    <div className="p-4 rounded-xl bg-muted/30 border border-dashed border-border">
+                      <FileText className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Aucune facture associée</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Ce paiement n'est pas encore rattaché à une facture.
+                      </p>
+                    </div>
+                    <Button size="sm" onClick={handleOpenAttachDialog} className="gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white">
+                      <LinkIcon className="h-4 w-4" /> Associer une facture
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+              {/* Historique d'enregistrement (inchangé) */}
+              <div className="px-6 py-5">
+                <SectionHeader icon={Clock} label="Historique d'enregistrement" accent="slate" />
+                <div className="space-y-4">
+                  <TimelineEvent icon={CheckCircle2} label="Paiement effectué" date={paymentDate} relative={`${format(paymentDate, "HH:mm", { locale: fr })} — ${modeCfg?.label ?? paiement.mode}`} accent="emerald" />
+                  {createdDate.getTime() !== paymentDate.getTime() && (
+                    <TimelineEvent icon={RotateCcw} label="Enregistrement dans le système" date={createdDate} relative={relativeSince} accent="blue" />
+                  )}
+                  {daysSince === 0 && (
+                    <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Paiement enregistré aujourd'hui
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+          </motion.div>
+
+          {/* Sidebar sticky (Actions, Formation, Autres paiements) */}
+          <motion.div className="space-y-4 lg:sticky lg:top-4 self-start" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.22, delay: 0.06 }}>
+            <ActionsPanel
+              onPrint={handlePrint}
+              onDownload={handleDownload}
+              onCreateInvoice={handleCreateInvoice}
+              onShare={handleShare}
+              onEdit={handleEdit}
+              hasFacture={!!facture}
+            />
+            <FormationPanel candidat={candidat!} />
+            <AutresPaiementsPanel
+              currentPaiementId={paiement.id}
+              paiements={autresPaiements}
+              onViewPaiement={(p) => navigate(PROTECTED_ROUTES.PAIEMENTS.DETAIL(p.id))}
+            />
+          </motion.div>
         </div>
       </div>
 
-      <Card className="border shadow-md bg-linear-to-br from-blue-50 to-transparent dark:from-blue-950/20">
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-            {/* Montant */}
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                Montant du paiement
-              </p>
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-blue-600 dark:text-blue-400">
-                {paiement.montant.toLocaleString('fr-FR')}
-              </h1>
-              <p className="text-sm text-muted-foreground font-medium">FCFA</p>
-            </div>
-
-            {/* Badges de statut */}
-            <div className="flex flex-wrap items-center gap-3">
-              <Badge
-                variant="outline"
-                className="gap-1.5 px-3 py-1.5 text-xs border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
-              >
-                <ModeIcon className="h-3.5 w-3.5" />
-                {modeCfg?.label ?? paiement.mode}
-              </Badge>
-
-              <Badge
-                variant="outline"
-                className="gap-1.5 px-3 py-1.5 text-xs border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-950/30 dark:text-blue-300"
-              >
-                <Calendar className="h-3.5 w-3.5" />
-                {format(paymentDate, 'dd MMM yyyy', { locale: fr })}
-              </Badge>
-
-              {paiement.reference && (
-                <Badge
-                  variant="outline"
-                  className="gap-1.5 px-3 py-1.5 text-xs font-mono border-gray-300 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-950/30 dark:text-gray-300"
-                >
-                  <Hash className="h-3.5 w-3.5" />
-                  {paiement.reference}
-                </Badge>
-              )}
+      {/* Dialogue d'association de facture */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Associer une facture</DialogTitle>
+            <DialogDescription>
+              Choisissez la facture à associer à ce paiement. La facture pourra ensuite être suivie.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="facture-select">Facture</Label>
+              <Select value={selectedFactureId} onValueChange={setSelectedFactureId} disabled={facturesLoading}>
+                <SelectTrigger id="facture-select">
+                  <SelectValue placeholder={facturesLoading ? "Chargement..." : "Sélectionner une facture"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune facture</SelectItem>
+                  {facturesDuCandidat.map((f) => (
+                    <SelectItem key={f.id} value={f.id.toString()}>
+                      {f.numero} - {formatMontant(f.montantTotal)} FCFA ({STATUT_FACTURE_CONFIG[f.statut]?.label})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* COLONNE PRINCIPALE (2/3) */}
-        <div className="lg:col-span-2 space-y-6">
-
-          <DetailSection icon={<User className="h-5 w-5" />} title="Candidat" description="Informations personnelles">
-            <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <Avatar className="h-20 w-20 border-2 border-emerald-200 rounded-full shadow-sm">
-                  <AvatarImage src={avatarUrl} alt={fullName} />
-                  <AvatarFallback className="bg-emerald-700 text-white font-bold text-lg">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-
-                <div className="flex-1 min-w-0 space-y-2">
-                  <div>
-                    <p className="text-lg font-bold text-foreground">{fullName}</p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {candidat?.categorie && (
-                      <Badge variant="secondary" className="text-xs">
-                        Catégorie {candidat.categorie}
-                      </Badge>
-                    )}
-                    {candidat?.statut && (
-                      <Badge
-                        variant="outline"
-                        className="text-xs bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-800"
-                      >
-                        {candidat.statut}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <Separator className="my-4" />
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {candidat?.email && (
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <Mail className="h-4 w-4 text-emerald-600" />
-                      <span className="text-xs font-semibold text-muted-foreground uppercase">Email</span>
-                    </div>
-                    <a
-                      href={`mailto:${candidat.email}`}
-                      className="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 break-all"
-                    >
-                      {candidat.email}
-                    </a>
-                  </div>
-                )}
-
-                {candidat?.telephone && (
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <Phone className="h-4 w-4 text-emerald-600" />
-                      <span className="text-xs font-semibold text-muted-foreground uppercase">Téléphone</span>
-                    </div>
-                    <a
-                      href={`tel:${candidat.telephone}`}
-                      className="text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                    >
-                      {candidat.telephone}
-                    </a>
-                  </div>
-                )}
-
-                {candidat?.dateNaissance && (
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="h-4 w-4 text-emerald-600" />
-                      <span className="text-xs font-semibold text-muted-foreground uppercase">Date de naissance</span>
-                    </div>
-                    <p className="text-sm font-medium">
-                      {format(new Date(candidat.dateNaissance), 'dd MMMM yyyy', { locale: fr })}
-                    </p>
-                  </div>
-                )}
-
-                {candidat?.adresse && (
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <MapPin className="h-4 w-4 text-emerald-600" />
-                      <span className="text-xs font-semibold text-muted-foreground uppercase">Adresse</span>
-                    </div>
-                    <p className="text-sm font-medium">{candidat.adresse}</p>
-                  </div>
-                )}
-              </div>
-
-              {candidat?.notes && (
-                <>
-                  <Separator className="my-3" />
-                  <div className="space-y-1">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase">Notes</span>
-                    <p className="text-sm text-foreground">{candidat.notes}</p>
-                  </div>
-                </>
-              )}
-            </div>
-          </DetailSection>
-
-          {/* ─────────────────────────────────────────────────────────────── */}
-          {/* SECTION 2: DÉTAILS DE LA TRANSACTION                            */}
-          {/* ─────────────────────────────────────────────────────────────── */}
-
-          <DetailSection
-            icon={<Receipt className="h-5 w-5" />}
-            title="Détails de la transaction"
-            description="Informations du paiement"
-          >
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <InfoCard
-                  label="Mode de paiement"
-                  value={modeCfg?.label ?? paiement.mode}
-                  icon={<ModeIcon className="h-4 w-4" />}
-                />
-
-                <InfoCard
-                  label="Date et heure"
-                  value={format(paymentDate, "d MMMM yyyy 'à' HH:mm", { locale: fr })}
-                  icon={<Calendar className="h-4 w-4" />}
-                />
-
-                {paiement.reference && (
-                  <InfoCard
-                    label="Référence externe"
-                    value={<code className="text-xs font-mono bg-muted px-2 py-1 rounded">{paiement.reference}</code>}
-                    icon={<Hash className="h-4 w-4" />}
-                  />
-                )}
-
-
-              </div>
-
-              {paiement.note && (
-                <>
-                  <Separator className="my-3" />
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <Flag className="h-4 w-4 text-emerald-600" />
-                      <span className="text-xs font-semibold text-muted-foreground uppercase">Note interne</span>
-                    </div>
-                    <p className="text-sm text-foreground bg-amber-50 dark:bg-amber-950/20 p-2.5 rounded border border-amber-200 dark:border-amber-800">
-                      {paiement.note}
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-          </DetailSection>
-
-          {/* ─────────────────────────────────────────────────────────────── */}
-          {/* SECTION 3: FACTURE ASSOCIÉE                                     */}
-          {/* ─────────────────────────────────────────────────────────────── */}
-
-          <DetailSection
-            icon={<FileText className="h-5 w-5" />}
-            title="Facture"
-            description="Document de facturation"
-          >
-            {facture ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <InfoCard label="Numéro de facture" value={<code className="text-xs font-mono bg-muted px-2 py-1 rounded">{facture.numero}</code>} icon={<FileText className="h-4 w-4" />} />
-
-                  <InfoCard label="Montant total" value={`${facture.montantTotal.toLocaleString('fr-FR')} FCFA`} icon={<DollarSign className="h-4 w-4" />} />
-
-                  <InfoCard
-                    label="Date de facturation"
-                    value={format(new Date(facture.createdAt), 'dd MMM yyyy', { locale: fr })}
-                    icon={<Calendar className="h-4 w-4" />}
-                  />
-
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <Flag className="h-4 w-4 text-emerald-600" />
-                      <span className="text-xs font-semibold text-muted-foreground uppercase">Statut</span>
-                    </div>
-                    {factureStatut && <StatutBadge config={factureStatut} />}
-                  </div>
-                </div>
-
-                <Separator className="my-3" />
-
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={handleViewFacture} className="gap-1.5">
-                    <Eye className="h-4 w-4" />
-                    Voir la facture
-                  </Button>
-
-                  {facture.pdfPath && (
-                    <Button size="sm" variant="outline" onClick={handleDownloadPDF} className="gap-1.5">
-                      <Download className="h-4 w-4" />
-                      Télécharger (PDF)
-                    </Button>
-                  )}
-
-                  <Button size="sm" variant="outline" className="gap-1.5">
-                    <Printer className="h-4 w-4" />
-                    Imprimer
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-3 py-6 text-center">
-                <div className="p-3 rounded-lg bg-gray-100 dark:bg-gray-900">
-                  <FileText className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-foreground">Aucune facture associée</p>
-                  <p className="text-xs text-muted-foreground">Créez une facture pour ce paiement</p>
-                </div>
-                <Button size="sm" onClick={handleCreateInvoice} className="gap-1.5 bg-emerald-700 hover:bg-emerald-800 mt-2">
-                  <PlusCircle className="h-4 w-4" />
-                  Créer une facture
-                </Button>
-              </div>
-            )}
-          </DetailSection>
-
-
-          <DetailSection icon={<Activity className="h-5 w-5" />} title="Audit trail" description="Historique des modifications">
-            <div className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="h-4 w-4 text-emerald-600" />
-                    <span className="text-xs font-semibold text-muted-foreground uppercase">Créé le</span>
-                  </div>
-                  <p className="text-sm font-medium">
-                    {format(creationDate, "d MMMM yyyy 'à' HH:mm:ss", { locale: fr })}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {daysSinceCreation} jour{daysSinceCreation > 1 ? 's' : ''} ago
-                  </p>
-                </div>
-
-
-              </div>
-
-              <Separator className="my-2" />
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Hash className="h-3 w-3" />
-                  <span>ID Paiement: <code className="font-mono">{paiement.id}</code></span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Hash className="h-3 w-3" />
-                  <span>ID Candidat: <code className="font-mono">{paiement.candidatId}</code></span>
-                </div>
-              </div>
-            </div>
-          </DetailSection>
-        </div>
-
-        {/* SIDEBAR (1/3) */}
-        <div className="space-y-6">
-          {/* Actions rapides */}
-          <ActionPanel
-            onPrintReceipt={handlePrintReceipt}
-            onDownloadPDF={handleDownloadPDF}
-            onCreateInvoice={handleCreateInvoice}
-            onShare={handleShare}
-            showCreateInvoice={!facture}
-          />
-
-          {/* État de formation */}
-          <Card className="border shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold uppercase tracking-wider flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-emerald-700" />
-                Formation
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0 space-y-3">
-              <div className="space-y-1">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-semibold text-muted-foreground">Statut global</span>
-                  <Badge variant="secondary" className="text-xs">
-                    {candidat?.statut ?? 'N/A'}
-                  </Badge>
-                </div>
-              </div>
-
-              <Separator className="my-2" />
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Catégorie</span>
-                  <span className="font-semibold">{candidat?.categorie ?? 'N/A'}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Inscription</span>
-                  <span className="font-semibold">
-                    {candidat?.dateInscription
-                      ? format(new Date(candidat.dateInscription), 'dd MMM yyyy', { locale: fr })
-                      : 'N/A'}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Annuler</Button>
+            <Button onClick={handleAttachFacture} disabled={updatingFacture}>
+              {updatingFacture && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Associer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </TooltipProvider>
   );
 }
-
-

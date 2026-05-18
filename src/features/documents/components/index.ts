@@ -1,12 +1,18 @@
-// src/features/documents/components/index.ts
-
 /**
  * @module features/documents/components
  * @description
- * Composants pour la gestion des documents : tableau, cartes statistiques.
+ * Point d'entrée des composants du module Documents de l'auto-école COS.
+ * Exporte tous les composants publics : table, statistiques et graphique.
  */
 
-export { DocumentsStatsCards } from './DocumentsStatsCards';
-export type { DocumentsStatsCardsProps, DocumentsSparklineData } from './DocumentsStatsCards';
+// ─── Table ────────────────────────────────────────────────────────────────────
 export { DocumentsTable } from './DocumentsTable';
 export type { DocumentsTableProps, DocumentsPeriodFilter } from './DocumentsTable';
+
+// ─── Statistiques ─────────────────────────────────────────────────────────────
+export { DocumentsStatsCards } from './DocumentsStatsCards';
+export type { DocumentsStatsCardsProps, DocumentsSparklineData } from './DocumentsStatsCards';
+
+// ─── Graphique interactif ─────────────────────────────────────────────────────
+export { DocumentsChart } from './DocumentsChart';
+export type { DocumentsChartProps } from './DocumentsChart';

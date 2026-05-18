@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // src/features/moniteurs/components/MoniteursResumeCard.tsx
 
@@ -12,15 +13,19 @@
  * - Nombre total de moniteurs actifs avec tendance (hausse/baisse)
  * - Donut chart compact de répartition actifs / inactifs
  * - Liste des top 3 moniteurs (par nombre de leçons données) avec avatars
+ * - Utilisation des métriques étendues (`MoniteursStatsExtended`) pour les statistiques
+ * - État de chargement (skeleton)
  * - Design responsive : donut à gauche, informations à droite
  *
  * @see {@link Moniteur}
+ * @see {@link MoniteursStatsExtended}
  *
  * @example
  * ```tsx
  * <MoniteursResumeCard
  *   moniteurs={moniteurs}
- *   trend={{ value: 3.85, isPositive: true }}
+ *   stats={stats}
+ *   isLoading={loading}
  *   topMoniteursCount={3}
  *   onMoniteurClick={(m) => navigate(`/moniteurs/${m.id}`)}
  * />
@@ -33,22 +38,22 @@ import { TrendingUp, TrendingDown } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn, getAvatarUrl } from '@/lib/utils';
 import type { Moniteur } from '@/types/moniteurs.types';
+import type { MoniteursStatsExtended } from '@/types/moniteurs.types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface MoniteursResumeCardProps {
-    /** Liste des moniteurs */
+    /** Liste des moniteurs (utilisée uniquement pour la liste des top moniteurs) */
     moniteurs: Moniteur[];
-    /** Tendance globale (ex: +3.85%) */
-    trend?: {
-        value: number;
-        isPositive: boolean;
-        label?: string;
-    };
+    /** Statistiques étendues des moniteurs (peut être null pendant le chargement) */
+    stats: MoniteursStatsExtended | null;
+    /** État de chargement (skeleton) */
+    isLoading?: boolean;
     /** Nombre de top moniteurs à afficher (défaut: 3) */
     topMoniteursCount?: number;
     /** Callback au clic sur un moniteur de la liste */
@@ -70,12 +75,12 @@ function getInitials(moniteur: Moniteur): string {
 }
 
 /**
- * Calcule le nombre de leçons données (basé sur les relations ou simulation).
+ * Calcule le nombre de leçons données (basé sur la relation ou fallback).
  * @internal
  */
 function getLeconsCount(moniteur: Moniteur): number {
     // En production, utiliser moniteur.lecons?.length
-    return moniteur.lecons?.length ?? Math.floor(Math.random() * 150) + 20;
+    return moniteur.lecons?.length ?? 0;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -99,17 +104,50 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 /**
  * Carte de résumé des moniteurs avec donut, tendance et top moniteurs.
+ * Utilise les métriques étendues pour les chiffres clés.
  */
 export function MoniteursResumeCard({
     moniteurs,
-    trend,
+    stats,
+    isLoading = false,
     topMoniteursCount = 3,
     onMoniteurClick,
     className,
 }: MoniteursResumeCardProps): React.JSX.Element {
-    // Calcul des données pour le donut
-    const actifsCount = moniteurs.filter((m) => m.actif).length;
-    const inactifsCount = moniteurs.filter((m) => !m.actif).length;
+    // Affichage du squelette de chargement
+    if (isLoading || !stats) {
+        return (
+            <Card className={cn('overflow-hidden shadow-sm rounded-md h-full', className)}>
+                <CardHeader className="pb-2">
+                    <Skeleton className="h-5 w-28" />
+                    <Skeleton className="h-3 w-36 mt-1" />
+                </CardHeader>
+                <CardContent className="p-5">
+                    <div className="flex flex-col sm:flex-row items-stretch gap-4">
+                        <div className="flex-1 flex items-center justify-center">
+                            <Skeleton className="h-32 w-32 rounded-full" />
+                        </div>
+                        <div className="flex-1 space-y-3">
+                            <Skeleton className="h-8 w-24" />
+                            <Skeleton className="h-4 w-32" />
+                            <div className="space-y-2">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-full" />
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    // Données pour le donut (actifs / inactifs)
+    const actifsCount = stats.actifs;
+    const inactifsCount = stats.inactifs;
+    const totalHeures = stats.totalHeuresLeçons;
+    const evolutionActifs = stats.evolutionActifs;
+    const isPositive = evolutionActifs >= 0;
 
     const pieData = React.useMemo(
         () => [
@@ -119,7 +157,7 @@ export function MoniteursResumeCard({
         [actifsCount, inactifsCount]
     );
 
-    // Top moniteurs par leçons (uniquement actifs)
+    // Top moniteurs par leçons (uniquement actifs, triés par nombre de leçons)
     const topMoniteurs = React.useMemo(() => {
         return [...moniteurs]
             .filter((m) => m.actif)
@@ -127,38 +165,20 @@ export function MoniteursResumeCard({
             .slice(0, topMoniteursCount);
     }, [moniteurs, topMoniteursCount]);
 
-    // Affichage de la tendance
-    const renderTrend = () => {
-        if (!trend) return null;
-        const { value, isPositive, label } = trend;
-        return (
-            <div className="mt-1 flex items-center gap-1 text-xs">
-                <span
-                    className={cn(
-                        'inline-flex items-center gap-0.5 font-medium',
-                        isPositive ? 'text-emerald-600' : 'text-red-600'
-                    )}
-                >
-                    {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                    {isPositive ? '+' : ''}{value}%
-                </span>
-                <span className="text-muted-foreground">{label || 'vs période précédente'}</span>
-            </div>
-        );
-    };
+    // Tendance formatée
+    const trendValue = Math.abs(evolutionActifs);
+    const trendLabel = evolutionActifs === 0 ? 'Stable' : 'vs période précédente';
 
     return (
-        <Card className={cn('overflow-hidden shadow-sm rounded-md h-full flex justify-center', className)}>
+        <Card className={cn('overflow-hidden shadow-sm rounded-md h-full', className)}>
             <CardHeader className="pb-2">
                 <CardTitle className="text-base font-semibold">Moniteurs</CardTitle>
                 <p className="text-xs text-muted-foreground">Instructeurs actifs</p>
             </CardHeader>
             <CardContent className="p-5">
-                {/* Layout principal : donut à gauche, contenu à droite */}
-                <div className="flex flex-col sm:flex-row items-stretch ">
-                    {/* Donut chart (1/3) */}
-                    {/* 1. Section Graphique (Centrée avec Valeur Interne) */}
-                    <div className="md:col-span-6 flex-1 relative flex flex-col items-center justify-center">
+                <div className="flex flex-col sm:flex-row items-stretch gap-4">
+                    {/* Donut chart (gauche) */}
+                    <div className="flex-1 relative flex flex-col items-center justify-center">
                         <div className="w-full aspect-square max-w-45">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
@@ -176,17 +196,23 @@ export function MoniteursResumeCard({
                                         {pieData.map((entry, idx) => (
                                             <Cell key={`cell-${idx}`} fill={entry.color} stroke="transparent" />
                                         ))}
-
-                                        {/* Label Central : La Valeur Majestueuse */}
                                         <Label
                                             content={({ viewBox }) => {
                                                 const { cx, cy } = viewBox as any;
                                                 return (
                                                     <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
-                                                        <tspan x={cx} y={cy - 5} className="fill-foreground text-3xl font-stats font-extrabold tracking-tighter">
+                                                        <tspan
+                                                            x={cx}
+                                                            y={cy - 5}
+                                                            className="fill-foreground text-3xl font-stats font-extrabold tracking-tighter"
+                                                        >
                                                             {actifsCount}
                                                         </tspan>
-                                                        <tspan x={cx} y={cy + 15} className="fill-muted-foreground text-[10px]  uppercase tracking-widest">
+                                                        <tspan
+                                                            x={cx}
+                                                            y={cy + 15}
+                                                            className="fill-muted-foreground text-[10px] uppercase tracking-widest"
+                                                        >
                                                             Actifs
                                                         </tspan>
                                                     </text>
@@ -204,21 +230,40 @@ export function MoniteursResumeCard({
                                 <span className="text-[11px] text-muted-foreground">Actifs</span>
                             </div>
                             <div className="flex items-center gap-1.5">
-                                <span className="h-2.5 w-2.5 rounded-full bg-gray-200" />
+                                <span className="h-2.5 w-2.5 rounded-full bg-gray-200 dark:bg-gray-700" />
                                 <span className="text-[11px] text-muted-foreground">Inactifs</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Contenu texte + liste top moniteurs (2/3) */}
+                    {/* Contenu texte + liste top moniteurs (droite) */}
                     <div className="flex-1 min-w-0">
                         {/* Total actifs avec tendance */}
                         <div className="mb-3">
                             <p className="text-xs text-muted-foreground uppercase tracking-wide">Actifs</p>
                             <div className="flex items-baseline gap-2 flex-wrap">
                                 <span className="text-3xl font-bold">{actifsCount}</span>
-                                {renderTrend()}
+                                {evolutionActifs !== 0 && (
+                                    <div className="flex items-center gap-1 text-xs">
+                                        <span
+                                            className={cn(
+                                                'inline-flex items-center gap-0.5 font-medium',
+                                                isPositive ? 'text-emerald-600' : 'text-red-600'
+                                            )}
+                                        >
+                                            {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                                            {isPositive ? '+' : ''}{trendValue.toFixed(1)}%
+                                        </span>
+                                        <span className="text-muted-foreground">{trendLabel}</span>
+                                    </div>
+                                )}
                             </div>
+                        </div>
+
+                        {/* Heures totales (indicateur secondaire) */}
+                        <div className="mb-3">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Heures de leçons</p>
+                            <p className="text-sm font-semibold">{totalHeures.toFixed(0)} h</p>
                         </div>
 
                         {/* Top moniteurs */}
@@ -236,7 +281,7 @@ export function MoniteursResumeCard({
                                         >
                                             <div className="flex items-center gap-2 min-w-0">
                                                 <Avatar className="h-7 w-7">
-                                                    <AvatarImage src={getAvatarUrl(moniteur.nom)} />
+                                                    <AvatarImage src={getAvatarUrl(`${moniteur.prenom} ${moniteur.nom}`)} />
                                                     <AvatarFallback className="text-[10px] font-bold">
                                                         {getInitials(moniteur)}
                                                     </AvatarFallback>

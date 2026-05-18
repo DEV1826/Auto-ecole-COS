@@ -429,6 +429,7 @@ export interface CandidatsStatsExtended extends CandidatsStats {
  * | search               | candidats:search           |
  * | updateStatus         | candidats:updateStatus     |
  * | getStats             | candidats:getStats         |
+ * | getTrends            | candidats:getTrends        |
  * | getPaiements         | candidats:getPaiements     |
  * | getLecons            | candidats:getLecons        |
  * | getExamens           | candidats:getExamens       |
@@ -493,6 +494,12 @@ export interface CandidatsApi {
    * @returns Métriques (total, actifs, reçus, echecs, taux de réussite, etc.)
    */
   getStats: () => Promise<CandidatsStatsExtended>;
+
+  /**
+   * Récupère les tendances évolutives des indicateurs candidats.
+   * @returns Variations en pourcentage ou valeur absolue (total, actifs, reçus, echecs)
+   */
+  getTrends: () => Promise<CandidatsTrends>;
 
   /**
    * Récupère tous les paiements d'un candidat.

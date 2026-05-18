@@ -240,9 +240,7 @@ function colActions(actions?: FormationsTableActions, variant: 'admin' | 'secret
                     onClick: (f) => actions.onToggleActive!(f),
                 });
             }
-            if (actions?.onViewTarifs && variant === 'admin') {
-                customActions.push({ label: 'Historique des tarifs', icon: <History className="mr-2 h-4 w-4" />, onClick: (f) => actions.onViewTarifs!(f) });
-            }
+
 
             const rowActionsConfig: RowActionsConfig<Formation> = {
                 customActions,

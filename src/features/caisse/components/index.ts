@@ -9,4 +9,4 @@
 export { CaisseStatsCards } from './CaisseStatsCards';
 export type { CaisseStatsCardsProps, CaisseSparklineData } from './CaisseStatsCards';
 export { CaisseTable } from './CaisseTable';
-export type { CaisseTableProps, CaissePeriodFilter } from './CaisseTable';
+export type { CaisseTableProps } from './CaisseTable';

@@ -29,8 +29,13 @@ const JWT_REFRESH_SECRET =
 const SESSION_DURATION_HOURS = parseInt(process.env.SESSION_DURATION_HOURS, 10) || 24;
 const TOKEN_EXPIRATION_HOURS = parseInt(process.env.TOKEN_EXPIRATION_HOURS, 10) || 24;
 const REFRESH_TOKEN_EXPIRATION_DAYS = parseInt(process.env.REFRESH_TOKEN_EXPIRATION_DAYS, 10) || 7;
-
+const DEVELOPER_SETUP_CODE =
+  process.env.AUTO_ECOLE_SETUP_CODE ||
+  process.env.DEVELOPER_REGISTER_CODE ||
+  (process.env.NODE_ENV !== 'production' ? 'COS-DEV-SETUP-2026' : '');
+const SETUP_ACCESS_TOKEN_TTL_MS = 10 * 60 * 1000;
 const SESSION_DURATION_MS = SESSION_DURATION_HOURS * 60 * 60 * 1000;
+const setupAccessTokens = new Map();
 
 // ===============================
 // UTILITAIRES DE HACHAGE ET TOKENS
@@ -371,6 +376,191 @@ export async function refreshToken({ refreshToken }) {
 // GESTION DES UTILISATEURS
 // ===============================
 
+function normalizeOptionalText(value) {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function cleanupExpiredSetupTokens() {
+  const now = Date.now();
+  for (const [token, data] of setupAccessTokens.entries()) {
+    if (data.expiresAt <= now) {
+      setupAccessTokens.delete(token);
+    }
+  }
+}
+
+function consumeSetupAccessToken(accessToken) {
+  cleanupExpiredSetupTokens();
+  const tokenData = setupAccessTokens.get(accessToken);
+  if (!tokenData || tokenData.expiresAt <= Date.now()) {
+    throw new Error('Accès développeur invalide ou expiré.');
+  }
+  setupAccessTokens.delete(accessToken);
+}
+
+/**
+ * Valide le code développeur et retourne un jeton court pour accéder à l'initialisation.
+ * @param {Object} params
+ * @param {string} params.code - Code fourni par les développeurs de l'application
+ * @param {string} [params.ipAddress] - Adresse IP pour audit
+ * @returns {Promise<{success: boolean, accessToken: string, expiresAt: number}>}
+ */
+export async function verifyDeveloperSetupCode({ code, ipAddress }) {
+  return executePrismaOperation(async () => {
+    if (!DEVELOPER_SETUP_CODE) {
+      throw new Error("Le code développeur n'est pas configuré pour cette installation.");
+    }
+
+    if (!code || String(code).trim() !== DEVELOPER_SETUP_CODE) {
+      await logAudit(
+        null,
+        'SETUP_CODE_FAILED',
+        'InitialSetup',
+        null,
+        'Tentative de validation du code développeur refusée',
+        ipAddress,
+        'FAILED'
+      );
+      throw new Error('Code développeur invalide.');
+    }
+
+    const existingAdmins = await prisma.utilisateur.count({
+      where: {
+        role: 'ADMIN',
+        niveau: { in: ['ADMIN', 'SUPER_ADMIN'] },
+        actif: true,
+      },
+    });
+    if (existingAdmins > 0) {
+      throw new Error('Initialisation déjà effectuée. Un administrateur existe déjà.');
+    }
+
+    cleanupExpiredSetupTokens();
+    const accessToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = Date.now() + SETUP_ACCESS_TOKEN_TTL_MS;
+    setupAccessTokens.set(accessToken, { expiresAt });
+
+    await logAudit(
+      null,
+      'SETUP_CODE_SUCCESS',
+      'InitialSetup',
+      null,
+      'Code développeur validé pour initialisation',
+      ipAddress
+    );
+
+    return { success: true, accessToken, expiresAt };
+  }, 'Erreur lors de la validation du code développeur');
+}
+
+/**
+ * Crée la configuration entreprise et le premier administrateur du système.
+ * Ce flux est réservé à l'initialisation et nécessite un jeton développeur valide.
+ * @param {Object} params
+ * @param {string} params.accessToken - Jeton temporaire obtenu après validation du code développeur
+ * @param {Object} params.company - Données de l'entreprise
+ * @param {Object} params.admin - Données du premier administrateur
+ * @param {string} [params.ipAddress] - Adresse IP pour audit
+ * @returns {Promise<{success: boolean, company: Object, admin: Object}>}
+ */
+export async function createInitialSetup({ accessToken, company, admin, ipAddress }) {
+  return executePrismaOperation(async () => {
+    consumeSetupAccessToken(accessToken);
+
+    if (!company?.nom) {
+      throw new Error("Le nom de l'entreprise est obligatoire.");
+    }
+    if (!admin?.email || !admin?.nom || !admin?.prenom || !admin?.password) {
+      throw new Error("Les informations de l'administrateur sont incomplètes.");
+    }
+
+    const existingAdmins = await prisma.utilisateur.count({
+      where: {
+        role: 'ADMIN',
+        niveau: { in: ['ADMIN', 'SUPER_ADMIN'] },
+        actif: true,
+      },
+    });
+    if (existingAdmins > 0) {
+      throw new Error('Un administrateur existe déjà. Initialisation refusée.');
+    }
+
+    const existingUser = await findUnique('utilisateur', { email: admin.email });
+    if (existingUser) {
+      throw new Error('Un utilisateur avec cet email existe déjà.');
+    }
+
+    const passwordHash = hashPassword(admin.password);
+    const result = await prisma.$transaction(async (tx) => {
+      const companyConfig = await tx.companyConfig.upsert({
+        where: { id: 1 },
+        update: {
+          nom: String(company.nom).trim(),
+          adresse: normalizeOptionalText(company.adresse),
+          telephone: normalizeOptionalText(company.telephone),
+          email: normalizeOptionalText(company.email),
+          siteWeb: normalizeOptionalText(company.siteWeb),
+          numeroFiscal: normalizeOptionalText(company.numeroFiscal),
+          logoPath: normalizeOptionalText(company.logoPath),
+        },
+        create: {
+          id: 1,
+          nom: String(company.nom).trim(),
+          adresse: normalizeOptionalText(company.adresse),
+          telephone: normalizeOptionalText(company.telephone),
+          email: normalizeOptionalText(company.email),
+          siteWeb: normalizeOptionalText(company.siteWeb),
+          numeroFiscal: normalizeOptionalText(company.numeroFiscal),
+          logoPath: normalizeOptionalText(company.logoPath),
+        },
+      });
+
+      const user = await tx.utilisateur.create({
+        data: {
+          email: String(admin.email).trim().toLowerCase(),
+          nom: String(admin.nom).trim(),
+          prenom: String(admin.prenom).trim(),
+          passwordHash,
+          role: 'ADMIN',
+          niveau: 'SUPER_ADMIN',
+          actif: true,
+        },
+      });
+
+      return { companyConfig, user };
+    });
+
+    await assignDefaultPermissions(result.user.id, 'ADMIN', 'SUPER_ADMIN');
+    await logAudit(
+      result.user.id,
+      'INITIAL_SETUP',
+      'InitialSetup',
+      result.user.id,
+      `Initialisation de ${result.companyConfig.nom} et création du SUPER_ADMIN ${result.user.email}`,
+      ipAddress
+    );
+
+    return {
+      success: true,
+      company: result.companyConfig,
+      admin: {
+        id: result.user.id,
+        email: result.user.email,
+        nom: result.user.nom,
+        prenom: result.user.prenom,
+        role: result.user.role,
+        niveau: result.user.niveau,
+        actif: result.user.actif,
+        displayName: `${result.user.prenom} ${result.user.nom}`,
+        createdAt: result.user.createdAt,
+        updatedAt: result.user.updatedAt,
+      },
+    };
+  }, "Erreur lors de l'initialisation sécurisée");
+}
+
 /**
  * Crée un nouvel utilisateur (nécessite des droits suffisants)
  * @param {Object} params
@@ -557,51 +747,102 @@ export async function deleteUser({ userId, deletedByUserId, ipAddress }) {
 }
 
 /**
- * Récupère la liste des utilisateurs (avec pagination)
- * @param {Object} params
- * @param {number} params.userId - ID de l'utilisateur qui fait la demande (nécessite droits admin)
- * @param {number} [params.page=1] - Numéro de page
- * @param {number} [params.limit=20] - Nombre d'éléments par page
- * @returns {Promise<Object>} Liste paginée
+ * Récupère la liste des utilisateurs avec pagination optionnelle.
+ * Si `page` et `limit` sont fournis, la réponse est paginée.
+ * Sinon, retourne tous les utilisateurs (triés par date de création décroissante).
+ * Inclut les relations : creePar, utilisateurs (créés), sessions, auditLogs, permissions.
+ *
+ * @param {Object} [params] - Paramètres de la requête
+ * @param {number} [params.userId] - ID de l'utilisateur qui consulte (optionnel). Si fourni, vérifie les droits admin.
+ * @param {number} [params.page] - Numéro de page (optionnel, pour pagination)
+ * @param {number} [params.limit] - Nombre d'éléments par page (optionnel, max 200)
+ * @returns {Promise<Object|Utilisateur[]>} Si paginé : { users, total, page, limit, totalPages }
+ *                                          Sinon : tableau direct d'utilisateurs.
+ * @throws {Error} Si l'utilisateur n'a pas les droits admin (SUPER_ADMIN ou ADMIN)
  */
-export async function getAllUsers({ userId, page = 1, limit = 20 }) {
-  return executePrismaOperation(async () => {
-    const requester = await findUnique('utilisateur', { id: userId });
-    if (!requester || (requester.niveau !== 'SUPER_ADMIN' && requester.niveau !== 'ADMIN')) {
-      throw new Error('Permissions insuffisantes.');
-    }
+export async function getAllUsers(params = {}) {
+  const { userId, page, limit } = params;
 
-    const skip = (page - 1) * limit;
+  if (userId !== undefined) await checkAdminPermission(userId);
+
+  const orderBy = { createdAt: 'desc' };
+  const includeRelations = {
+    creePar: {
+      select: { id: true, email: true, nom: true, prenom: true, role: true, niveau: true },
+    },
+    utilisateurs: {
+      select: {
+        id: true,
+        email: true,
+        nom: true,
+        prenom: true,
+        role: true,
+        niveau: true,
+        actif: true,
+      },
+    },
+    permissions: {
+      where: { actif: true },
+      select: { id: true, ressource: true, action: true },
+    },
+    // Compteurs agrégés (évite les N+1)
+    _count: {
+      select: {
+        sessions: { where: { actif: true } }, // sessions actives
+        permissions: { where: { actif: true } }, // nombre de permissions actives
+      },
+    },
+  };
+
+  // Cas paginé
+  if (page !== undefined && limit !== undefined) {
+    const skip = (Math.max(1, page) - 1) * Math.max(1, limit);
+    const take = Math.min(Math.max(1, limit), 200);
+
     const [users, totalUsers] = await Promise.all([
-      findMany(
-        'utilisateur',
-        {},
-        {
-          id: true,
-          email: true,
-          nom: true,
-          prenom: true,
-          role: true,
-          niveau: true,
-          actif: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-        { createdAt: 'desc' },
-        skip,
-        limit
-      ),
+      findMany('utilisateur', {}, includeRelations, orderBy, skip, take),
       count('utilisateur'),
     ]);
 
+    // Transformer chaque utilisateur pour ajouter les champs dérivés
+    const usersWithCounts = users.map((u) => ({
+      ...u,
+      sessionsActivesCount: u._count?.sessions || 0,
+      permissionsCount: u._count?.permissions || 0,
+    }));
+
     return {
-      users,
+      users: usersWithCounts,
       total: totalUsers,
       page,
-      limit,
-      totalPages: Math.ceil(totalUsers / limit),
+      limit: take,
+      totalPages: Math.ceil(totalUsers / take),
     };
-  }, 'Erreur lors de la récupération des utilisateurs');
+  } else {
+    const users = await findMany('utilisateur', {}, includeRelations, orderBy);
+    const usersWithCounts = users.map((u) => ({
+      ...u,
+      sessionsActivesCount: u._count?.sessions || 0,
+      permissionsCount: u._count?.permissions || 0,
+    }));
+    return usersWithCounts;
+  }
+}
+
+/**
+ * Vérifie si un utilisateur a les droits admin (SUPER_ADMIN ou ADMIN).
+ * @param {number} userId - ID de l'utilisateur à vérifier
+ * @returns {Promise<void>}
+ * @throws {Error} Si l'utilisateur n'existe pas ou n'a pas les droits
+ * @internal
+ */
+async function checkAdminPermission(userId) {
+  const requester = await findUnique('utilisateur', { id: userId });
+  if (!requester || (requester.niveau !== 'SUPER_ADMIN' && requester.niveau !== 'ADMIN')) {
+    throw new Error(
+      'Permissions insuffisantes. Seul un administrateur peut effectuer cette action.'
+    );
+  }
 }
 
 /**
@@ -901,54 +1142,6 @@ export async function revokeAllUserSessions({ userId, revokedByUserId, ipAddress
     );
     return { success: true, message: 'Toutes les sessions ont été révoquées' };
   }, 'Erreur lors de la révocation des sessions');
-}
-
-// ===============================
-// AUDIT LOGS (lecture)
-// ===============================
-
-/**
- * Récupère les logs d'audit avec pagination et filtres
- * @param {Object} params
- * @param {number} params.userId - ID de l'utilisateur qui consulte (nécessite droits admin)
- * @param {number} [params.page=1] - Page
- * @param {number} [params.limit=50] - Limite
- * @param {Object} [params.filters={}] - Filtres (utilisateurId, action, statut)
- * @returns {Promise<Object>} Logs paginés
- */
-export async function getAuditLogs({ userId, page = 1, limit = 50, filters = {} }) {
-  return executePrismaOperation(async () => {
-    const requester = await findUnique('utilisateur', { id: userId });
-    if (!requester || (requester.niveau !== 'SUPER_ADMIN' && requester.niveau !== 'ADMIN')) {
-      throw new Error('Permissions insuffisantes.');
-    }
-
-    const skip = (page - 1) * limit;
-    const where = {};
-    if (filters.utilisateurId) where.utilisateurId = filters.utilisateurId;
-    if (filters.action) where.action = filters.action;
-    if (filters.statut) where.statut = filters.statut;
-
-    const [logs, totalLogs] = await Promise.all([
-      findMany(
-        'auditLog',
-        where,
-        { utilisateur: { select: { id: true, email: true, nom: true, prenom: true } } },
-        { createdAt: 'desc' },
-        skip,
-        limit
-      ),
-      count('auditLog', where),
-    ]);
-
-    return {
-      logs,
-      total: totalLogs,
-      page,
-      limit,
-      totalPages: Math.ceil(totalLogs / limit),
-    };
-  }, "Erreur lors de la récupération des logs d'audit");
 }
 
 // ===============================
@@ -1254,4 +1447,252 @@ export async function getAllResetCodes({ userId, page = 1, limit = 20, onlyActiv
       totalPages: Math.ceil(total / limit),
     };
   }, 'Erreur lors de la récupération des codes');
+}
+
+// ===============================
+// STATISTIQUES, TENDANCES ET SPARKLINES
+// ===============================
+
+/**
+ * Récupère les statistiques agrégées des utilisateurs.
+ *
+ * @async
+ * @function getUserStats
+ * @description
+ * Calcule les métriques de haut niveau sur les utilisateurs actuels :
+ * - Nombre total d'utilisateurs actifs
+ * - Nombre d'admins actifs
+ * - Nombre de secrétaires actifs
+ * - Nombre de moniteurs actifs
+ * - Nombre de sessions actives
+ * - Nombre d'utilisateurs inactifs
+ *
+ * Ces statistiques sont mises en cache côté frontend et rafraîchies à la demande
+ * ou lors du chargement initial du dashboard admin.
+ *
+ * @returns {Promise<Object>} Objet contenant les statistiques agrégées :
+ * ```js
+ * {
+ *   totalUtilisateurs: 125,
+ *   totalAdmins: 3,
+ *   totalSecretaires: 8,
+ *   totalMoniteurs: 45,
+ *   totalSessionsActives: 18,
+ *   utilisateursInactifs: 12
+ * }
+ * ```
+ *
+ * @throws {Error} Si une erreur Prisma se produit
+ *
+ * @example
+ * ```js
+ * const stats = await authService.getUserStats();
+ * // { totalUtilisateurs: 125, totalAdmins: 3, ... }
+ * ```
+ */
+export async function getUserStats() {
+  return executePrismaOperation(async () => {
+    const [
+      totalUtilisateurs,
+      totalAdmins,
+      totalSecretaires,
+      totalMoniteurs,
+      totalSessionsActives,
+      utilisateursInactifs,
+    ] = await Promise.all([
+      count('utilisateur', { actif: true }),
+      count('utilisateur', { actif: true, role: 'ADMIN' }),
+      count('utilisateur', { actif: true, role: 'SECRETAIRE' }),
+      count('utilisateur', { actif: true, role: 'MONITEUR' }),
+      count('session', { actif: true }),
+      count('utilisateur', { actif: false }),
+    ]);
+
+    return {
+      totalUtilisateurs,
+      totalAdmins,
+      totalSecretaires,
+      totalMoniteurs,
+      totalSessionsActives,
+      utilisateursInactifs,
+    };
+  }, 'Erreur lors du calcul des statistiques utilisateurs');
+}
+
+/**
+ * Récupère les tendances évolutives des utilisateurs.
+ *
+ * @async
+ * @function getUserTrends
+ * @description
+ * Compare les métriques des 30 derniers jours avec la période précédente (30 jours avant).
+ * Calcule les variations en pourcentage pour :
+ * - Nombre total d'utilisateurs créés
+ * - Nombre d'admins créés
+ * - Nombre de secrétaires créés
+ * - Nombre de moniteurs créés
+ * - Nombre de sessions créées
+ *
+ * La variation est calculée ainsi :
+ * - variation = ((valeur_courante - valeur_precedente) / valeur_precedente) * 100
+ * - Si valeur_precedente = 0 : variation = 0 ou 100 (selon si valeur_courante > 0)
+ *
+ * Permet d'afficher des cartes KPI avec flèche (↑ +5.3% ou ↓ -2.1%)
+ *
+ * @returns {Promise<Object>} Objet contenant les tendances (en pourcentages) :
+ * ```js
+ * {
+ *   totalUtilisateurs: 5.3,      // +5.3% d'utilisateurs créés
+ *   totalAdmins: -10.0,           // -10% d'admins créés
+ *   totalSecretaires: 0,
+ *   totalMoniteurs: 12.5,
+ *   totalSessionsActives: 3.8
+ * }
+ * ```
+ *
+ * @throws {Error} Si une erreur Prisma se produit
+ *
+ * @example
+ * ```js
+ * const trends = await authService.getUserTrends();
+ * // { totalUtilisateurs: 5.3, totalAdmins: -10.0, ... }
+ * ```
+ */
+export async function getUserTrends() {
+  return executePrismaOperation(async () => {
+    const now = new Date();
+    const endCurrent = now;
+    const startCurrent = new Date(now);
+    startCurrent.setDate(now.getDate() - 30);
+    const startPrevious = new Date(startCurrent);
+    startPrevious.setDate(startCurrent.getDate() - 30);
+    const endPrevious = startCurrent;
+
+    /**
+     * Compte les entités créées dans une plage de temps donnée
+     * @param {Date} start - Date de début (inclusive)
+     * @param {Date} end - Date de fin (exclusive)
+     * @returns {Promise<Object>} Compteurs pour la période
+     */
+    const countInPeriod = async (start, end) => {
+      const where = { createdAt: { gte: start, lt: end }, actif: true };
+      const total = await count('utilisateur', where);
+      const admins = await count('utilisateur', { ...where, role: 'ADMIN' });
+      const secretaires = await count('utilisateur', { ...where, role: 'SECRETAIRE' });
+      const moniteurs = await count('utilisateur', { ...where, role: 'MONITEUR' });
+      const sessions = await count('session', { actif: true, createdAt: { gte: start, lt: end } });
+      return { total, admins, secretaires, moniteurs, sessions };
+    };
+
+    const current = await countInPeriod(startCurrent, endCurrent);
+    const previous = await countInPeriod(startPrevious, endPrevious);
+
+    /**
+     * Calcule la variation en pourcentage
+     * @param {number} curr - Valeur courante
+     * @param {number} prev - Valeur précédente
+     * @returns {number} Variation en pourcentage (arrondie à 1 décimale)
+     */
+    const calcVar = (curr, prev) => {
+      if (prev === 0) return curr === 0 ? 0 : 100;
+      return parseFloat((((curr - prev) / prev) * 100).toFixed(1));
+    };
+
+    return {
+      totalUtilisateurs: calcVar(current.total, previous.total),
+      totalAdmins: calcVar(current.admins, previous.admins),
+      totalSecretaires: calcVar(current.secretaires, previous.secretaires),
+      totalMoniteurs: calcVar(current.moniteurs, previous.moniteurs),
+      totalSessionsActives: calcVar(current.sessions, previous.sessions),
+    };
+  }, 'Erreur lors du calcul des tendances utilisateurs');
+}
+
+/**
+ * Récupère les données des sparklines pour les 12 derniers mois.
+ *
+ * @async
+ * @function getUserSparklines
+ * @description
+ * Génère les données historiques mensuelles pour les 12 derniers mois afin d'afficher
+ * des sparklines (mini-graphiques) sur les cartes KPI.
+ *
+ * Pour chaque mois, compte le nombre d'utilisateurs créés (et actifs) par rôle.
+ * Retourne un tableau de 12 valeurs avec les libellés correspondants.
+ *
+ * Exemple d'usage : Afficher une courbe de tendance pour les recrues mensuelles.
+ *
+ * @returns {Promise<Object>} Objet contenant les sparklines pour 4 séries :
+ * ```js
+ * {
+ *   totalUtilisateursSparkline: {
+ *     values: [5, 8, 7, 10, 12, 11, 9, 13, 14, 12, 10, 8],
+ *     labels: ['jan', 'fév', 'mar', ..., 'déc']
+ *   },
+ *   totalAdminsSparkline: { values: [...], labels: [...] },
+ *   totalSecretairesSparkline: { values: [...], labels: [...] },
+ *   totalMoniteursSparkline: { values: [...], labels: [...] }
+ * }
+ * ```
+ *
+ * @throws {Error} Si une erreur Prisma se produit
+ *
+ * @example
+ * ```js
+ * const sparklines = await authService.getUserSparklines();
+ * // { totalUtilisateursSparkline: { values: [...], labels: [...] }, ... }
+ * ```
+ */
+export async function getUserSparklines() {
+  return executePrismaOperation(async () => {
+    const now = new Date();
+    const months = [];
+
+    // Générer les 12 derniers mois
+    for (let i = 11; i >= 0; i--) {
+      const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+      const label = start.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+      months.push({ start, end, label });
+    }
+
+    const totalValues = [];
+    const adminValues = [];
+    const secretaireValues = [];
+    const moniteurValues = [];
+
+    // Compter les utilisateurs par mois et par rôle
+    for (const m of months) {
+      const dateRange = { gte: m.start, lte: m.end };
+      const [total, admins, secretaires, moniteurs] = await Promise.all([
+        count('utilisateur', { actif: true, createdAt: dateRange }),
+        count('utilisateur', { actif: true, role: 'ADMIN', createdAt: dateRange }),
+        count('utilisateur', { actif: true, role: 'SECRETAIRE', createdAt: dateRange }),
+        count('utilisateur', { actif: true, role: 'MONITEUR', createdAt: dateRange }),
+      ]);
+      totalValues.push(total);
+      adminValues.push(admins);
+      secretaireValues.push(secretaires);
+      moniteurValues.push(moniteurs);
+    }
+
+    return {
+      totalUtilisateursSparkline: {
+        values: totalValues,
+        labels: months.map((m) => m.label),
+      },
+      totalAdminsSparkline: {
+        values: adminValues,
+        labels: months.map((m) => m.label),
+      },
+      totalSecretairesSparkline: {
+        values: secretaireValues,
+        labels: months.map((m) => m.label),
+      },
+      totalMoniteursSparkline: {
+        values: moniteurValues,
+        labels: months.map((m) => m.label),
+      },
+    };
+  }, 'Erreur lors de la génération des sparklines utilisateurs');
 }

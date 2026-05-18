@@ -51,7 +51,7 @@
  */
 
 import * as React from 'react';
-import { Users, RefreshCw, ChevronRight } from 'lucide-react';
+import { Users, RefreshCw, ChevronRight, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { DataTable } from '@/components/tables/data-table';
@@ -131,6 +131,9 @@ export interface CandidatsTableProps {
   /** Callback du bouton « Ajouter candidat » */
   onAddClick?: () => void;
 
+  /**  */
+  onExport?: () => void;
+
   /** Variante d’affichage (influence les colonnes visibles) */
   variant?: 'admin' | 'secretaire' | 'moniteur';
 
@@ -190,6 +193,7 @@ export function CandidatsTable({
   showViewAll = false,
   onViewAll,
   onAddClick,
+  onExport,
   variant = 'admin',
   columnConfig,
   className,
@@ -327,6 +331,10 @@ export function CandidatsTable({
       </div>
       <div className="flex items-center gap-1">
 
+        <Button variant="outline" size="sm" onClick={onExport} className="h-8 gap-1 text-xs">
+          <Download className="h-3.5 w-3.5" />
+          Exporter
+        </Button>
         {extraActions}
       </div>
     </div>

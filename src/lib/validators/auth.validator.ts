@@ -67,15 +67,28 @@ export const nameSchema = z
     'Le nom ne peut contenir que des lettres, espaces, apostrophes et tirets.'
   );
 
+// src/lib/validators/auth.validator.ts (extrait modifié)
+
 /**
  * Schéma pour un téléphone (optionnel mais validé si fourni).
+ * Accepte :
+ * - Format international : +237 6XX XXX XXX
+ * - Format local : 6XX XXX XXX (sans indicatif)
  */
 export const phoneSchema = z
   .string()
   .optional()
   .refine(
-    (val) =>
-      !val || /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{4,12}$/.test(val),
+    (val) => {
+      if (!val) return true;
+      // Supprimer les caractères non numériques (garder '+' éventuellement)
+      const cleaned = val.replace(/[\s\-.\\()]/g, '');
+      // Format international : commence par +, puis 1-4 chiffres (indicatif), puis 4-12 chiffres
+      const internationalRegex = /^\+\d{1,4}\d{4,12}$/;
+      // Format local : seulement des chiffres (6 à 12)
+      const localRegex = /^\d{6,12}$/;
+      return internationalRegex.test(cleaned) || localRegex.test(cleaned);
+    },
     { message: VALIDATION_ERRORS.INVALID_PHONE }
   );
 
@@ -202,11 +215,54 @@ export const createUserSchema = z.object({
   creeParId: z.number().int().positive().optional(),
 });
 
+export const developerSetupCodeSchema = z.object({
+  code: z
+    .string({ message: VALIDATION_ERRORS.REQUIRED })
+    .trim()
+    .min(6, VALIDATION_ERRORS.TOO_SHORT(6))
+    .max(128, VALIDATION_ERRORS.TOO_LONG(128)),
+});
+
+const optionalSetupTextSchema = z
+  .string()
+  .trim()
+  .max(255, VALIDATION_ERRORS.TOO_LONG(255))
+  .optional();
+
+export const initialSetupSchema = z
+  .object({
+    accessToken: z.string({ message: VALIDATION_ERRORS.REQUIRED }).min(24),
+    company: z.object({
+      nom: z
+        .string({ message: VALIDATION_ERRORS.REQUIRED })
+        .trim()
+        .min(2, VALIDATION_ERRORS.TOO_SHORT(2))
+        .max(120, VALIDATION_ERRORS.TOO_LONG(120)),
+      adresse: optionalSetupTextSchema,
+      telephone: optionalSetupTextSchema,
+      email: z.union([emailSchema, z.literal('')]).optional(),
+      siteWeb: optionalSetupTextSchema,
+      numeroFiscal: optionalSetupTextSchema,
+      logoPath: optionalSetupTextSchema,
+    }),
+    admin: z.object({
+      prenom: nameSchema,
+      nom: nameSchema,
+      email: emailSchema,
+      password: passwordSchema,
+      confirmPassword: z.string({ message: VALIDATION_ERRORS.REQUIRED }),
+    }),
+  })
+  .refine((data) => data.admin.password === data.admin.confirmPassword, {
+    message: VALIDATION_ERRORS.PASSWORDS_DO_NOT_MATCH,
+    path: ['admin.confirmPassword'],
+  });
+
 /**
  * Schéma pour la mise à jour d’un utilisateur (tous champs optionnels).
  */
 export const updateUserSchema = z.object({
-  userId: positiveIntSchema,
+  userId: positiveIntSchema.optional(),
   nom: nameSchema.optional(),
   prenom: nameSchema.optional(),
   email: emailSchema.optional(),
@@ -371,6 +427,8 @@ export const getAuditLogsSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
+export type DeveloperSetupCodeInput = z.infer<typeof developerSetupCodeSchema>;
+export type InitialSetupInput = z.infer<typeof initialSetupSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;

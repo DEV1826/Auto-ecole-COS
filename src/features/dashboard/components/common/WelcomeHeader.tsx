@@ -16,7 +16,7 @@
  * - Badge rôle affiché à côté du nom
  *
  * @author Stive Junior
- * @version 4.0.0
+ * @version 5.0.0
  *
  * @example
  * ```tsx
@@ -45,6 +45,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { Role } from '@/types/enums';
@@ -103,10 +104,10 @@ export interface WelcomeHeaderProps {
   // ── Identité ─────────────────────────────────────────────
   /** Nom complet de l'utilisateur (affiché en accent) */
   userName: string;
-
   /** Rôle de l'utilisateur (influence la couleur accent) */
   Role?: Role;
-
+  /** État de chargement – affiche un skeleton */
+  isLoading?: boolean;
   /**
    * Sous-titre affiché sous le nom (facultatif).
    */
@@ -115,7 +116,6 @@ export interface WelcomeHeaderProps {
   // ── Avatar ────────────────────────────────────────────────
   /** URL de l'image d'avatar */
   avatarUrl?: string;
-
   /** Initiales de secours si pas d'image */
   avatarFallback?: string;
 
@@ -125,7 +125,6 @@ export interface WelcomeHeaderProps {
    * Sinon, calcul automatique.
    */
   greetingMessage?: string;
-
   /**
    * Date/heure de la dernière connexion.
    * Utilisée pour les variations "Bon retour" / "Re-bonjour".
@@ -141,7 +140,6 @@ export interface WelcomeHeaderProps {
   // ── Date ──────────────────────────────────────────────────
   /** Afficher la date du jour (défaut : true) */
   showDate?: boolean;
-
   /** Format de la date (défaut : "EEEE d MMMM yyyy") */
   dateFormat?: string;
 
@@ -155,7 +153,6 @@ export interface WelcomeHeaderProps {
   // ── Style ────────────────────────────────────────────────
   /** Classes CSS additionnelles */
   className?: string;
-
   /** Élément additionnel affiché à droite des actions */
   extra?: React.ReactNode;
 }
@@ -257,15 +254,17 @@ function computeGreeting(lastLoginAt?: Date): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * En-tête de bienvenue COS — version 4.
+ * En-tête de bienvenue COS — version 5.
  * Composant de base réutilisable par tous les dashboards.
  * Sans HoverCard ni alertes, avec logo décoratif.
+ * Affiche un skeleton élégant lorsque `isLoading` est true.
  */
 export function WelcomeHeader({
   userName,
   Role,
   subtitle,
   avatarUrl,
+  isLoading = false,
   avatarFallback,
   greetingMessage,
   lastLoginAt,
@@ -276,27 +275,58 @@ export function WelcomeHeader({
   className,
   extra,
 }: WelcomeHeaderProps): React.JSX.Element {
-  // Greeting
-  const greeting = greetingMessage ?? computeGreeting(lastLoginAt);
-
-  // Configuration rôle
+  const isMobile = useIsMobile();
   const role = getRoleConfig(Role);
-
-  // Avatar fallback
+  const greeting = greetingMessage ?? computeGreeting(lastLoginAt);
   const fallbackText = avatarFallback ?? getInitials(userName);
-
-  // Date formatée
   const formattedDate = React.useMemo(
     () => format(new Date(), dateFormat, { locale: fr }),
     [dateFormat]
   );
 
-  const isMobile = useIsMobile();
-
   // Bouton principal (premier avec variant="default" ou sans variant)
   const primaryAction = mainActions.find((a) => a.variant === 'default' || !a.variant);
   const secondaryActions = mainActions.filter((a) => a !== primaryAction);
 
+  // ── Squelette de chargement ──────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <Card className={cn('relative overflow-hidden border-border/50 shadow-xs', className)}>
+        <CardContent className="p-5 sm:px-6 space-y-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-3 flex-1">
+              <Skeleton className="size-15 rounded-full shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-5 w-64" />
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                  {showDate && !isMobile && <Skeleton className="h-3 w-32" />}
+                </div>
+              </div>
+            </div>
+            {showDate && !isMobile && <Skeleton className="h-4 w-36 hidden sm:block" />}
+          </div>
+
+          {/* Message contextuel skeleton */}
+          {contextMessage && contextMessage.length > 0 && (
+            <Skeleton className="h-4 w-3/4" />
+          )}
+
+          {/* Actions skeleton */}
+          {mainActions.length > 0 && (
+            <div className="flex items-center gap-2.5 flex-wrap mt-1">
+              <Skeleton className="h-10 w-28 rounded-md" />
+              {secondaryActions.map((_, idx) => (
+                <Skeleton key={idx} className="h-10 w-24 rounded-md" />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // ── Rendu normal (données réelles) ───────────────────────────────────────
   return (
     <Card className={cn('relative overflow-hidden border-border/50 shadow-xs', className)}>
       <CardContent className="p-5 sm:px-6">
@@ -305,8 +335,7 @@ export function WelcomeHeader({
           <div className="flex flex-col gap-3 flex-1 min-w-0">
             {/* Ligne identité */}
             <div className="flex items-start gap-3">
-              {/* Avatar (sans HoverCard) */}
-              <Avatar className="h-12 w-12 ring-2 ring-border shrink-0">
+              <Avatar className="size-15 ring-2 ring-border rounded-full shrink-0">
                 <AvatarImage src={avatarUrl} alt={userName} />
                 <AvatarFallback
                   className={cn('text-sm font-semibold', role.badgeBg, role.accentText)}
@@ -315,7 +344,6 @@ export function WelcomeHeader({
                 </AvatarFallback>
               </Avatar>
 
-              {/* Texte greeting + badge rôle */}
               <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                 <h1 className="text-xl font-bold tracking-tight leading-tight">
                   <span className="text-foreground">{greeting}, </span>
@@ -336,13 +364,12 @@ export function WelcomeHeader({
                       {role.label}
                     </Badge>
                   )}
-                  {!subtitle && (
+                  {subtitle && (
                     <>
                       <span className="text-xs text-muted-foreground">•</span>
                       <span className="text-xs text-muted-foreground">{subtitle}</span>
                     </>
                   )}
-                  {/* Colonne droite : date (sur mobile, peut être masquée) */}
                   {showDate && !isMobile && (
                     <>
                       <span className="text-xs text-muted-foreground">•</span>

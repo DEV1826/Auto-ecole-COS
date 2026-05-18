@@ -9,12 +9,13 @@
  * ## Fonctionnalités
  * - Colonnes adaptées selon la variante (admin / secretaire)
  * - Filtres facettés intégrés (type de mouvement) via barre d’outils
- * - Filtre de période (Aujourd'hui / Cette semaine / Ce mois / Tous)
+ * - Filtre de date via DatePicker (plage personnalisée + présélections)
+ * - Bouton "Tous" pour réinitialiser le filtre de date
  * - Recherche textuelle (description, référence)
  * - Pagination configurable ou limitation simple (`maxItems`)
  * - Bouton « Actualiser » et « Voir tout » optionnels
- * - Enrichissements optionnels (par exemple, lier un mouvement à un véhicule ou un candidat)
- * - Badges récapitulatifs : solde actuel, total entrées/sorties de la période, solde net
+ * - Enrichissements optionnels (véhicule, candidat)
+ * - Badges récapitulatifs : solde actuel, nombre de mouvements, etc.
  * - État de chargement (skeleton), état vide avec action
  * - Entièrement responsive via conteneur `@container`
  *
@@ -23,28 +24,7 @@
  * @see {@link CaisseEnrichments} – Enrichissements optionnels
  *
  * @author Stive Junior
- * @version 1.0.0
- *
- * @example
- * ```tsx
- * <CaisseTable
- *   mouvements={mouvements}
- *   variant="admin"
- *   enrichments={{
- *     getNomCandidat: (m) => m.candidat?.nom,
- *     getVehiculeLibelle: (m) => m.vehicule?.immatriculation,
- *   }}
- *   actions={{
- *     onView: (m) => navigate(`/caisse/${m.id}`),
- *     onPrint: (m) => window.print(),
- *   }}
- *   showViewAll
- *   onViewAll={() => navigate('/caisse')}
- *   enableToolbar
- *   defaultPeriodFilter="month"
- *   title="Historique des mouvements"
- * />
- * ```
+ * @version 2.0.0
  */
 
 import * as React from 'react';
@@ -52,14 +32,10 @@ import {
     format,
     startOfDay,
     endOfDay,
-    startOfWeek,
-    endOfWeek,
-    startOfMonth,
-    endOfMonth,
     isWithinInterval,
 } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { RefreshCw, ChevronRight, Wallet } from 'lucide-react';
+import { RefreshCw, ChevronRight, Wallet, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { DataTable } from '@/components/tables/data-table';
@@ -77,27 +53,16 @@ import { TYPE_MOUVEMENT_CONFIG } from '@/types/enums';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { DatePicker } from '@/components/ui/date-picker';
+import type { DateRange } from 'react-day-picker';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type CaissePeriodFilter = 'today' | 'week' | 'month' | 'all';
-
-/**
- * @interface CaisseTableProps
- * @description Propriétés du composant `CaisseTable`.
- */
 export interface CaisseTableProps {
     /** Liste des mouvements de caisse à afficher (triés par date décroissante) */
     mouvements: MouvementCaisse[];
@@ -114,16 +79,16 @@ export interface CaisseTableProps {
     /** Callbacks d’actions sur les lignes */
     actions?: CaisseTableActions;
 
-    /** Filtre de période par défaut (défaut: 'month') */
-    defaultPeriodFilter?: CaissePeriodFilter;
+    /** Plage de dates par défaut (défaut: undefined = tous) */
+    defaultDateRange?: DateRange;
 
-    /** Afficher le sélecteur de période (défaut: true) */
-    showPeriodFilter?: boolean;
+    /** Afficher le sélecteur de date (défaut: true) */
+    showDateFilter?: boolean;
 
     /** Nombre maximal d’éléments sans pagination (défaut: 5) */
     maxItems?: number;
 
-    /** Activer la pagination (défaut: false, car la caisse peut être longue) */
+    /** Activer la pagination (défaut: false) */
     enablePagination?: boolean;
 
     /** Taille de page par défaut si pagination activée (défaut: 10) */
@@ -137,7 +102,6 @@ export interface CaisseTableProps {
 
     /** Callback du bouton « Voir tout » */
     onViewAll?: () => void;
-
 
     /** Callback du bouton « Ajouter un mouvement » */
     onAddClick?: () => void;
@@ -165,62 +129,27 @@ export interface CaisseTableProps {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Options de période
-// ─────────────────────────────────────────────────────────────────────────────
-
-const PERIOD_OPTIONS: {
-    value: CaissePeriodFilter;
-    label: string;
-    short: string;
-}[] = [
-        { value: 'today', label: "Aujourd'hui", short: 'Auj.' },
-        { value: 'week', label: 'Cette semaine', short: 'Sem.' },
-        { value: 'month', label: 'Ce mois', short: 'Mois' },
-        { value: 'all', label: 'Tous', short: 'Tous' },
-    ];
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Filtre les mouvements selon la période.
+ * Filtre les mouvements selon une plage de dates.
  * @internal
  */
-function filterByPeriod(
+function filterByDateRange(
     mouvements: MouvementCaisse[],
-    period: CaissePeriodFilter
+    dateRange: DateRange | undefined
 ): MouvementCaisse[] {
-    if (period === 'all') return mouvements;
+    if (!dateRange?.from) return mouvements;
 
-    const now = new Date();
-    let from: Date;
-    let to: Date;
-
-    switch (period) {
-        case 'today':
-            from = startOfDay(now);
-            to = endOfDay(now);
-            break;
-        case 'week':
-            from = startOfWeek(now, { weekStartsOn: 1 });
-            to = endOfWeek(now, { weekStartsOn: 1 });
-            break;
-        case 'month':
-            from = startOfMonth(now);
-            to = endOfMonth(now);
-            break;
-        default:
-            return mouvements;
-    }
+    const from = startOfDay(dateRange.from);
+    const to = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
 
     return mouvements.filter((m) => {
         const date = new Date(m.date);
         return isWithinInterval(date, { start: from, end: to });
     });
 }
-
-
 
 /**
  * Récupère le dernier solde connu (si disponible) ou calcule à partir des mouvements.
@@ -242,39 +171,31 @@ function formatCurrencyCompact(montant: number): string {
 }
 
 /**
- * Titre dynamique selon la période.
+ * Formate une plage de dates pour l’affichage dans le titre.
  * @internal
  */
-function getPeriodTitle(period: CaissePeriodFilter, baseTitle: string): string {
-    if (period === 'all') return baseTitle;
-    const today = new Date();
-    switch (period) {
-        case 'today':
-            return `${baseTitle} — ${format(today, 'd MMMM yyyy', { locale: fr })}`;
-        case 'week':
-            return `${baseTitle} — Semaine du ${format(startOfWeek(today, { weekStartsOn: 1 }), 'd MMM', { locale: fr })}`;
-        case 'month':
-            return `${baseTitle} — ${format(today, 'MMMM yyyy', { locale: fr })}`;
-        default:
-            return baseTitle;
+function formatDateRangeTitle(dateRange: DateRange | undefined, baseTitle: string): string {
+    if (!dateRange?.from) return baseTitle;
+    const fromStr = format(dateRange.from, 'd MMM yyyy', { locale: fr });
+    if (dateRange.to) {
+        const toStr = format(dateRange.to, 'd MMM yyyy', { locale: fr });
+        return `${baseTitle} — du ${fromStr} au ${toStr}`;
     }
+    return `${baseTitle} — ${fromStr}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Composant principal
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Tableau des mouvements de caisse – version complète avec filtres, pagination, actions.
- */
 export function CaisseTable({
     mouvements,
     variant = 'admin',
     columnConfig,
     enrichments = {},
     actions = {},
-    defaultPeriodFilter = 'month',
-    showPeriodFilter = true,
+    defaultDateRange,
+    showDateFilter = true,
     maxItems = 5,
     enablePagination = false,
     defaultPageSize = 10,
@@ -291,7 +212,7 @@ export function CaisseTable({
     className,
 }: CaisseTableProps): React.JSX.Element {
     const isMobile = useIsMobile();
-    const [periodFilter, setPeriodFilter] = React.useState<CaissePeriodFilter>(defaultPeriodFilter);
+    const [dateRange, setDateRange] = React.useState<DateRange | undefined>(defaultDateRange);
     const [refreshing, setRefreshing] = React.useState(false);
 
     // ── Filtrage avec transition ───────────────────────────────────────────
@@ -304,18 +225,17 @@ export function CaisseTable({
         return () => clearTimeout(t);
     }, []);
 
-    const handlePeriodChange = React.useCallback(
-        (value: string) => {
-            if (!value || value === periodFilter) return;
-            triggerTransition(() => setPeriodFilter(value as CaissePeriodFilter));
+    const handleDateRangeChange = React.useCallback(
+        (range: DateRange | undefined) => {
+            triggerTransition(() => setDateRange(range));
         },
-        [periodFilter, triggerTransition]
+        [triggerTransition]
     );
 
     // ── Données filtrées et affichées ─────────────────────────────────────
     const filteredMouvements = React.useMemo(
-        () => filterByPeriod(mouvements, periodFilter),
-        [mouvements, periodFilter]
+        () => filterByDateRange(mouvements, dateRange),
+        [mouvements, dateRange]
     );
 
     const displayData = React.useMemo(
@@ -358,23 +278,36 @@ export function CaisseTable({
         }
     }, [onRefresh]);
 
-    // ── Barre d’outils supplémentaire (période + boutons) ────────────────
+    // ── Barre d’outils supplémentaire (date + boutons) ────────────────────
     const extraActions = (
         <div className="flex items-center gap-1.5 flex-wrap">
-            {showPeriodFilter && (
+            {showDateFilter && (
                 <>
-                    <Select value={periodFilter} onValueChange={handlePeriodChange}>
-                        <SelectTrigger className="h-8 w-28 text-xs">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {PERIOD_OPTIONS.map((opt) => (
-                                <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                                    {isMobile ? opt.short : opt.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <DatePicker
+                        mode="range"
+                        dateRange={dateRange}
+                        onRangeSelect={handleDateRangeChange}
+                        numberOfMonths={isMobile ? 1 : 2}
+                        placeholder="Filtrer par date"
+                        variant="default"
+                        formatStr="dd/MM/yyyy"
+                        className="w-auto shrink-0"
+                        showPresets
+                        showTimeSection={false}
+                    />
+                    {/* Bouton "Tous" pour réinitialiser le filtre */}
+                    {dateRange?.from && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 gap-1 px-2 text-xs"
+                            onClick={() => handleDateRangeChange(undefined)}
+                            aria-label="Afficher tous les mouvements"
+                        >
+                            <X className="h-3 w-3" />
+                            Tous
+                        </Button>
+                    )}
                     <Separator orientation="vertical" className="h-6 hidden @[480px]/caisse:block" />
                 </>
             )}
@@ -409,7 +342,7 @@ export function CaisseTable({
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2 flex-wrap">
                         <h3 className={cn('font-semibold leading-tight', asCard ? 'text-base' : 'text-lg')}>
-                            {getPeriodTitle(periodFilter, title)}
+                            {formatDateRangeTitle(dateRange, title)}
                         </h3>
                         {totalCount > 0 && (
                             <Badge
@@ -431,10 +364,7 @@ export function CaisseTable({
                     {description && <p className="text-xs text-muted-foreground">{description}</p>}
                 </div>
             </div>
-            <div className="flex items-center gap-1">
-
-                {extraActions}
-            </div>
+            <div className="flex items-center gap-1">{extraActions}</div>
         </div>
     );
 
@@ -491,4 +421,4 @@ export function CaisseTable({
             {tableContent}
         </div>
     );
-};
+}

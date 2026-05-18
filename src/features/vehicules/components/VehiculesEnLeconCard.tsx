@@ -39,6 +39,7 @@ import * as React from 'react';
 import { TrendingUp, TrendingDown, Phone } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -65,8 +66,8 @@ export interface DriverInfo {
 export interface VehiculesEnLeconCardProps {
     /** Nombre de véhicules actuellement en leçon */
     enLecon: number;
-    /** Nombre total de véhicules (affiché en sous‑titre) */
-    total: number;
+    /** État de chargement */
+    isLoading?: boolean;
     /** Tendance d'évolution (pourcentage) */
     trend?: {
         value: number;
@@ -104,7 +105,7 @@ function getInitials(name: string): string {
 
 export function VehiculesEnLeconCard({
     enLecon,
-    total,
+    isLoading = false,
     trend,
     statusLabel = 'En leçon',
     statusColor = 'bg-emerald-500',
@@ -112,6 +113,56 @@ export function VehiculesEnLeconCard({
     driverInfo,
     className,
 }: VehiculesEnLeconCardProps): React.JSX.Element {
+    if (!trend && !isLoading) return <></>;
+
+    // État de chargement
+    if (isLoading) {
+        return (
+            <Card
+                className={cn(
+                    'overflow-hidden rounded-md border p-6 flex flex-col h-full',
+                    className
+                )}
+            >
+                <CardContent className="p-0 relative flex flex-col grow">
+                    {/* En-tête skeleton */}
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                            <Skeleton className="h-6 w-48 mb-2" />
+                            <Skeleton className="h-4 w-40" />
+                        </div>
+                    </div>
+
+                    {/* Contenu skeleton */}
+                    <div className="relative mt-5 flex flex-wrap justify-between items-end gap-4">
+                        <div className="flex-1">
+                            <Skeleton className="h-10 w-16 mb-3" />
+                            <Skeleton className="h-4 w-32 mb-5" />
+                            <div className="flex items-center gap-2">
+                                <Skeleton className="h-6 w-6 rounded-full" />
+                                <Skeleton className="h-4 w-24" />
+                            </div>
+                        </div>
+                        <Skeleton className="h-32 w-32 rounded-md" />
+                    </div>
+
+                    {/* Informations driver skeleton */}
+                    <div className="mt-6 pt-4 border-t">
+                        <Skeleton className="h-3 w-40 mb-3" />
+                        <div className="flex items-center gap-3">
+                            <Skeleton className="h-10 w-10 rounded-full" />
+                            <div className="flex-1">
+                                <Skeleton className="h-4 w-32 mb-2" />
+                                <Skeleton className="h-3 w-24" />
+                            </div>
+                            <Skeleton className="h-10 w-10 rounded-full" />
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+
     if (!trend) return <></>;
     const { value, isPositive, label } = trend;
 
@@ -127,7 +178,7 @@ export function VehiculesEnLeconCard({
                 <div className="flex items-start justify-between">
                     <div>
                         <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-                            Véhicules en leçon
+                            Véhiculesnouvelle form en leçon
                         </h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                             Actuellement sur la route

@@ -20,8 +20,7 @@
  * - État de chargement (skeleton)
  * - Clic sur la carte (callback)
  *
- * Le composant s'intègre au design system COS (gradient bleu, ombre subtile,
- * `backdrop-blur-2xl`, sans bordure). Il utilise `StatsGrid` et `StatsCard` du dossier commun.
+ * Le composant s'intègre au design system COS. Il utilise `StatsGrid` et `StatsCard` du dossier commun.
  *
  * @example
  * ```tsx
@@ -33,6 +32,10 @@
  *     reçus: 45,
  *     echecs: 13,
  *     tauxReussite: 77.5,
+ *     enAttente: 12,
+ *     abandonnes: 5,
+ *     inscritsAujourdHui: 2,
+ *     inscritsCeMois: 18,
  *   }}
  *   trends={{
  *     total: 8.5,
@@ -40,14 +43,15 @@
  *     reçus: 5.2,
  *     echecs: -2,
  *   }}
+ *   totalSparkline={{ values: [120, 130, 140, 150, 156], labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai'] }}
  *   isLoading={false}
  *   onCardClick={(id) => console.log(id)}
  * />
  * ```
  *
  * @author Stive Junior
- * @version 1.0.0
- * @see {@link CandidatsStats} – Métriques agrégées
+ * @version 2.0.0
+ * @see {@link CandidatsStatsExtended} – Métriques agrégées étendues
  * @see {@link CandidatsTrends} – Tendances évolutives
  * @see {@link StatsCard} – Carte de statistique réutilisable
  * @see {@link StatsGrid} – Grille responsive
@@ -61,7 +65,7 @@ import {
 } from '@/features/dashboard/components/common/StatsCard';
 import { EmptyState } from '@/features/dashboard/components/common/EmptyState';
 import { cn } from '@/lib/utils';
-import type { CandidatsStats, CandidatsTrends } from '@/types/candidats.types';
+import type { CandidatsStatsExtended, CandidatsTrends } from '@/types/candidats.types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -81,8 +85,8 @@ export interface CandidatsSparklineData {
  * Propriétés du composant `CandidatsStatsCards`.
  */
 export interface CandidatsStatsCardsProps {
-  /** Métriques statistiques des candidats */
-  stats: CandidatsStats;
+  /** Métriques statistiques étendues des candidats (peut être null pendant le chargement) */
+  stats: CandidatsStatsExtended | null;
   /** Tendances évolutives (optionnelles) */
   trends?: Partial<CandidatsTrends>;
 
@@ -108,8 +112,7 @@ export interface CandidatsStatsCardsProps {
    */
   customCards?: StatsCardProps[];
 
-
-  /** Nombre de colonnes dans la grille */
+  /** Nombre de colonnes dans la grille (défaut : 4) */
   cols?: 2 | 3 | 4;
 }
 
@@ -119,7 +122,6 @@ export interface CandidatsStatsCardsProps {
 
 /**
  * Formate un nombre en notation courte (K, M) pour l’affichage.
- * Exemples : 2 300 → "2.3k", 1 250 000 → "1.3M"
  * @param num - Nombre à formater
  * @returns Chaîne formatée
  * @internal
@@ -136,7 +138,6 @@ function formatCompactNumber(num: number): string {
 
 /**
  * Construit un objet StatsTrend à partir d’une valeur et d’un label optionnel.
- * Gère les valeurs positives, négatives et neutres.
  * @internal
  */
 function buildTrend(value: number | undefined, label?: string): StatsTrend | undefined {
@@ -170,27 +171,44 @@ export function CandidatsStatsCards({
   onCardClick,
   className,
   customCards,
-  cols = 2,
+  cols = 4,
 }: CandidatsStatsCardsProps): React.JSX.Element {
   const handleCardClick = (cardId: string) => {
     onCardClick?.(cardId);
   };
 
-  // Cartes par défaut
+  // Affichage des squelettes pendant le chargement ou si stats est null
+  if (isLoading || !stats) {
+    const skeletonCards: StatsCardProps[] = Array.from({ length: cols }, (_, i) => ({
+      id: `skeleton-${i + 1}`,
+      title: '',
+      value: '',
+      icon: null,
+      Color: 'gray',
+    }));
+    return (
+      <StatsGrid
+        cards={skeletonCards}
+        cols={cols}
+        className={cn('w-full', className)}
+        isLoading={true}
+        classGrid='h-auto'
+      />
+    );
+  }
+
+  // Cartes par défaut (4 cartes avec métriques étendues)
   const defaultCards: StatsCardProps[] = [
     {
       id: 'total-candidats',
       title: 'Total candidats',
       value: formatCompactNumber(stats.total),
       icon: <Users className="size-5" />,
-      iconBg: 'bg-blue-500',
-      description: 'Tous statuts confondus',
+      Color: 'blue-500',
+      description: `${stats.inscritsCeMois} ce mois`,
       trend: buildTrend(trends.total, 'vs période précédente'),
       sparklineData: totalSparkline
-        ? {
-          values: totalSparkline.values,
-          labels: totalSparkline.labels,
-        }
+        ? { values: totalSparkline.values, labels: totalSparkline.labels }
         : undefined,
       onClick: () => handleCardClick('total-candidats'),
     },
@@ -199,14 +217,11 @@ export function CandidatsStatsCards({
       title: 'Candidats actifs',
       value: formatCompactNumber(stats.actifs),
       icon: <UserCheck className="size-5" />,
-      iconBg: 'bg-emerald-500',
+      Color: 'emerald-500',
       description: 'En cours de formation',
       trend: buildTrend(trends.actifs, 'vs période précédente'),
       sparklineData: actifsSparkline
-        ? {
-          values: actifsSparkline.values,
-          labels: actifsSparkline.labels,
-        }
+        ? { values: actifsSparkline.values, labels: actifsSparkline.labels }
         : undefined,
       onClick: () => handleCardClick('actifs-candidats'),
     },
@@ -215,21 +230,18 @@ export function CandidatsStatsCards({
       title: 'Taux de réussite',
       value: `${stats.tauxReussite.toFixed(1)}%`,
       icon: <TrendingUp className="size-5" />,
-      iconBg: 'bg-amber-500',
-      description: 'Moyenne sur les candidats terminés',
+      Color: 'amber-500',
+      description: `Évolution : ${trends.echecs ? (trends.echecs > 0 ? '+' : '') + trends.echecs + ' pts' : 'stable'}`,
       trend: trends.echecs
         ? {
           value: trends.echecs,
           isPositive: trends.echecs > 0,
           label: 'vs période précédente',
-          isPercentage: true,
+          isPercentage: false,
         }
         : undefined,
       sparklineData: tauxReussiteSparkline
-        ? {
-          values: tauxReussiteSparkline.values,
-          labels: tauxReussiteSparkline.labels,
-        }
+        ? { values: tauxReussiteSparkline.values, labels: tauxReussiteSparkline.labels }
         : undefined,
       onClick: () => handleCardClick('taux-reussite'),
     },
@@ -238,14 +250,11 @@ export function CandidatsStatsCards({
       title: 'Candidats reçus',
       value: formatCompactNumber(stats.reçus),
       icon: <Award className="size-5" />,
-      iconBg: 'bg-purple-500',
+      Color: 'purple-500',
       description: 'Permis obtenu',
       trend: buildTrend(trends.reçus, 'vs période précédente'),
       sparklineData: recusSparkline
-        ? {
-          values: recusSparkline.values,
-          labels: recusSparkline.labels,
-        }
+        ? { values: recusSparkline.values, labels: recusSparkline.labels }
         : undefined,
       onClick: () => handleCardClick('recus-candidats'),
     },
@@ -259,7 +268,7 @@ export function CandidatsStatsCards({
       typeof card.value === 'number'
         ? card.value
         : parseFloat(String(card.value).replace(/[^0-9.-]/g, ''));
-    return !isNaN(numericValue) && numericValue > 0;
+    return !isNaN(numericValue);
   });
 
   if (!hasData && !isLoading) {
@@ -277,7 +286,14 @@ export function CandidatsStatsCards({
   }
 
   return (
-    <StatsGrid cards={cards} cols={cols} className={cn('w-full', className)} isLoading={isLoading} />
+    <StatsGrid
+      cards={cards}
+      cols={cols}
+      className={cn('w-full', className)}
+      isLoading={isLoading}
+
+      classGrid='h-auto'
+    />
   );
 }
 

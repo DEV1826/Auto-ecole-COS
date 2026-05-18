@@ -4,6 +4,7 @@
  * Utile pour les pages de succès ou d'erreur qui ne doivent pas être accessibles directement.
  */
 
+import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { PUBLIC_ROUTES } from '@/config/routes';
 
@@ -17,8 +18,6 @@ export interface RequireStateProps {
   /** Vérification personnalisée (fonction) */
   customValidation?: (state: unknown) => boolean;
 }
-
-const now = Date.now();
 
 /**
  * Guard pour les pages qui doivent être atteintes uniquement via une redirection avec state.
@@ -39,6 +38,16 @@ export function RequireState({
 }: RequireStateProps) {
   const location = useLocation();
   const state = location.state;
+  const [currentTime, setCurrentTime] = useState<number | null>(null);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setCurrentTime(Date.now()), 0);
+    return () => window.clearTimeout(timeout);
+  }, [state]);
+
+  if (currentTime === null) {
+    return null;
+  }
 
   const keys = Array.isArray(requiredStateKeys) ? requiredStateKeys : [requiredStateKeys];
   let isValid = true;
@@ -57,7 +66,7 @@ export function RequireState({
 
   // 2. Vérification de l'expiration (Timestamp)
   if (isValid && state?.timestamp) {
-    const elapsed = now - state.timestamp;
+    const elapsed = currentTime - state.timestamp;
 
     if (elapsed > maxAge) {
       isValid = false;

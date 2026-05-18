@@ -38,7 +38,9 @@ export const PUBLIC_ROUTES = {
   AUTH: {
     /** Page de connexion */
     LOGIN: '/auth/login',
-    /** Page d'inscription (création de compte pour un nouveau secrétaire/admin, réservée aux SUPER_ADMIN) */
+    /** Page de validation du code développeur avant initialisation */
+    REGISTER_ACCESS: '/auth/register-access',
+    /** Page d'initialisation accessible uniquement après validation du code développeur */
     REGISTER: '/auth/register',
     /** Page de déconnexion (appelle le store) */
     LOGOUT: '/auth/logout',
@@ -86,12 +88,6 @@ export const PROTECTED_ROUTES = {
    */
   PROFILE: '/profile',
 
-  /**
-   * Paramètres de l'application (configuration de l'entreprise, tarifs, etc.)
-   * Réservé aux SUPER_ADMIN et ADMIN
-   */
-  SETTINGS: '/settings',
-
   // ========== GESTION DES CANDIDATS ==========
   /**
    * Routes liées aux candidats (élèves)
@@ -125,8 +121,6 @@ export const PROTECTED_ROUTES = {
     CREATE: '/formations/create',
     /** Édition d'une formation (admin) */
     EDIT: (id: number | string) => `/formations/${id}/edit`,
-    /** Gestion des tarifs historiques (optionnel) */
-    TARIFS: (id: number | string) => `/formations/${id}/tarifs`,
   } as const,
 
   // ========== GESTION DES MONITEURS (INSTRUCTEURS) ==========
@@ -142,8 +136,6 @@ export const PROTECTED_ROUTES = {
     CREATE: '/moniteurs/create',
     /** Édition d'un moniteur */
     EDIT: (id: number | string) => `/moniteurs/${id}/edit`,
-    /** Planning individuel d'un moniteur */
-    PLANNING: (id: number | string) => `/moniteurs/${id}/planning`,
   } as const,
 
   // ========== GESTION DES VÉHICULES ==========
@@ -211,6 +203,8 @@ export const PROTECTED_ROUTES = {
     CREATE: '/paiements/create',
     /** Détail d'un paiement */
     DETAIL: (id: number | string) => `/paiements/${id}`,
+    /** Modification d'un paiement */
+    EDIT: (id: number | string) => `/paiements/${id}/edit`,
   } as const,
 
   FACTURES: {
@@ -224,18 +218,13 @@ export const PROTECTED_ROUTES = {
     EDIT: (id: number | string) => `/factures/${id}/edit`,
   } as const,
 
-  RECUS: {
-    /** Liste des reçus (historique) */
-    LIST: '/recus',
-    /** Détail d'un reçu (PDF) */
-    DETAIL: (id: number | string) => `/recus/${id}`,
-  } as const,
-
   DEPENSES: {
     /** Liste des dépenses (catégories, fournisseur) */
     LIST: '/depenses',
     /** Enregistrement d'une dépense */
     CREATE: '/depenses/create',
+    /** Détail d'une dépense */
+    DETAIL: (id: number | string) => `/depenses/${id}`,
     /** Modification d'une dépense */
     EDIT: (id: number | string) => `/depenses/${id}/edit`,
   } as const,
@@ -243,6 +232,20 @@ export const PROTECTED_ROUTES = {
   CAISSE: {
     /** État de la caisse (solde actuel, historique des mouvements) */
     INDEX: '/caisse',
+  } as const,
+
+  // ========== GESTION DES DOCUMENTS ==========
+  DOCUMENTS: {
+    /** Liste globale des documents (admin / secrétaire) */
+    LIST: '/documents',
+    /** Téléchargement d'un document */
+    UPLOAD: '/documents/upload',
+    /** Détail d'un document */
+    DETAIL: (id: number | string) => `/documents/${id}`,
+    /** Modification d'un document (description, type) */
+    EDIT: (id: number | string) => `/documents/${id}/edit`,
+    /** Documents d'un candidat (vue intégrée dans le détail candidat) */
+    PAR_CANDIDAT: (candidatId: number | string) => `/candidats/${candidatId}/documents`,
   } as const,
 
   // ========== RAPPORTS ET STATISTIQUES ==========

@@ -192,3 +192,202 @@ export interface MoniteursColumnsOptions {
   enrichments?: MoniteursEnrichments;
   variant?: 'admin' | 'secretaire';
 }
+
+// ============================================================
+// PARAMÈTRES & ENTRÉES (DTOs)
+// ============================================================
+
+/**
+ * Paramètres de filtrage et pagination pour la liste des moniteurs.
+ *
+ * @interface MoniteursListParams
+ * @description
+ * Utilisé par `MoniteursApi.getAll()` et le canal IPC `moniteurs:getAll`.
+ *
+ * @property {number} [page=1] - Page courante (1-indexed)
+ * @property {number} [limit=20] - Nombre d'éléments par page (max 200)
+ * @property {string} [search] - Recherche textuelle : nom, prénom, email
+ * @property {boolean} [actif] - Filtrer par statut actif/inactif
+ * @property {'createdAt' | 'dateEmbauche'} [sortBy='createdAt'] - Champ de tri
+ * @property {'asc' | 'desc'} [sortOrder='desc'] - Sens du tri
+ */
+export interface MoniteursListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  actif?: boolean;
+  sortBy?: 'createdAt' | 'dateEmbauche';
+  sortOrder?: 'asc' | 'desc';
+}
+
+/**
+ * Données d'entrée pour créer un nouveau moniteur.
+ *
+ * @interface CreateMoniteurInput
+ * @description
+ * Les champs `nom` et `prenom` sont obligatoires.
+ *
+ * @property {string} nom - Nom de famille
+ * @property {string} prenom - Prénom
+ * @property {string} [email] - Adresse email (doit être unique)
+ * @property {string} [telephone] - Numéro de téléphone
+ * @property {string} [specialite] - Spécialité (ex: "Permis B")
+ * @property {Date|string} [dateEmbauche] - Date d’embauche (défaut: maintenant)
+ * @property {boolean} [actif=true] - Statut actif
+ */
+export interface CreateMoniteurInput {
+  nom: string;
+  prenom: string;
+  email?: string | null;
+  telephone?: string | null;
+  specialite?: string | null;
+  dateEmbauche?: Date | string;
+  actif?: boolean;
+}
+
+/**
+ * Données d'entrée pour mettre à jour un moniteur (patch partiel).
+ *
+ * @interface UpdateMoniteurInput
+ * @description
+ * Tous les champs sont optionnels.
+ */
+export interface UpdateMoniteurInput {
+  nom?: string;
+  prenom?: string;
+  email?: string | null;
+  telephone?: string | null;
+  specialite?: string | null;
+  dateEmbauche?: Date | string | null;
+  actif?: boolean;
+}
+
+// ============================================================
+// RÉPONSES DE L'API
+// ============================================================
+
+/**
+ * Réponse paginée pour la liste des moniteurs.
+ *
+ * @interface MoniteursPaginatedResponse
+ * @property {Moniteur[]} moniteurs - Moniteurs de la page (avec leçons si demandées)
+ * @property {number} total - Nombre total de moniteurs
+ * @property {number} page - Page courante
+ * @property {number} limit - Limite par page
+ * @property {number} totalPages - Nombre total de pages
+ */
+export interface MoniteursPaginatedResponse {
+  moniteurs: Moniteur[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/**
+ * Statistiques étendues des moniteurs pour le dashboard.
+ *
+ * @interface MoniteursStatsExtended
+ * @extends MoniteursStats
+ * @property {number} heuresMois - Heures de leçons données dans le mois en cours
+ * @property {number} moyenneHeuresParMoniteurMois - Moyenne d’heures par moniteur actif ce mois
+ * @property {number} evolutionActifs - Évolution du nombre d’actifs (en %)
+ */
+export interface MoniteursStatsExtended extends MoniteursStats {
+  heuresMois: number;
+  moyenneHeuresParMoniteurMois: number;
+  evolutionActifs: number;
+}
+
+/**
+ * Données des sparklines pour les moniteurs (12 derniers mois).
+ *
+ * @interface MoniteursSparklineData
+ * @property {{ values: number[]; labels?: string[] }} actifsSparkline - Nombre d’actifs par mois
+ * @property {{ values: number[]; labels?: string[] }} heuresSparkline - Heures de leçons par mois
+ * @property {{ values: number[]; labels?: string[] }} moyenneHeuresSparkline - Moyenne d’heures par moniteur actif
+ */
+export interface MoniteursSparklineData {
+  actifsSparkline: { values: number[]; labels?: string[] };
+  heuresSparkline: { values: number[]; labels?: string[] };
+  moyenneHeuresSparkline: { values: number[]; labels?: string[] };
+}
+
+// ============================================================
+// API WINDOW — MoniteursApi
+// ============================================================
+
+/**
+ * Interface de l'API moniteurs exposée au renderer via `window.api.moniteurs`.
+ *
+ * @interface MoniteursApi
+ * @description
+ * Toutes les méthodes sont asynchrones et communiquent via IPC Electron.
+ *
+ * ## Canaux IPC utilisés
+ * | Méthode               | Canal IPC                         |
+ * |-----------------------|-----------------------------------|
+ * | getAll                | moniteurs:getAll                  |
+ * | getById               | moniteurs:getById                 |
+ * | create                | moniteurs:create                  |
+ * | update                | moniteurs:update                  |
+ * | delete                | moniteurs:delete                  |
+ * | getStats              | moniteurs:getStats                |
+ * | getTrends             | moniteurs:getTrends               |
+ * | getSparklines         | moniteurs:getSparklines           |
+ */
+export interface MoniteursApi {
+  /**
+   * Récupère la liste paginée des moniteurs avec filtres.
+   * @param params - Pagination, filtres et tri
+   * @returns Liste paginée
+   */
+  getAll: (params?: MoniteursListParams) => Promise<MoniteursPaginatedResponse>;
+
+  /**
+   * Récupère un moniteur par son identifiant (avec ses leçons).
+   * @param id - Identifiant du moniteur
+   * @returns Moniteur complet
+   */
+  getById: (id: number) => Promise<Moniteur>;
+
+  /**
+   * Crée un nouveau moniteur.
+   * @param data - Données du moniteur
+   * @returns Moniteur créé
+   */
+  create: (data: CreateMoniteurInput) => Promise<Moniteur>;
+
+  /**
+   * Met à jour un moniteur existant (patch partiel).
+   * @param id - Identifiant du moniteur
+   * @param data - Champs à modifier
+   * @returns Moniteur mis à jour
+   */
+  update: (id: number, data: UpdateMoniteurInput) => Promise<Moniteur>;
+
+  /**
+   * Désactive (soft delete) un moniteur.
+   * @param id - Identifiant du moniteur
+   * @returns Résultat de l'opération
+   */
+  delete: (id: number) => Promise<{ success: boolean; message: string }>;
+
+  /**
+   * Récupère les statistiques agrégées des moniteurs.
+   * @returns Métriques étendues
+   */
+  getStats: () => Promise<MoniteursStatsExtended>;
+
+  /**
+   * Récupère les tendances évolutives (mois vs précédent).
+   * @returns Variations en pourcentage
+   */
+  getTrends: () => Promise<MoniteursTrends>;
+
+  /**
+   * Récupère les données des sparklines pour les 12 derniers mois.
+   * @returns Sparklines (actifs, heures, moyenne)
+   */
+  getSparklines: () => Promise<MoniteursSparklineData>;
+}

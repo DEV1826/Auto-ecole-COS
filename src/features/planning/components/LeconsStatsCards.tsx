@@ -196,7 +196,7 @@ export function LeconsStatsCards({
       title: 'Total leçons',
       value: formatCompactNumber(stats.totalLecons),
       icon: <CalendarCheck className="size-5" />,
-      iconBg: 'bg-blue-500',
+      Color: 'blue-500',
       description: 'Tous statuts',
       trend: undefined, // pas de tendance directe
       sparklineData: totalLeconsSparkline
@@ -209,7 +209,7 @@ export function LeconsStatsCards({
       title: 'Leçons effectuées',
       value: formatCompactNumber(stats.leconsEffectuees),
       icon: <CheckCircle className="size-5" />,
-      iconBg: 'bg-emerald-500',
+      Color: 'emerald-500',
       description: 'Réalisées',
       trend: buildTrend(trends.leconsEffectuees, 'vs période précédente'),
       sparklineData: leconsEffectueesSparkline
@@ -222,7 +222,7 @@ export function LeconsStatsCards({
       title: 'Leçons planifiées',
       value: formatCompactNumber(stats.leconsPlanifiees),
       icon: <CalendarClock className="size-5" />,
-      iconBg: 'bg-amber-500',
+      Color: 'amber-500',
       description: 'À venir',
       trend: buildTrend(trends.leconsPlanifiees, 'vs période précédente'),
       sparklineData: leconsPlanifieesSparkline
@@ -235,7 +235,7 @@ export function LeconsStatsCards({
       title: 'Heures de conduite',
       value: `${formatHours(stats.heuresConduiteTotal)} h`,
       icon: <Car className="size-5" />,
-      iconBg: 'bg-purple-500',
+      Color: 'purple-500',
       description: 'Conduite + accompagnée',
       trend: buildTrend(trends.heuresConduiteTotal, 'vs période précédente'),
       sparklineData: heuresConduiteSparkline
@@ -248,7 +248,7 @@ export function LeconsStatsCards({
       title: 'Heures de code',
       value: `${formatHours(stats.heuresCodeTotal)} h`,
       icon: <BookOpen className="size-5" />,
-      iconBg: 'bg-indigo-500',
+      Color: 'indigo-500',
       description: 'Heures théoriques',
       trend: undefined,
       sparklineData: heuresCodeSparkline
@@ -261,7 +261,7 @@ export function LeconsStatsCards({
       title: 'Occupation véhicules',
       value: `${stats.tauxOccupationVehicules}%`,
       icon: <BarChart3 className="size-5" />,
-      iconBg: 'bg-rose-500',
+      Color: 'rose-500',
       description: 'Taux d’utilisation',
       trend: buildTrend(trends.tauxOccupationVehicules, 'vs période précédente'),
       sparklineData: tauxOccupationSparkline
@@ -278,7 +278,7 @@ export function LeconsStatsCards({
       typeof card.value === 'number'
         ? card.value
         : parseFloat(String(card.value).replace(/[^0-9.-]/g, ''));
-    return !isNaN(numericValue) && numericValue > 0;
+    return !isNaN(numericValue);
   });
 
   if (!hasData && !isLoading) {

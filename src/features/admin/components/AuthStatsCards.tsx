@@ -4,115 +4,73 @@
  * @module features/admin/components/AuthStatsCards
  * @description
  * Grille de cartes statistiques pour l’administration système – affiche 4 métriques relatives aux utilisateurs et sessions.
- *
- * ## Métriques affichées
- * - **Total utilisateurs actifs** : nombre d’utilisateurs avec `actif = true`
+ * Utilise les métriques étendues (`AuthStats`) pour afficher :
+ * - **Total utilisateurs actifs** : nombre d’utilisateurs actifs
  * - **Administrateurs** : utilisateurs de rôle `ADMIN`
  * - **Secrétaires** : utilisateurs de rôle `SECRETAIRE`
  * - **Moniteurs** : utilisateurs de rôle `MONITEUR`
  *
  * Chaque carte supporte :
- * - Valeur formatée (nombre court : 12.4K, 1.2M)
- * - Tendance (augmentation / diminution) avec badge et pourcentage
+ * - Valeur formatée (nombre court)
+ * - Tendance (évolution par rapport à la période précédente)
  * - Sparkline optionnelle (évolution sur plusieurs mois)
  * - Icône personnalisée avec fond coloré
  * - État de chargement (skeleton)
  * - Clic sur la carte (callback)
  *
- * Le composant utilise les sous‑composants `StatsGrid` et `StatsCard` (définis dans `common/StatsCard`).
- *
- * @example
- * ```tsx
- * <AuthStatsCards
- *   totalUsers={24}
- *   totalUsersTrend={{ value: 4, isPositive: true, label: "vs mois dernier" }}
- *   totalUsersSparkline={{ values: [18, 20, 21, 23, 24, 24, 24], labels: ["Jan","Fév","Mar","Avr","Mai","Juin","Juil"] }}
- *   totalAdmins={2}
- *   totalAdminsTrend={{ value: 0, label: "stable" }}
- *   totalSecretaires={3}
- *   totalSecretairesTrend={{ value: 1, isPositive: true, label: "ce mois" }}
- *   totalMoniteurs={6}
- *   totalMoniteursTrend={{ value: -1, isPositive: false, label: "vs mois dernier" }}
- *   isLoading={false}
- *   onCardClick={(id) => console.log(id)}
- * />
- * ```
- *
  * @author Stive Junior
- * @version 1.0.0
+ * @version 2.0.0
+ * @see {@link AuthStats} – Métriques agrégées
+ * @see {@link AuthTrends} – Tendances évolutives
+ * @see {@link AuthSparklineData} – Sparklines
  */
 
 import { Users, ShieldCheck, CalendarCheck, UserRound } from 'lucide-react';
 import {
   StatsGrid,
-  type SparklineData,
   type StatsCardProps,
   type StatsTrend,
+  type SparklineData,
 } from '@/features/dashboard/components/common/StatsCard';
 import { EmptyState } from '@/features/dashboard/components/common/EmptyState';
 import { cn } from '@/lib/utils';
+import type { AuthStats, AuthTrends } from '@/types/auth.types';
 
-/**
- * Propriétés du composant `AuthStatsCards`.
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface AuthStatsCardsProps {
-  // ── Métrique 1 : Total utilisateurs actifs ────────────────────────────────
-  /** Nombre total d’utilisateurs actifs */
-  totalUsers?: number;
-  /** Tendance associée (évolution) */
-  totalUsersTrend?: StatsTrend;
-  /** Données sparkline pour l’évolution totale (optionnel) */
+  /** Métriques statistiques (peut être null pendant le chargement) */
+  stats: AuthStats | null;
+  /** Tendances évolutives (optionnelles) */
+  trends?: Partial<AuthTrends>;
+
+  /** Sparkline pour le total des utilisateurs actifs */
   totalUsersSparkline?: SparklineData;
-
-  // ── Métrique 2 : Administrateurs ─────────────────────────────────────────
-  /** Nombre d’utilisateurs avec rôle ADMIN */
-  totalAdmins?: number;
-  /** Tendance des administrateurs */
-  totalAdminsTrend?: StatsTrend;
-  /** Sparkline pour l’évolution des admins (optionnel) */
+  /** Sparkline pour les administrateurs */
   totalAdminsSparkline?: SparklineData;
-
-  // ── Métrique 3 : Secrétaires ─────────────────────────────────────────────
-  /** Nombre d’utilisateurs avec rôle SECRETAIRE */
-  totalSecretaires?: number;
-  /** Tendance des secrétaires */
-  totalSecretairesTrend?: StatsTrend;
-  /** Sparkline pour l’évolution des secrétaires (optionnel) */
+  /** Sparkline pour les secrétaires */
   totalSecretairesSparkline?: SparklineData;
-
-  // ── Métrique 4 : Moniteurs ────────────────────────────────────────────────
-  /** Nombre d’utilisateurs avec rôle MONITEUR */
-  totalMoniteurs?: number;
-  /** Tendance des moniteurs */
-  totalMoniteursTrend?: StatsTrend;
-  /** Sparkline pour l’évolution des moniteurs (optionnel) */
+  /** Sparkline pour les moniteurs */
   totalMoniteursSparkline?: SparklineData;
 
-  // ── Comportement ──────────────────────────────────────────────────────────
   /** Afficher l’état de chargement (skeleton) */
   isLoading?: boolean;
   /** Callback déclenché au clic sur une carte (reçoit l’identifiant) */
   onCardClick?: (cardId: string) => void;
   /** Classes additionnelles pour la grille */
   className?: string;
-
-  /**
-   * Permet de remplacer entièrement les cartes (utilisation avancée).
-   * Si fourni, les props individuelles sont ignorées.
-   */
+  /** Permet de remplacer entièrement les cartes (utilisation avancée) */
   customCards?: StatsCardProps[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fonction utilitaire : formater un nombre en K/M
+// Utilitaires
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Formate un nombre en notation courte (K, M) pour l’affichage.
- * Exemples : 2 300 → "2.3k", 1 250 000 → "1.3M"
- * @param num - Nombre à formater
- * @returns Chaîne formatée
- * @internal
  */
 function formatCompactNumber(num: number): string {
   if (num >= 1_000_000) {
@@ -124,6 +82,20 @@ function formatCompactNumber(num: number): string {
   return num.toString();
 }
 
+/**
+ * Construit un objet StatsTrend à partir d’une valeur et d’un label optionnel.
+ */
+function buildTrend(value: number | undefined, label?: string): StatsTrend | undefined {
+  if (value === undefined) return undefined;
+  return {
+    value,
+    isPositive: value > 0,
+    label: label ?? 'vs période précédente',
+    neutralLabel: 'Stable',
+    isPercentage: true,
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Composant principal
 // ─────────────────────────────────────────────────────────────────────────────
@@ -131,96 +103,92 @@ function formatCompactNumber(num: number): string {
 /**
  * Grille de cartes statistiques pour l’administration système.
  * Affiche 4 métriques sur les utilisateurs (total, administrateurs, secrétaires, moniteurs)
- * avec tendances et courbes miniatures optionnelles.
+ * avec tendances et sparklines optionnelles.
  */
 export function AuthStatsCards({
-  totalUsers = 0,
-  totalUsersTrend,
+  stats,
+  trends = {},
   totalUsersSparkline,
-  totalAdmins = 0,
-  totalAdminsTrend,
   totalAdminsSparkline,
-  totalSecretaires = 0,
-  totalSecretairesTrend,
   totalSecretairesSparkline,
-  totalMoniteurs = 0,
-  totalMoniteursTrend,
   totalMoniteursSparkline,
   isLoading = false,
   onCardClick,
   className,
   customCards,
 }: AuthStatsCardsProps): React.JSX.Element {
-  const handleCardClick = (cardId: string) => {
-    onCardClick?.(cardId);
-  };
+  const handleCardClick = (cardId: string) => onCardClick?.(cardId);
 
+  // Affichage des squelettes pendant le chargement ou si stats est null
+  if (isLoading || !stats) {
+    const skeletonCards: StatsCardProps[] = [
+      { id: 'skeleton-1', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-2', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-3', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-4', title: '', value: '', icon: null, Color: 'gray' },
+    ];
+    return (
+      <StatsGrid
+        cards={skeletonCards}
+        cols={4}
+        className={cn('w-full', className)}
+        isLoading={true}
+      />
+    );
+  }
+
+  // Cartes par défaut (4 cartes avec métriques)
   const defaultCards: StatsCardProps[] = [
     {
       id: 'total-users',
       title: 'Utilisateurs actifs',
-      value: formatCompactNumber(totalUsers),
+      value: formatCompactNumber(stats.totalUtilisateurs),
+      secondaryValue: `${stats.utilisateursInactifs} inactif${stats.utilisateursInactifs > 1 ? 's' : ''}`,
       icon: <Users className="size-5" />,
-      iconBg: 'bg-blue-500/10',
-      iconColor: 'text-blue-600',
+      Color: 'blue-500',
       description: 'Tous rôles confondus',
-      trend: totalUsersTrend,
+      trend: buildTrend(trends.totalUtilisateurs),
       sparklineData: totalUsersSparkline
-        ? {
-          values: totalUsersSparkline.values,
-          labels: totalUsersSparkline.labels,
-        }
+        ? { values: totalUsersSparkline.values, labels: totalUsersSparkline.labels }
         : undefined,
       onClick: () => handleCardClick('total-users'),
     },
     {
       id: 'total-admins',
       title: 'Administrateurs',
-      value: formatCompactNumber(totalAdmins),
+      value: formatCompactNumber(stats.totalAdmins),
       icon: <ShieldCheck className="size-5" />,
-      iconBg: 'bg-purple-500/10',
-      iconColor: 'text-purple-600',
+      Color: 'purple-500',
       description: 'Gestion système',
-      trend: totalAdminsTrend,
+      trend: buildTrend(trends.totalAdmins),
       sparklineData: totalAdminsSparkline
-        ? {
-          values: totalAdminsSparkline.values,
-          labels: totalAdminsSparkline.labels,
-        }
+        ? { values: totalAdminsSparkline.values, labels: totalAdminsSparkline.labels }
         : undefined,
       onClick: () => handleCardClick('total-admins'),
     },
     {
       id: 'total-secretaires',
       title: 'Secrétaires',
-      value: formatCompactNumber(totalSecretaires),
+      value: formatCompactNumber(stats.totalSecretaires),
       icon: <CalendarCheck className="size-5" />,
-      iconBg: 'bg-emerald-500/10',
-      iconColor: 'text-emerald-600',
+      Color: 'emerald-500',
       description: 'Gestion quotidienne',
-      trend: totalSecretairesTrend,
+      trend: buildTrend(trends.totalSecretaires),
       sparklineData: totalSecretairesSparkline
-        ? {
-          values: totalSecretairesSparkline.values,
-          labels: totalSecretairesSparkline.labels,
-        }
+        ? { values: totalSecretairesSparkline.values, labels: totalSecretairesSparkline.labels }
         : undefined,
       onClick: () => handleCardClick('total-secretaires'),
     },
     {
       id: 'total-moniteurs',
       title: 'Moniteurs',
-      value: formatCompactNumber(totalMoniteurs),
+      value: formatCompactNumber(stats.totalMoniteurs),
       icon: <UserRound className="size-5" />,
-      iconBg: 'bg-amber-500/10',
-      iconColor: 'text-amber-600',
+      Color: 'amber-500',
       description: 'Instructeurs',
-      trend: totalMoniteursTrend,
+      trend: buildTrend(trends.totalMoniteurs),
       sparklineData: totalMoniteursSparkline
-        ? {
-          values: totalMoniteursSparkline.values,
-          labels: totalMoniteursSparkline.labels,
-        }
+        ? { values: totalMoniteursSparkline.values, labels: totalMoniteursSparkline.labels }
         : undefined,
       onClick: () => handleCardClick('total-moniteurs'),
     },
@@ -228,12 +196,13 @@ export function AuthStatsCards({
 
   const cards = customCards ?? defaultCards;
 
+  // Vérification de données significatives
   const hasData = cards.some((card) => {
     const numericValue =
       typeof card.value === 'number'
         ? card.value
-        : parseInt(String(card.value).replace(/[^0-9.-]/g, ''), 10);
-    return !isNaN(numericValue) && numericValue > 0;
+        : parseFloat(String(card.value).replace(/[^0-9.-]/g, ''));
+    return !isNaN(numericValue);
   });
 
   if (!hasData && !isLoading) {
@@ -250,5 +219,14 @@ export function AuthStatsCards({
     );
   }
 
-  return <StatsGrid cards={cards} className={cn('w-full', className)} isLoading={isLoading} />;
+  return (
+    <StatsGrid
+      cards={cards}
+      cols={4}
+      className={cn('w-full', className)}
+      isLoading={isLoading}
+    />
+  );
 }
+
+export default AuthStatsCards;

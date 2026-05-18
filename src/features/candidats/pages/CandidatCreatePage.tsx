@@ -11,35 +11,21 @@
  * ## Structure
  * - **En-tête** : icône, titre, breadcrumb, date
  * - **FormWrapper** : layout avec panneau de prévisualisation + carte de formulaire
- *   - Panneau gauche : `CandidatPreviewCard` — avatar initiales, badges catégorie/statut,
- *     coordonnées, jauge de complétion du formulaire.
- *   - Panneau droit : `CandidatCreateForm` — formulaire avec validation Zod.
+ * - **Dialogue d’erreur** : affiche les erreurs de validation (email unique, etc.)
  *
- * ## Flux de données
- * ```
- * CandidatCreateForm --onChange(patch, isValid)--> CandidatCreatePage (state)
- *                                                       |
- *                                          FormWrapper (onSubmit) → API (useCandidats.create)
- * ```
- *
- * ## Thème
- * - Palette bleue (blue-700), même style que `CandidatsListPage`
+ * ## Gestion des erreurs
+ * - Les erreurs de validation du backend (ex: email déjà existant) sont capturées
+ *   et affichées dans un `ErrorDialog` avec des détails techniques sous une section repliable.
+ * - Les erreurs de formulaire (champs manquants) sont également affichées via le dialogue.
  *
  * @author Stive Junior
- * @version 2.0.0
- *
- * @example
- * ```tsx
- * // Dans le routeur React
- * { path: '/candidats/nouveau', element: <CandidatCreatePage /> }
- * ```
+ * @version 4.0.0
  */
 
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import {
   UserPlus,
@@ -57,6 +43,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { PageBreadcrumb } from '@/components/common/PageBreadcrumb';
 import { cn } from '@/lib/utils';
+import { ErrorDialog } from '@/components/ui/error-dialog';
 
 import FormWrapper from '@/components/forms/FormWrapper';
 import CandidatCreateForm from '@/features/candidats/components/CandidatCreateForm';
@@ -64,6 +51,7 @@ import CandidatCreateForm from '@/features/candidats/components/CandidatCreateFo
 import type { CreateCandidatInput } from '@/lib/validators/candidats.validator';
 import { PROTECTED_ROUTES, route } from '@/config';
 import { useCandidats } from '@/hooks/use.candidats';
+import { SuccessDialog } from '@/components/ui/success-dialog';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types locaux
@@ -72,10 +60,9 @@ import { useCandidats } from '@/hooks/use.candidats';
 type FormData = Partial<CreateCandidatInput>;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Constantes de style
+// Styles des badges
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Couleurs des badges de catégorie de permis */
 const CATEGORIE_BADGE_COLORS: Record<string, string> = {
   A: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300',
   B: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300',
@@ -84,7 +71,6 @@ const CATEGORIE_BADGE_COLORS: Record<string, string> = {
   BE: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300',
 };
 
-/** Couleurs des badges de statut */
 const STATUT_BADGE_COLORS: Record<string, string> = {
   EN_COURS: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300',
   RECU: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300',
@@ -94,7 +80,6 @@ const STATUT_BADGE_COLORS: Record<string, string> = {
     'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300',
 };
 
-/** Labels lisibles pour les statuts */
 const STATUT_LABELS: Record<string, string> = {
   EN_COURS: 'En cours',
   RECU: 'Reçu',
@@ -103,7 +88,6 @@ const STATUT_LABELS: Record<string, string> = {
   EN_ATTENTE: 'En attente',
 };
 
-/** Labels lisibles pour les catégories */
 const CATEGORIE_LABELS: Record<string, string> = {
   A: 'Catégorie A — Moto',
   B: 'Catégorie B — Voiture',
@@ -113,7 +97,7 @@ const CATEGORIE_LABELS: Record<string, string> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sous-composant : jauge de complétion
+// Sous‑composants
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface CompletionGaugeProps {
@@ -121,6 +105,9 @@ interface CompletionGaugeProps {
   total: number;
 }
 
+/**
+ * Jauge de progression visuelle pour la complétion du formulaire.
+ */
 function CompletionGauge({ filled, total }: CompletionGaugeProps) {
   const pct = total > 0 ? Math.round((filled / total) * 100) : 0;
   const color =
@@ -155,10 +142,6 @@ function CompletionGauge({ filled, total }: CompletionGaugeProps) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sous-composant : ligne d'info dans le preview
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface InfoRowProps {
   icon: LucideIcon;
   value?: string | null;
@@ -166,6 +149,9 @@ interface InfoRowProps {
   mono?: boolean;
 }
 
+/**
+ * Ligne d'information de la carte de prévisualisation.
+ */
 function InfoRow({ icon: Icon, value, placeholder, mono }: InfoRowProps) {
   const isEmpty = !value;
   return (
@@ -189,15 +175,14 @@ function InfoRow({ icon: Icon, value, placeholder, mono }: InfoRowProps) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sous-composant : checklist des champs
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface ChecklistItemProps {
   label: string;
   filled: boolean;
 }
 
+/**
+ * Élément de la checklist des champs obligatoires.
+ */
 function ChecklistItem({ label, filled }: ChecklistItemProps) {
   return (
     <div className="flex items-center gap-2 text-xs">
@@ -211,18 +196,16 @@ function ChecklistItem({ label, filled }: ChecklistItemProps) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sous-composant : carte de prévisualisation
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface CandidatPreviewCardProps {
   data: FormData;
 }
 
+/**
+ * Carte de prévisualisation affichée dans le panneau latéral gauche.
+ * Affiche les informations saisies en temps réel.
+ */
 function CandidatPreviewCard({ data }: CandidatPreviewCardProps) {
   const fullName = [data.nom, data.prenom].filter(Boolean).join(' ');
-
-  // Calcul de la complétion
   const fieldsToCheck: Array<{ key: keyof FormData; label: string }> = [
     { key: 'nom', label: 'Nom' },
     { key: 'prenom', label: 'Prénom' },
@@ -242,7 +225,6 @@ function CandidatPreviewCard({ data }: CandidatPreviewCardProps) {
 
   return (
     <div className="space-y-5">
-      {/* ── Avatar + nom ─────────────────────────────────────────────── */}
       <div className="flex flex-col items-center gap-3 pt-2 pb-4 border-b border-border/50">
         <div className="text-center">
           {fullName ? (
@@ -250,16 +232,11 @@ function CandidatPreviewCard({ data }: CandidatPreviewCardProps) {
           ) : (
             <p className="text-sm text-muted-foreground/60 italic">Nom non renseigné</p>
           )}
-
-          {/* Badges catégorie + statut */}
           <div className="flex items-center justify-center flex-wrap gap-1.5 mt-2">
             {data.categorie ? (
               <Badge
                 variant="outline"
-                className={cn(
-                  'text-[10px] font-bold px-2 py-0.5',
-                  CATEGORIE_BADGE_COLORS[data.categorie] ?? ''
-                )}
+                className={cn('text-[10px] font-bold px-2 py-0.5', CATEGORIE_BADGE_COLORS[data.categorie])}
               >
                 Cat. {data.categorie}
               </Badge>
@@ -268,14 +245,10 @@ function CandidatPreviewCard({ data }: CandidatPreviewCardProps) {
                 Catégorie —
               </Badge>
             )}
-
             {data.statut ? (
               <Badge
                 variant="outline"
-                className={cn(
-                  'text-[10px] font-medium px-2 py-0.5',
-                  STATUT_BADGE_COLORS[data.statut] ?? ''
-                )}
+                className={cn('text-[10px] font-medium px-2 py-0.5', STATUT_BADGE_COLORS[data.statut])}
               >
                 {STATUT_LABELS[data.statut] ?? data.statut}
               </Badge>
@@ -288,34 +261,25 @@ function CandidatPreviewCard({ data }: CandidatPreviewCardProps) {
         </div>
       </div>
 
-      {/* ── Informations détaillées ───────────────────────────────────── */}
       <div className="space-y-0.5">
         <InfoRow icon={Mail} value={data.email} placeholder="Email non renseigné" />
         <InfoRow icon={Phone} value={data.telephone ? `+237 ${data.telephone}` : null} placeholder="Téléphone non renseigné" />
         <InfoRow
           icon={Calendar}
-          value={
-            data.dateNaissance
-              ? `${'Née le ' + format(new Date(data.dateNaissance), 'd MMMM yyyy', { locale: fr })}`
-              : null
-          }
+          value={data.dateNaissance ? format(new Date(data.dateNaissance), 'd MMMM yyyy', { locale: fr }) : null}
           placeholder="Date de naissance —"
         />
         <InfoRow icon={MapPin} value={data.adresse} placeholder="Adresse non renseignée" />
         <InfoRow icon={Hash} value={data.numeroPermis} placeholder="N° permis —" mono />
       </div>
 
-      {/* ── Catégorie lisible ─────────────────────────────────────────── */}
       {data.categorie && (
         <p className="text-[11px] text-muted-foreground text-center bg-muted/40 rounded-lg px-3 py-2">
           {CATEGORIE_LABELS[data.categorie]}
         </p>
       )}
 
-      {/* ── Jauge de complétion ───────────────────────────────────────── */}
       <CompletionGauge filled={filledCount} total={fieldsToCheck.length} />
-
-      {/* ── Checklist ─────────────────────────────────────────────────── */}
       <div className="space-y-1 pt-1 border-t border-border/50">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-2">
           Champs requis
@@ -333,27 +297,38 @@ function CandidatPreviewCard({ data }: CandidatPreviewCardProps) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Page principale : CandidatCreatePage
+// Page principale
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Page de création d'un candidat.
  * Orchestre FormWrapper + CandidatCreateForm + CandidatPreviewCard.
  * Utilise le store `useCandidats` pour créer le candidat via l'API Electron.
+ * Affiche un dialogue d'erreur personnalisé (ErrorDialog) en cas d'échec.
  */
 export default function CandidatCreatePage(): React.JSX.Element {
   const navigate = useNavigate();
   const { create } = useCandidats();
 
-  // ── État du formulaire ───────────────────────────────────────────────────
   const [formData, setFormData] = React.useState<FormData>({
     statut: 'EN_COURS',
     dateInscription: format(new Date(), 'yyyy-MM-dd'),
   });
   const [isFormValid, setIsFormValid] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [errorDialog, setErrorDialog] = React.useState<{
+    open: boolean;
+    title?: string;
+    message: string;
+    details?: string[];
+  }>({ open: false, message: '' });
 
-  // ── Callback onChange du formulaire ─────────────────────────────────────
+  // Dialogue de succès
+  const [successDialogOpen, setSuccessDialogOpen] = React.useState(false);
+  const [createdCandidatId, setCreatedCandidatId] = React.useState<number | null>(null);
+
+
+
   const handleFormChange = React.useCallback(
     (patch: Partial<CreateCandidatInput>, isValid: boolean) => {
       setFormData((prev) => ({ ...prev, ...patch }));
@@ -362,11 +337,12 @@ export default function CandidatCreatePage(): React.JSX.Element {
     []
   );
 
-  // ── Soumission (appel API réel) ─────────────────────────────────────────
   const handleSubmit = React.useCallback(async () => {
     if (!isFormValid) {
-      toast.error('Formulaire incomplet', {
-        description: 'Veuillez renseigner tous les champs obligatoires avant de continuer.',
+      setErrorDialog({
+        open: true,
+        title: 'Formulaire incomplet',
+        message: 'Veuillez renseigner tous les champs obligatoires avant de continuer.',
       });
       return;
     }
@@ -374,42 +350,65 @@ export default function CandidatCreatePage(): React.JSX.Element {
     setIsSubmitting(true);
 
     try {
-      // Appel réel au store Zustand qui communique avec l'API Electron
       const newCandidat = await create(formData);
-
-      toast.success('Candidat créé avec succès', {
-        description: `${newCandidat.prenom} ${newCandidat.nom} a été ajouté à la liste des candidats.`,
-      });
-
-      // Redirection vers la liste des candidats
-      navigate(route(PROTECTED_ROUTES.CANDIDATS.LIST));
+      setCreatedCandidatId(newCandidat.id);
+      setSuccessDialogOpen(true);
+      // Ne pas rediriger automatiquement, laisser l'utilisateur choisir
     } catch (err: any) {
-      toast.error('Erreur lors de la création', {
-        description: err?.message ?? 'Une erreur inattendue est survenue. Veuillez réessayer.',
+      let message = 'Une erreur inattendue est survenue. Veuillez réessayer.';
+      let details: string[] | undefined;
+
+      if (err?.message) {
+        message = err.message;
+        if (message.includes('email existe déjà')) {
+          details = [
+            'Un candidat avec cette adresse email est déjà enregistré.',
+            'Veuillez utiliser un autre email ou modifier l’existant.',
+          ];
+        } else if (message.includes('numéro de permis déjà attribué')) {
+          details = [
+            'Ce numéro de permis est déjà utilisé par un autre candidat.',
+            'Vérifiez le numéro ou contactez l’administrateur.',
+          ];
+        }
+      }
+
+      setErrorDialog({
+        open: true,
+        title: 'Erreur de création',
+        message,
+        details,
       });
     } finally {
       setIsSubmitting(false);
     }
-  }, [isFormValid, formData, create, navigate]);
+  }, [isFormValid, formData, create]);
 
-  // ── Annulation ───────────────────────────────────────────────────────────
-  const handleCancel = React.useCallback(() => {
-    navigate(-1);
-  }, [navigate]);
+  const handleCancel = React.useCallback(() => navigate(-1), [navigate]);
 
-  // ─────────────────────────────────────────────────────────────────────────
+  const handleGoToPayment = () => {
+    if (createdCandidatId) {
+      navigate(`${PROTECTED_ROUTES.PAIEMENTS.CREATE}?candidatId=${createdCandidatId}`);
+    } else {
+      navigate(PROTECTED_ROUTES.PAIEMENTS.CREATE);
+    }
+  };
+
+  const handleGoToList = () => {
+    navigate(route(PROTECTED_ROUTES.CANDIDATS.LIST));
+  };
+
+
+
+
   return (
     <div className="space-y-5 p-4 md:p-1 pb-12">
-
-      {/* ── En-tête de page ─────────────────────────────────────────────── */}
+      {/* En-tête de page */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2">
         <div className="flex items-center gap-3">
-          {/* Icône */}
           <div className="flex items-center justify-center size-12 rounded-md bg-blue-700 text-white shadow-sm shrink-0">
             <UserPlus className="size-6" />
           </div>
-
-          {/* Titre + fil d'ariane */}
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-bold tracking-tight">Nouveau candidat</h1>
@@ -422,18 +421,14 @@ export default function CandidatCreatePage(): React.JSX.Element {
             </div>
             <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
               <Users className="h-3 w-3" />
-              <span>
-                {format(new Date(), "EEEE d MMMM yyyy 'à' HH'h'mm", { locale: fr })}
-              </span>
+              <span>{format(new Date(), "EEEE d MMMM yyyy 'à' HH'h'mm", { locale: fr })}</span>
             </p>
           </div>
         </div>
-
-        {/* Breadcrumb (desktop) */}
         <PageBreadcrumb className="hidden lg:flex" />
       </div>
 
-      {/* ── FormWrapper + formulaire ─────────────────────────────────────── */}
+      {/* Wrapper principal */}
       <FormWrapper
         title="Informations du candidat"
         description="Renseignez les informations personnelles, coordonnées et détails de formation du nouveau candidat."
@@ -441,18 +436,43 @@ export default function CandidatCreatePage(): React.JSX.Element {
         onSubmit={handleSubmit}
         onCancel={handleCancel}
         isSubmitting={isSubmitting}
+        isValid={isFormValid}
         isEditMode={false}
         submitLabel="Créer le candidat"
         cancelLabel="Annuler"
         previewTitle="Aperçu du candidat"
         preview={<CandidatPreviewCard data={formData} />}
       >
-        <CandidatCreateForm
-          data={formData}
-          onChange={handleFormChange}
-          isSubmitting={isSubmitting}
-        />
+        <CandidatCreateForm data={formData} onChange={handleFormChange} isSubmitting={isSubmitting} />
       </FormWrapper>
+
+      {/* Dialogue d'erreur avec support des thèmes clair/sombre */}
+      <ErrorDialog
+        open={errorDialog.open}
+        onOpenChange={(open) => setErrorDialog((prev) => ({ ...prev, open }))}
+        title={errorDialog.title}
+        message={errorDialog.message}
+        details={errorDialog.details}
+        closeText="Fermer"
+        actionText="Réessayer la validation"
+      />
+
+      {/* Dialogue de succès avec proposition d'enregistrer un paiement */}
+      <SuccessDialog
+        open={successDialogOpen}
+        onOpenChange={setSuccessDialogOpen}
+        title="Candidat créé avec succès"
+        message="Le candidat a bien été enregistré dans le système."
+        details={[
+          `Nom: ${formData.nom} ${formData.prenom}`,
+          `Email: ${formData.email || 'Non renseigné'}`,
+        ]}
+        closeText="Voir la liste"
+        actionText="Enregistrer un paiement"
+        onAction={handleGoToPayment}
+      />
     </div>
+
+
   );
 }

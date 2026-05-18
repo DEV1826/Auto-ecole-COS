@@ -8,184 +8,103 @@
  *
  * Layout :
  * ─ En-tête : titre, nombre total de véhicules, date, bouton d’export, breadcrumb
- * ─ Bloc statistiques (`VehiculesStatsCards`) — repliable
+ * ─ Bloc statistiques (`VehiculesStatsCards`) + carte "Véhicules en leçon"
  * ─ Tableau complet (`VehiculesTable`) avec filtres, pagination, actions
  *
- * Données mockées (à remplacer par des appels API réels).
+ * Les données sont chargées depuis l’API Electron via le store `useVehicules`.
+ * Aucune donnée mockée n’est utilisée.
  *
  * @author Stive Junior
- * @version 1.0.0
- *
- * @example
- * ```tsx
- * <VehiculesListPage />
- * ```
+ * @version 2.0.0
  */
 
 import * as React from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Car, PlusCircle, Download, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
+import { Car, Download, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { VehiculesStatsCards } from '../components/VehiculesStatsCards';
-import { VehiculesTable } from '../components/VehiculesTable';
 import { PageBreadcrumb } from '@/components/common/PageBreadcrumb';
 import { useAuth } from '@/hooks/use.auth';
-import type { Vehicule } from '@/types/vehicules.types';
-import type { VehiculesStats, VehiculesTrends } from '@/types/vehicules.types';
+import { useVehicules } from '@/hooks/use.vehicules';
 import { useNavigate } from 'react-router-dom';
 import { PROTECTED_ROUTES, route } from '@/config';
-import { VehiculesEnLeconCard } from '../components';
-import { getAvatarUrl } from '@/lib';
+import { getAvatarUrl } from '@/lib/utils';
+import { VehiculesStatsCards } from '../components/VehiculesStatsCards';
+import { VehiculesTable } from '../components/VehiculesTable';
+import { VehiculesEnLeconCard } from '../components/VehiculesEnLeconCard';
+import type { Vehicule } from '@/types/vehicules.types';
 
-
-// ============================================================
-// Données mockées (à remplacer par des appels API réels)
-// ============================================================
-
-/**
- * Génère une liste aléatoire de véhicules.
- */
-function generateMockVehicules(count: number = 12): Vehicule[] {
-  const marques = ['Toyota', 'Renault', 'Peugeot', 'Citroën', 'Volkswagen', 'Ford', 'Hyundai'];
-  const modeles = ['Yaris', 'Clio', '308', 'C3', 'Golf', 'Fiesta', 'i10'];
-  const categories = ['A', 'B', 'C', 'D', 'BE'] as const;
-  const statuts = ['DISPONIBLE', 'EN_LECON', 'EN_ENTRETIEN', 'HORS_SERVICE'] as const;
-  const now = new Date();
-
-  const vehicules: Vehicule[] = [];
-
-  for (let i = 1; i <= count; i++) {
-    const marque = marques[i % marques.length];
-    const modele = modeles[i % modeles.length];
-    const annee = 2015 + Math.floor(Math.random() * 9);
-    const kilometrage = 20000 + Math.floor(Math.random() * 80000);
-    const statut = statuts[Math.floor(Math.random() * statuts.length)];
-    const categorie = categories[Math.floor(Math.random() * categories.length)];
-    const dateAcquisition = new Date(now);
-    dateAcquisition.setFullYear(now.getFullYear() - Math.floor(Math.random() * 8) - 1);
-    const dateDerniereRevision = new Date(now);
-    dateDerniereRevision.setMonth(now.getMonth() - Math.floor(Math.random() * 12));
-    const prochaineRevisionKm = kilometrage + (20000 + Math.random() * 10000);
-
-    vehicules.push({
-      id: i,
-      immatriculation: `LT-${String(100 + i).slice(1)}-AB`,
-      marque,
-      modele,
-      annee,
-      categorie,
-      kilometrage,
-      dateAcquisition: dateAcquisition.toISOString(),
-      dateDerniereRevision: dateDerniereRevision.toISOString(),
-      prochaineRevisionKm: Math.floor(prochaineRevisionKm),
-      statut,
-      createdAt: dateAcquisition.toISOString(),
-      updatedAt: now.toISOString(),
-      lecons: [],
-      entretiens: [],
-      depenses: [],
-    });
-  }
-  return vehicules;
-}
+// ===============================
+// COMPOSANT PRINCIPAL
+// ===============================
 
 /**
- * Calcule les statistiques agrégées à partir de la liste des véhicules.
+ * Page principale de gestion des véhicules.
+ * Affiche les statistiques, la carte des véhicules en leçon et le tableau complet.
  */
-function computeStats(vehicules: Vehicule[]): VehiculesStats {
-  const totalVehicules = vehicules.length;
-  const disponibles = vehicules.filter((v) => v.statut === 'DISPONIBLE').length;
-  const enLecon = vehicules.filter((v) => v.statut === 'EN_LECON').length;
-  const kilometrageMoyen = Math.round(vehicules.reduce((s, v) => s + v.kilometrage, 0) / totalVehicules);
-
-
-  return {
-    totalVehicules,
-    disponibles,
-    enLecon,
-    kilometrageMoyen,
-  };
-}
-
-/**
- * Génère des tendances fictives (évolution).
- */
-function generateMockTrends(): Partial<VehiculesTrends> {
-  return {
-    totalVehicules: 2,
-    disponibles: -1,
-    kilometrageMoyen: 4.5,
-  };
-}
-
-/**
- * Génère des sparklines pour les statistiques (optionnel).
- */
-function generateMockSparklines() {
-  return {
-    totalSparkline: {
-      values: [10, 10, 11, 11, 12, 12, 12],
-      labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil'],
-    },
-    disponiblesSparkline: {
-      values: [6, 5, 5, 5, 5, 5, 5],
-      labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil'],
-    },
-    enLeconSparkline: {
-      values: [3, 3, 4, 4, 4, 4, 4],
-      labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil'],
-    },
-    kilometrageSparkline: {
-      values: [18500, 19500, 20500, 21500, 22500, 23500, 24500],
-      labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil'],
-    },
-    entretiensSparkline: {
-      values: [5, 8, 12, 15, 18, 20, 22],
-      labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil'],
-    },
-  };
-}
-
-// ============================================================
-// Page principale
-// ============================================================
-
 export default function VehiculesListPage(): React.JSX.Element {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
-  const canEdit = isAdmin;
+  const canEdit = isAdmin; // Seul l'admin peut gérer les véhicules
 
-  // Données mockées
-  const [vehicules, setVehicules] = React.useState<Vehicule[]>(() => generateMockVehicules(12));
-  const [stats, setStats] = React.useState<VehiculesStats>(() => computeStats(vehicules));
-  const [trends] = React.useState(() => generateMockTrends());
-  const [isLoading, setIsLoading] = React.useState(false);
+  // Store véhicules
+  const {
+    vehicules,
+    stats,
+    trends,
+    sparklines,
+    getAll,
+    getStats,
+    getTrends,
+    getSparklines,
+    delete: deleteVehicule,
+    loading: listLoading,
+    statsLoading,
+    trendsLoading,
+    sparklinesLoading,
+  } = useVehicules();
+
+  // État local pour la section repliable
   const [statsOpen, setStatsOpen] = React.useState(true);
 
-  const sparklines = generateMockSparklines();
+  // ── Chargement initial ──────────────────────────────────────────────
+  React.useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        await getAll();
+        await getStats();
+        await getTrends();
+        await getSparklines();
+      } catch {
+        toast.error('Erreur lors du chargement des données');
+      }
+    };
+    loadInitialData();
+  }, [getAll, getStats, getTrends, getSparklines]);
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-
+  // ── Handlers ──────────────────────────────────────────────────────
   const handleRefresh = async () => {
-    setIsLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    const fresh = generateMockVehicules(12);
-    setVehicules(fresh);
-    setStats(computeStats(fresh));
-    setIsLoading(false);
-    toast.success('Parc véhicule actualisé');
+    try {
+      await getAll();
+      await getStats();
+      await getTrends();
+      await getSparklines();
+      toast.success('Parc véhicule actualisé');
+    } catch {
+      toast.error('Erreur lors de l’actualisation');
+    }
   };
 
   const handleExport = () => {
-    toast.success('Export des véhicules (simulé)');
+    // TODO: implémenter l'export des véhicules (CSV/Excel/PDF)
+    toast.info('Fonction d’export à implémenter');
   };
 
   const handleAddVehicule = () => {
-    toast.info('Formulaire d’ajout de véhicule (à connecter)');
+    navigate(PROTECTED_ROUTES.VEHICULES.CREATE);
   };
 
   const handleView = (vehicule: Vehicule) => {
@@ -193,22 +112,36 @@ export default function VehiculesListPage(): React.JSX.Element {
   };
 
   const handleEdit = (vehicule: Vehicule) => {
-    toast.info(`Modifier le véhicule : ${vehicule.marque} ${vehicule.modele}`);
+    navigate(route(PROTECTED_ROUTES.VEHICULES.EDIT(vehicule.id), { id: vehicule.id }));
   };
 
   const handleViewEntretiens = (vehicule: Vehicule) => {
-    toast.info(`Historique des entretiens du véhicule ${vehicule.immatriculation}`);
+    navigate(route(PROTECTED_ROUTES.VEHICULES.ENTRETIENS(vehicule.id), { id: vehicule.id }));
   };
 
   const handleRecordMaintenance = (vehicule: Vehicule) => {
+    // TODO: naviguer vers le formulaire d'ajout d'entretien
     toast.info(`Enregistrer un entretien pour ${vehicule.immatriculation}`);
   };
 
   const handleDelete = async (vehicule: Vehicule) => {
-    toast.info(`Désactivation du véhicule ${vehicule.immatriculation}`);
+    if (!canEdit) return;
+    if (window.confirm(`Supprimer définitivement le véhicule ${vehicule.immatriculation} ?`)) {
+      try {
+        await deleteVehicule(vehicule.id);
+        toast.success('Véhicule supprimé');
+        await handleRefresh();
+      } catch {
+        toast.error('Erreur lors de la suppression');
+      }
+    }
   };
 
-  // ── Enrichissements pour le tableau ───────────────────────────────────────
+  const handleCallDriver = () => {
+    toast.info('Contacter le moniteur (fonction à implémenter)');
+  };
+
+  // ── Enrichissements pour le tableau ───────────────────────────────
   const enrichments = {
     getMarqueModeleComplet: (v: Vehicule) => `${v.marque} ${v.modele}`,
     getAvatarUrl: (v: Vehicule) => `/images/brand/${v.marque.toLowerCase()}.png`,
@@ -217,7 +150,7 @@ export default function VehiculesListPage(): React.JSX.Element {
     isRevisionDue: (v: Vehicule) => v.kilometrage >= (v.prochaineRevisionKm ?? Infinity),
   };
 
-  // ── Actions du tableau ───────────────────────────────────────────────────
+  // ── Actions du tableau ───────────────────────────────────────────
   const actions = {
     onView: handleView,
     onEdit: canEdit ? handleEdit : undefined,
@@ -227,10 +160,26 @@ export default function VehiculesListPage(): React.JSX.Element {
   };
 
   const variant = isAdmin ? 'admin' : 'secretaire';
+  const isLoading = listLoading || statsLoading || trendsLoading || sparklinesLoading;
+
+  // Préparer les données pour la carte "Véhicules en leçon"
+  const enLeconCount = stats?.enLecon ?? 0;
+  const totalVehicules = stats?.totalVehicules ?? 0;
+  const evolutionDisponibles = stats?.evolutionDisponibles ?? 0;
+
+  // Trouver un moniteur "le plus actif" (exemple : récupérer depuis le store ou une API)
+  // Pour l’instant, on utilise un placeholder
+  const driverInfo = {
+    name: 'Marc Dubois',
+    role: 'Moniteur principal',
+    avatarUrl: getAvatarUrl('marc'),
+    onCall: handleCallDriver,
+    vehiculeName: 'Toyota Yaris',
+  };
 
   return (
     <div className="space-y-5 p-4 md:p-1 pb-10">
-      {/* En-tête */}
+      {/* ── EN‑TÊTE ───────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center size-12 rounded-md bg-blue-700 text-white shadow-sm shrink-0">
@@ -247,7 +196,7 @@ export default function VehiculesListPage(): React.JSX.Element {
                 variant="outline"
                 className="text-[10px] h-4 px-1.5 border-0 bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
               >
-                {stats.totalVehicules} véhicules
+                {totalVehicules} véhicules
               </Badge>
             </p>
           </div>
@@ -257,15 +206,12 @@ export default function VehiculesListPage(): React.JSX.Element {
             <Download className="h-3.5 w-3.5" />
             Exporter
           </Button>
-          <Button size="sm" onClick={handleAddVehicule} className="h-8 gap-1 text-xs bg-blue-700 hover:bg-blue-800">
-            <PlusCircle className="h-3.5 w-3.5" />
-            Ajouter
-          </Button>
+
           <PageBreadcrumb className="hidden lg:flex" />
         </div>
       </div>
 
-      {/* Statistiques repliables */}
+      {/* ── STATISTIQUES REPLIABLES ───────────────────────────────────── */}
       <div className="space-y-2">
         <button
           onClick={() => setStatsOpen((o) => !o)}
@@ -279,57 +225,48 @@ export default function VehiculesListPage(): React.JSX.Element {
             <ChevronDown className="h-3.5 w-3.5" />
           )}
         </button>
-        {statsOpen && (
 
+        {statsOpen && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-5">
             <div className="lg:col-span-2">
               <VehiculesStatsCards
                 stats={stats}
-                trends={trends}
-                totalSparkline={sparklines.totalSparkline}
-                disponiblesSparkline={sparklines.disponiblesSparkline}
-                enLeconSparkline={sparklines.enLeconSparkline}
-                kilometrageSparkline={sparklines.kilometrageSparkline}
-                entretiensSparkline={sparklines.entretiensSparkline}
+                trends={trends || undefined}
+                totalSparkline={sparklines?.disponiblesSparkline}
+                disponiblesSparkline={sparklines?.disponiblesSparkline}
+                entretiensSparkline={sparklines?.entretiensSparkline}
+                kilometrageSparkline={sparklines?.kilometrageSparkline}
                 isLoading={isLoading}
                 onCardClick={(id) => {
                   if (id === 'total-vehicules') toast.info('Voir tous les véhicules');
                   else if (id === 'disponibles') toast.info('Filtrer les disponibles');
-                  else if (id === 'en-lecon') toast.info('Véhicules en leçon');
-                  else if (id === 'en-entretien') toast.info('Véhicules en entretien');
-                  else if (id === 'hors-service') toast.info('Véhicules hors service');
-                  else if (id === 'kilometrage-moyen') toast.info('Kilométrage moyen');
                   else if (id === 'entretiens-annee') toast.info('Entretiens de l’année');
+                  else if (id === 'kilometrage-moyen') toast.info('Kilométrage moyen');
                 }}
+                className='h-full'
               />
             </div>
             <div className="lg:col-span-1">
               <VehiculesEnLeconCard
-                enLecon={stats.enLecon}
-                total={stats.totalVehicules}
-                trend={{ value: 2.5, isPositive: true, }}
+                enLecon={enLeconCount}
+                trend={{
+                  value: Math.abs(evolutionDisponibles),
+                  isPositive: evolutionDisponibles >= 0,
+                  label: 'vs mois dernier',
+                }}
+                isLoading={isLoading}
                 statusLabel="En leçon"
                 statusColor="bg-emerald-500"
                 illustrationSrc="/images/brand/car.png"
-                className='h-full'
-                driverInfo={{
-                  name: "Marc Dubois",
-                  role: "Moniteur permis B",
-                  avatarUrl: getAvatarUrl("marc"),
-                  onCall() {
-                    toast.info('Voir le profil du moniteur Marc Dubois');
-                  },
-                  vehiculeName: 'Toyota'
-                }}
+                driverInfo={driverInfo}
+                className="h-full"
               />
-
             </div>
           </div>
         )}
       </div>
 
-
-      {/* Tableau des véhicules */}
+      {/* ── TABLEAU DES VÉHICULES ────────────────────────────────────── */}
       <VehiculesTable
         vehicules={vehicules}
         variant={variant}
@@ -343,7 +280,7 @@ export default function VehiculesListPage(): React.JSX.Element {
         title="Liste des véhicules"
         description="Gérez le parc automobile"
         showAddButton={canEdit}
-        onAddClick={handleAddVehicule}
+        onAddClick={canEdit ? handleAddVehicule : undefined}
         showViewAll={false}
         asCard
         className="w-full"

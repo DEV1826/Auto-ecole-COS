@@ -179,6 +179,35 @@ export function PaiementsStatsCards({
     onCardClick?.(cardId);
   };
 
+
+
+  if (isLoading) {
+    const skeletonCards: StatsCardProps[] = [
+      { id: 'skeleton-1', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-2', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-3', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-4', title: '', value: '', icon: null, Color: 'gray' },
+    ];
+    return <StatsGrid cards={skeletonCards} cols={2} className={cn('w-full', className)} isLoading={true} />;
+  }
+
+  // Si pas de stats (et pas en chargement), afficher l'état vide
+  if (!stats) {
+    return (
+      <div className={cn('w-full', className)}>
+        <EmptyState
+          title="Aucune statistique disponible"
+          description="Les données sur les paiements seront affichées ici une fois disponibles."
+          icon={Landmark}
+
+          variant="dashed"
+          className='h-full justify-center'
+          size="md"
+        />
+      </div>
+    );
+  }
+
   // Cartes par défaut
   const defaultCards: StatsCardProps[] = [
     {
@@ -186,14 +215,14 @@ export function PaiementsStatsCards({
       title: 'Total encaissements',
       value: formatCurrency(stats.totalEncaissements),
       icon: <Receipt className="size-5" />,
-      iconBg: 'bg-blue-500',
+      Color: 'blue-500',
       description: 'Cumul depuis le début',
       trend: buildTrend(trends.totalEncaissements, 'vs période précédente'),
       sparklineData: totalEncaissementsSparkline
         ? {
-            values: totalEncaissementsSparkline.values,
-            labels: totalEncaissementsSparkline.labels,
-          }
+          values: totalEncaissementsSparkline.values,
+          labels: totalEncaissementsSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('total-encaissements'),
     },
@@ -202,14 +231,14 @@ export function PaiementsStatsCards({
       title: 'Nombre de transactions',
       value: formatCompactNumber(stats.nombreTransactions),
       icon: <TrendingUp className="size-5" />,
-      iconBg: 'bg-emerald-500',
+      Color: 'emerald-500',
       description: 'Paiements enregistrés',
       trend: buildTrend(trends.nombreTransactions, 'vs période précédente'),
       sparklineData: nombreTransactionsSparkline
         ? {
-            values: nombreTransactionsSparkline.values,
-            labels: nombreTransactionsSparkline.labels,
-          }
+          values: nombreTransactionsSparkline.values,
+          labels: nombreTransactionsSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('nombre-transactions'),
     },
@@ -218,14 +247,14 @@ export function PaiementsStatsCards({
       title: 'Encaissements du mois',
       value: formatCurrency(stats.encaissementsMois),
       icon: <Calendar className="size-5" />,
-      iconBg: 'bg-amber-500',
+      Color: 'amber-500',
       description: 'Mois en cours',
       trend: buildTrend(trends.encaissementsMois, 'vs mois dernier'),
       sparklineData: encaissementsMoisSparkline
         ? {
-            values: encaissementsMoisSparkline.values,
-            labels: encaissementsMoisSparkline.labels,
-          }
+          values: encaissementsMoisSparkline.values,
+          labels: encaissementsMoisSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('encaissements-mois'),
     },
@@ -234,14 +263,14 @@ export function PaiementsStatsCards({
       title: 'Montant moyen',
       value: formatCurrency(stats.montantMoyen),
       icon: <Wallet className="size-5" />,
-      iconBg: 'bg-purple-500',
+      Color: 'purple-500',
       description: 'Par transaction',
       trend: buildTrend(trends.montantMoyen, 'vs période précédente'),
       sparklineData: montantMoyenSparkline
         ? {
-            values: montantMoyenSparkline.values,
-            labels: montantMoyenSparkline.labels,
-          }
+          values: montantMoyenSparkline.values,
+          labels: montantMoyenSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('montant-moyen'),
     },
@@ -255,7 +284,7 @@ export function PaiementsStatsCards({
       typeof card.value === 'number'
         ? card.value
         : parseFloat(String(card.value).replace(/[^0-9.-]/g, ''));
-    return !isNaN(numericValue) && numericValue > 0;
+    return !isNaN(numericValue);
   });
 
   if (!hasData && !isLoading) {
@@ -265,6 +294,7 @@ export function PaiementsStatsCards({
           title="Aucune statistique disponible"
           description="Les données sur les paiements seront affichées ici une fois disponibles."
           icon={Landmark}
+          className='h-full justify-center'
           variant="dashed"
           size="md"
         />

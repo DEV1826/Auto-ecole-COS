@@ -112,9 +112,7 @@ export interface Document {
 export interface DocumentsStats {
   totalDocuments: number;
   totalTailleBytes: number;
-  documentsPermis: number;
   documentsCarteIdentite: number;
-  documentsFacture: number;
   documentsRecu: number;
 }
 
@@ -145,9 +143,7 @@ export interface DocumentsStats {
 export interface DocumentsTrends {
   totalDocuments: number;
   totalTailleBytes: number;
-  documentsPermis: number;
   documentsCarteIdentite: number;
-  documentsFacture: number;
   documentsRecu: number;
 }
 
@@ -240,11 +236,11 @@ export interface DocumentsTableActions {
  * ```
  */
 export interface DocumentsEnrichments {
-  getCandidatNomComplet?: () => string;
-  getCandidatEmail?: () => string;
-  getCandidatTelephone?: () => string;
-  getCandidatAvatarUrl?: () => string;
-  getCandidatInitials?: () => string;
+  getCandidatNomComplet?: (doc: Document) => string;
+  getCandidatEmail?: (doc: Document) => string;
+  getCandidatTelephone?: (doc: Document) => string;
+  getCandidatAvatarUrl?: (doc: Document) => string;
+  getCandidatInitials?: (doc: Document) => string;
 }
 
 /**
@@ -276,4 +272,108 @@ export interface DocumentsColumnsOptions {
   actions?: DocumentsTableActions;
   enrichments?: DocumentsEnrichments;
   variant?: 'admin' | 'secretaire' | 'candidat';
+}
+
+// ============================================================
+// PARAMÈTRES ET RÉPONSES POUR L'API
+// ============================================================
+
+/**
+ * Paramètres pour la liste paginée des documents.
+ */
+export interface DocumentsListParams {
+  /** Page courante (1-indexed) */
+  page?: number;
+  /** Nombre d'éléments par page */
+  limit?: number;
+  /** Type de document (permis, carte_identite, facture, recu) */
+  type?: string;
+  /** ID du candidat (pour filtrer par candidat) */
+  candidatId?: number;
+  /** Période de filtre ('today', 'week', 'month', 'all') */
+  period?: 'today' | 'week' | 'month' | 'all';
+  /** Terme de recherche (nomFichier ou nom candidat) */
+  search?: string;
+}
+
+/**
+ * Réponse paginée pour la liste des documents.
+ */
+export interface DocumentsPaginatedResponse {
+  documents: Document[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/**
+ * Données des sparklines pour le dashboard documents.
+ */
+export interface DocumentsSparklineData {
+  totalSparkline: { values: number[]; labels?: string[] };
+  carteIdentiteSparkline: { values: number[]; labels?: string[] };
+  recusSparkline: { values: number[]; labels?: string[] };
+  tailleSparkline: { values: number[]; labels?: string[] };
+}
+
+// ============================================================
+// API WINDOW (exposée par le preload Electron)
+// ============================================================
+
+/**
+ * Interface de l’API documents exposée au renderer via `window.api.documents`.
+ */
+export interface DocumentsApi {
+  /**
+   * Récupère la liste paginée des documents avec filtres.
+   */
+  getAll: (params?: DocumentsListParams) => Promise<DocumentsPaginatedResponse>;
+
+  /**
+   * Récupère un document par son ID.
+   */
+  getById: (id: number) => Promise<Document>;
+
+  /**
+   * Récupère les statistiques agrégées des documents.
+   */
+  getStats: () => Promise<DocumentsStats>;
+
+  /**
+   * Récupère les tendances évolutives.
+   */
+  getTrends: () => Promise<DocumentsTrends>;
+
+  /**
+   * Récupère les données des sparklines (évolutions sur 12 mois).
+   */
+  getSparklines: () => Promise<DocumentsSparklineData>;
+
+  /**
+   * Supprime définitivement un document.
+   */
+  delete: (id: number) => Promise<{ success: boolean; message: string }>;
+
+  /**
+   * Télécharge le fichier (déclenche le dialogue d’enregistrement).
+   */
+  download: (id: number) => Promise<{ success: boolean; message: string }>;
+
+  /**
+   * Ouvre le document avec l’application par défaut du système.
+   */
+  open: (chemin: string) => Promise<void>;
+
+  /**
+   * Televerser un document
+   */
+  upload: (data: {
+    candidatId: number;
+    type: string;
+    buffer: ArrayBuffer;
+    originalName: string;
+    mimeType?: string;
+    description?: string;
+  }) => Promise<Document>;
 }

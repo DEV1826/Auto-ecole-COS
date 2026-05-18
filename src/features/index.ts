@@ -4,7 +4,6 @@ export * from './caisse';
 export * from './utils';
 export * from './examens';
 export * from './planning';
-export * from './recus';
 export * from './moniteurs';
 export * from './rapports';
 export * from './paiements';

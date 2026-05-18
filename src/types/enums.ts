@@ -87,7 +87,7 @@ export type StatutLecon = 'PLANIFIEE' | 'EFFECTUEE' | 'ANNULEE' | 'ABSENCE';
 /**
  * Type d’examen.
  */
-export type TypeExamen = 'CODE' | 'CONDUIT';
+export type TypeExamen = 'CODE' | 'CONDUITE';
 
 /**
  * Résultat d’un examen.
@@ -148,6 +148,8 @@ export interface EnumDisplayConfig<T extends string = string> {
   icon: LucideIcon;
   /** Ordre de tri (optionnel) */
   order?: number;
+  /** URL de l’image associée (optionnelle) */
+  image?: string;
 }
 
 // ──────────────────────────────
@@ -249,39 +251,39 @@ export const CATEGORIE_PERMIS_CONFIG: Record<
   EnumDisplayConfig<CategoriePermis>
 > = {
   A: {
-    label: 'Moto',
-    description: 'Permis moto',
+    label: 'Catégorie A — Moto',
+    description: 'Permis moto – 2 roues',
     bgColor: 'bg-indigo-50 dark:bg-indigo-950/30',
     textColor: 'text-indigo-700 dark:text-indigo-300',
     icon: Car,
     order: 1,
   },
   B: {
-    label: 'Voiture',
-    description: 'Permis voiture (standard)',
+    label: 'Catégorie B — Voiture',
+    description: 'Permis voiture – Permis B',
     bgColor: 'bg-blue-50 dark:bg-blue-950/30',
     textColor: 'text-blue-700 dark:text-blue-300',
     icon: Car,
     order: 2,
   },
   C: {
-    label: 'Poids lourd',
-    description: 'Permis camion',
+    label: 'Catégorie C — Poids lourd',
+    description: 'Permis poids lourd',
     bgColor: 'bg-emerald-50 dark:bg-emerald-950/30',
     textColor: 'text-emerald-700 dark:text-emerald-300',
     icon: Car,
     order: 3,
   },
   D: {
-    label: 'Transport en commun',
-    description: 'Permis bus / autocar',
+    label: 'Catégorie D — Transport en commun',
+    description: 'Permis transport en commun',
     bgColor: 'bg-purple-50 dark:bg-purple-950/30',
     textColor: 'text-purple-700 dark:text-purple-300',
     icon: Car,
     order: 4,
   },
   BE: {
-    label: 'Voiture avec remorque',
+    label: 'Catégorie BE — Remorque',
     description: 'Permis BE (remorque)',
     bgColor: 'bg-amber-50 dark:bg-amber-950/30',
     textColor: 'text-amber-700 dark:text-amber-300',
@@ -474,7 +476,7 @@ export const TYPE_EXAMEN_CONFIG: Record<TypeExamen, EnumDisplayConfig<TypeExamen
     icon: GraduationCap,
     order: 1,
   },
-  CONDUIT: {
+  CONDUITE: {
     label: 'Conduite',
     description: 'Examen pratique de conduite',
     bgColor: 'bg-emerald-50 dark:bg-emerald-950/30',
@@ -533,6 +535,7 @@ export const MODE_PAIEMENT_CONFIG: Record<ModePaiement, EnumDisplayConfig<ModePa
     textColor: 'text-emerald-700 dark:text-emerald-300',
     icon: Coins,
     order: 1,
+    image: '/images/payments/espece.png',
   },
   CHEQUE: {
     label: 'Chèque',
@@ -541,6 +544,7 @@ export const MODE_PAIEMENT_CONFIG: Record<ModePaiement, EnumDisplayConfig<ModePa
     textColor: 'text-blue-700 dark:text-blue-300',
     icon: FileText,
     order: 2,
+    image: '/images/payments/cheque.png',
   },
   VIREMENT: {
     label: 'Virement',
@@ -549,6 +553,7 @@ export const MODE_PAIEMENT_CONFIG: Record<ModePaiement, EnumDisplayConfig<ModePa
     textColor: 'text-indigo-700 dark:text-indigo-300',
     icon: ArrowUpCircle,
     order: 3,
+    image: '/images/payments/virement.png',
   },
   CARTE: {
     label: 'Carte bancaire',
@@ -557,6 +562,7 @@ export const MODE_PAIEMENT_CONFIG: Record<ModePaiement, EnumDisplayConfig<ModePa
     textColor: 'text-purple-700 dark:text-purple-300',
     icon: CreditCard,
     order: 4,
+    image: '/images/payments/carte.png',
   },
   MOBILE_MONEY: {
     label: 'Mobile Money',
@@ -565,6 +571,7 @@ export const MODE_PAIEMENT_CONFIG: Record<ModePaiement, EnumDisplayConfig<ModePa
     textColor: 'text-amber-700 dark:text-amber-300',
     icon: Phone,
     order: 5,
+    image: '/images/payments/momo.png',
   },
 };
 

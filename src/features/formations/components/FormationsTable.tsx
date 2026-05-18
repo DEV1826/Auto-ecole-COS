@@ -48,7 +48,7 @@
  */
 
 import * as React from 'react';
-import { RefreshCw, ChevronRight, PlusCircle, GraduationCap } from 'lucide-react';
+import { RefreshCw, ChevronRight, GraduationCap, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { DataTable } from '@/components/tables/data-table';
@@ -110,11 +110,12 @@ export interface FormationsTableProps {
     /** Callback du bouton « Voir tout » */
     onViewAll?: () => void;
 
-    /** Afficher le bouton « Ajouter une formation » */
-    showAddButton?: boolean;
 
     /** Callback du bouton « Ajouter une formation » */
     onAddClick?: () => void;
+
+    /** Callback de l’action d’export */
+    onExportClick?: () => void;
 
     /** En‑tête : titre principal */
     title?: string;
@@ -177,8 +178,8 @@ export function FormationsTable({
     enableToolbar = false,
     showViewAll = false,
     onViewAll,
-    showAddButton = false,
     onAddClick,
+    onExportClick,
     title = 'Formations',
     description,
     asCard = true,
@@ -223,7 +224,6 @@ export function FormationsTable({
         setRefreshing(true);
         try {
             await onRefresh();
-            toast.success('Formations actualisées');
         } catch {
             toast.error("Erreur lors de l'actualisation");
         } finally {
@@ -296,12 +296,11 @@ export function FormationsTable({
                 </div>
             </div>
             <div className="flex items-center gap-1">
-                {showAddButton && onAddClick && (
-                    <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={onAddClick}>
-                        <PlusCircle className="h-3.5 w-3.5" />
-                        Ajouter
-                    </Button>
-                )}
+
+                <Button variant="outline" size="sm" onClick={onExportClick} className="h-8 gap-1 text-xs">
+                    <Download className="h-3.5 w-3.5" />
+                    Exporter
+                </Button>
                 {extraActions}
             </div>
         </div>

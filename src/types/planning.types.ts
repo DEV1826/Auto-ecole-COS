@@ -322,3 +322,257 @@ export interface LeconsColumnsOptions {
   enrichments?: LeconsEnrichments;
   variant?: 'admin' | 'secretaire' | 'moniteur';
 }
+
+// ============================================================
+// PARAMÈTRES & ENTRÉES (DTOs)
+// ============================================================
+
+/**
+ * Paramètres de filtrage et pagination pour la liste des leçons.
+ *
+ * @interface LeconsListParams
+ * @description
+ * Utilisé par `LeconsApi.getAll()` et le canal IPC `planning:getAll`.
+ *
+ * @property {number} [page=1] - Page courante (1-indexed)
+ * @property {number} [limit=20] - Nombre d'éléments par page (max 200)
+ * @property {string} [search] - Recherche textuelle : nom candidat, nom moniteur
+ * @property {TypeLecon} [type] - Filtrer par type de leçon
+ * @property {StatutLecon} [statut] - Filtrer par statut
+ * @property {number} [candidatId] - Filtrer par candidat
+ * @property {number} [moniteurId] - Filtrer par moniteur
+ * @property {number} [vehiculeId] - Filtrer par véhicule
+ * @property {string} [dateDebut] - Date de début (ISO 8601)
+ * @property {string} [dateFin] - Date de fin (ISO 8601)
+ * @property {'today' | 'week' | 'month' | 'all'} [period] - Période prédéfinie
+ * @property {'date' | 'duree' | 'createdAt'} [sortBy='date'] - Champ de tri
+ * @property {'asc' | 'desc'} [sortOrder='desc'] - Sens du tri
+ */
+export interface LeconsListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  type?: TypeLecon;
+  statut?: StatutLecon;
+  candidatId?: number;
+  moniteurId?: number;
+  vehiculeId?: number;
+  dateDebut?: string;
+  dateFin?: string;
+  period?: 'today' | 'week' | 'month' | 'all';
+  sortBy?: 'date' | 'duree' | 'createdAt';
+  sortOrder?: 'asc' | 'desc';
+}
+
+/**
+ * Données d'entrée pour créer une nouvelle leçon.
+ *
+ * @interface CreateLeconInput
+ * @description
+ * Tous les champs obligatoires doivent être fournis.
+ *
+ * @property {Date|string} date - Date et heure de début
+ * @property {number} duree - Durée en minutes (ex: 60)
+ * @property {TypeLecon} type - Type de leçon
+ * @property {number} candidatId - Identifiant du candidat
+ * @property {number} moniteurId - Identifiant du moniteur
+ * @property {number} [vehiculeId] - Véhicule utilisé (optionnel)
+ * @property {string} [notes] - Remarques (optionnelles)
+ */
+export interface CreateLeconInput {
+  date: Date | string;
+  duree: number;
+  type: TypeLecon;
+  candidatId: number;
+  moniteurId: number;
+  vehiculeId?: number | null;
+  notes?: string | null;
+}
+
+/**
+ * Données d'entrée pour mettre à jour une leçon (patch partiel).
+ *
+ * @interface UpdateLeconInput
+ * @description
+ * Tous les champs sont optionnels.
+ */
+export interface UpdateLeconInput {
+  date?: Date | string;
+  duree?: number;
+  type?: TypeLecon;
+  statut?: StatutLecon;
+  candidatId?: number;
+  moniteurId?: number;
+  vehiculeId?: number | null;
+  notes?: string | null;
+}
+
+// ============================================================
+// RÉPONSES DE L'API
+// ============================================================
+
+/**
+ * Réponse paginée pour la liste des leçons.
+ *
+ * @interface LeconsPaginatedResponse
+ * @property {Lecon[]} lecons - Leçons de la page (avec relations candidat, moniteur, véhicule)
+ * @property {number} total - Nombre total de leçons
+ * @property {number} page - Page courante
+ * @property {number} limit - Limite par page
+ * @property {number} totalPages - Nombre total de pages
+ */
+export interface LeconsPaginatedResponse {
+  lecons: Lecon[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/**
+ * Statistiques étendues des leçons pour le dashboard.
+ *
+ * @interface LeconsStatsExtended
+ * @extends LeconsStats
+ * @property {number} leconsAujourdHui - Leçons planifiées aujourd'hui
+ * @property {number} leconsSemaine - Leçons planifiées cette semaine
+ * @property {number} tauxAbsenteisme - Pourcentage d’absences (statut ABSENCE)
+ * @property {number} evolutionPlanifiees - Évolution du nombre de leçons planifiées (en %)
+ */
+export interface LeconsStatsExtended extends LeconsStats {
+  leconsAujourdHui: number;
+  leconsSemaine: number;
+  tauxAbsenteisme: number;
+  evolutionPlanifiees: number;
+}
+
+/**
+ * Données des sparklines pour les leçons (12 derniers mois).
+ *
+ * @interface LeconsSparklineData
+ * @property {{ values: number[]; labels?: string[] }} leconsEffectueesSparkline - Leçons effectuées par mois
+ * @property {{ values: number[]; labels?: string[] }} heuresConduiteSparkline - Heures de conduite par mois
+ * @property {{ values: number[]; labels?: string[] }} tauxOccupationSparkline - Taux d’occupation des véhicules
+ */
+export interface LeconsSparklineData {
+  leconsEffectueesSparkline: { values: number[]; labels?: string[] };
+  heuresConduiteSparkline: { values: number[]; labels?: string[] };
+  tauxOccupationSparkline: { values: number[]; labels?: string[] };
+}
+
+// ============================================================
+// API WINDOW — LeconsApi
+// ============================================================
+
+/**
+ * Interface de l'API planning (leçons) exposée au renderer via `window.api.planning`.
+ *
+ * @interface LeconsApi
+ * @description
+ * Toutes les méthodes sont asynchrones et communiquent via IPC Electron.
+ *
+ * ## Canaux IPC utilisés
+ * | Méthode               | Canal IPC                         |
+ * |-----------------------|-----------------------------------|
+ * | getAll                | planning:getAll                   |
+ * | getById               | planning:getById                  |
+ * | create                | planning:create                   |
+ * | update                | planning:update                   |
+ * | delete                | planning:delete                   |
+ * | getStats              | planning:getStats                 |
+ * | getTrends             | planning:getTrends                |
+ * | getSparklines         | planning:getSparklines            |
+ * | getByCandidat         | planning:getByCandidat            |
+ * | getByMoniteur         | planning:getByMoniteur            |
+ * | getByVehicule         | planning:getByVehicule            |
+ * | getBetweenDates       | planning:getBetweenDates          |
+ */
+export interface LeconsApi {
+  /**
+   * Récupère la liste paginée des leçons avec filtres.
+   * @param params - Pagination, filtres et tri
+   * @returns Liste paginée
+   */
+  getAll: (params?: LeconsListParams) => Promise<LeconsPaginatedResponse>;
+
+  /**
+   * Récupère une leçon par son identifiant (avec candidat, moniteur, véhicule).
+   * @param id - Identifiant de la leçon
+   * @returns Leçon complète
+   */
+  getById: (id: number) => Promise<Lecon>;
+
+  /**
+   * Crée une nouvelle leçon (vérifie la disponibilité des ressources).
+   * @param data - Données de la leçon
+   * @returns Leçon créée
+   */
+  create: (data: CreateLeconInput) => Promise<Lecon>;
+
+  /**
+   * Met à jour une leçon existante (patch partiel).
+   * @param id - Identifiant de la leçon
+   * @param data - Champs à modifier
+   * @returns Leçon mise à jour
+   */
+  update: (id: number, data: UpdateLeconInput) => Promise<Lecon>;
+
+  /**
+   * Supprime définitivement une leçon.
+   * @param id - Identifiant de la leçon
+   * @returns Résultat de l'opération
+   */
+  delete: (id: number) => Promise<{ success: boolean; message: string }>;
+
+  /**
+   * Récupère les statistiques agrégées des leçons.
+   * @returns Métriques étendues
+   */
+  getStats: () => Promise<LeconsStatsExtended>;
+
+  /**
+   * Récupère les tendances évolutives (mois vs précédent).
+   * @returns Variations en pourcentage
+   */
+  getTrends: () => Promise<LeconsTrends>;
+
+  /**
+   * Récupère les données des sparklines pour les 12 derniers mois.
+   * @returns Sparklines (effectuées, heures conduite, occupation)
+   */
+  getSparklines: () => Promise<LeconsSparklineData>;
+
+  /**
+   * Récupère toutes les leçons d’un candidat.
+   * @param candidatId - Identifiant du candidat
+   * @returns Liste des leçons (triées par date décroissante)
+   */
+  getByCandidat: (candidatId: number) => Promise<Lecon[]>;
+
+  /**
+   * Récupère toutes les leçons d’un moniteur.
+   * @param moniteurId - Identifiant du moniteur
+   * @returns Liste des leçons (triées par date décroissante)
+   */
+  getByMoniteur: (moniteurId: number) => Promise<Lecon[]>;
+
+  /**
+   * Récupère toutes les leçons d’un véhicule.
+   * @param vehiculeId - Identifiant du véhicule
+   * @returns Liste des leçons (triées par date décroissante)
+   */
+  getByVehicule: (vehiculeId: number) => Promise<Lecon[]>;
+
+  /**
+   * Récupère les leçons pour une période donnée (calendrier).
+   * @param startDate - Date de début (inclus)
+   * @param endDate - Date de fin (inclus)
+   * @param moniteurId - Optionnel : filtrer par moniteur
+   * @returns Liste des leçons dans l’intervalle
+   */
+  getBetweenDates: (
+    startDate: Date | string,
+    endDate: Date | string,
+    moniteurId?: number
+  ) => Promise<Lecon[]>;
+}

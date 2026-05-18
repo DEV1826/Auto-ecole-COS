@@ -172,6 +172,7 @@ function colDocumentInfo(): ColumnDef<Document> {
     getPrimaryText: (doc) => doc.nomFichier,
     getSecondaryText: (doc) => formatBytes(doc.taille),
     avatarSize: 'md',
+    img: true,
     enableSorting: true,
     size: 320,
     cellClassName: 'min-w-0',
@@ -291,7 +292,7 @@ function colCandidatEnriched(enrichments: DocumentsEnrichments): ColumnDef<Docum
   }
 
   return createAvatarWithTextColumn<Document>({
-    accessorKey: 'candidatId', // clé virtuelle
+    accessorKey: 'candidatId',
     title: 'Candidat',
     icon: User,
     getAvatarUrl: (doc) => getCandidatAvatarUrl?.(doc) ?? '',
@@ -493,6 +494,8 @@ export function getAdminDocumentsColumns(
     },
   });
 }
+
+
 
 /**
  * Colonnes pour le tableau des documents – vue secrétaire.

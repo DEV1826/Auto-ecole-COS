@@ -6,17 +6,19 @@
  * Types complets pour l’administration du système Auto‑école COS.
  *
  * Ce module exporte :
- * - `PermissionDetail` : permissions individuelles (ressource + action)
- * - `AuditLogEntry` : entrée de log d’audit
+ * - `Permission` : permissions individuelles (ressource + action)
+ * - `AuditLog` : entrée de log d’audit
  * - `CompanyConfig` : configuration de l’entreprise
  * - `AdminStats` : métriques pour le dashboard admin
  * - `AdminTrends` : tendances évolutives
  * - `AuditLogsColumnConfig` : configuration des colonnes pour les logs
  * - `AuditLogsTableActions` : actions sur les logs
  * - `AuditLogsColumnsOptions` : options pour la génération des colonnes
+ * - `AuditLogsApi` : API pour les logs d’audit
+ * - `CompanyApi` : API pour la configuration entreprise
  *
  * @author Stive Junior
- * @version 1.0.0
+ * @version 2.0.0
  *
  * @see {@link Utilisateur} – Utilisateurs du système
  * @see {@link Role} – Rôles utilisateur
@@ -159,6 +161,65 @@ export interface CompanyConfig {
 }
 
 // ============================================================
+// STATISTIQUES POUR LE DASHBOARD ADMIN
+// ============================================================
+
+/**
+ * Métriques statistiques pour le tableau de bord administrateur.
+ *
+ * @interface AdminStats
+ * @property {number} totalUtilisateurs - Nombre total d’utilisateurs actifs
+ * @property {number} totalAdmins - Nombre d’utilisateurs avec rôle ADMIN
+ * @property {number} totalSecretaires - Nombre de SECRETAIRE
+ * @property {number} totalMoniteurs - Nombre de MONITEUR
+ * @property {number} totalSessionsActives - Nombre de sessions ouvertes
+ * @property {number} logsErreur7j - Nombre de logs d’audit en échec ces 7 derniers jours
+ * @property {number} logsTotal - Nombre total de logs d’audit
+ * @property {number} logsSuccess - Nombre de logs en succès
+ * @property {number} logsFailed - Nombre de logs en échec
+ */
+export interface AdminStats {
+  totalUtilisateurs: number;
+  totalAdmins: number;
+  totalSecretaires: number;
+  totalMoniteurs: number;
+  totalSessionsActives: number;
+  logsErreur7j: number;
+  logsTotal: number;
+  logsSuccess: number;
+  logsFailed: number;
+}
+
+// src/types/admin.types.ts (extrait modifié)
+
+/**
+ * Tendances évolutives pour les métriques d’administration.
+ * Inclut les variations des utilisateurs, sessions et logs d’audit.
+ *
+ * @interface AdminTrends
+ * @property {number} totalUtilisateurs - Variation du nombre d'utilisateurs actifs
+ * @property {number} totalAdmins - Variation des administrateurs
+ * @property {number} totalSecretaires - Variation des secrétaires
+ * @property {number} totalMoniteurs - Variation des moniteurs
+ * @property {number} totalSessionsActives - Variation des sessions actives
+ * @property {number} logsTotal - Variation du nombre total de logs d’audit
+ * @property {number} logsSuccess - Variation du nombre de logs en succès
+ * @property {number} logsFailed - Variation du nombre de logs en échec
+ * @property {number} logsErreur7j - Variation des logs d’erreur (7 jours glissants) – conservé pour compatibilité
+ */
+export interface AdminTrends {
+  totalUtilisateurs: number;
+  totalAdmins: number;
+  totalSecretaires: number;
+  totalMoniteurs: number;
+  totalSessionsActives: number;
+  logsTotal: number;
+  logsSuccess: number;
+  logsFailed: number;
+  logsErreur7j: number;
+}
+
+// ============================================================
 // CONFIGURATION DES COLONNES POUR LE TABLEAU DES LOGS D’AUDIT
 // ============================================================
 
@@ -173,7 +234,7 @@ export interface CompanyConfig {
  * @property {boolean} [showIpAddress] - Afficher l’adresse IP (défaut : false)
  * @property {boolean} [showStatut] - Afficher le statut (badge) (défaut : true)
  * @property {boolean} [showCreatedAt] - Afficher la date de création (défaut : true)
- * @property {boolean} [showActions] - Afficher le menu d’actions (défaut : false, logs généralement non modifiables)
+ * @property {boolean} [showActions] - Afficher le menu d’actions (défaut : false)
  */
 export interface AuditLogsColumnConfig {
   showUtilisateur?: boolean;
@@ -190,17 +251,13 @@ export interface AuditLogsColumnConfig {
  * Callbacks d’actions pour le tableau des logs d’audit.
  *
  * @interface AuditLogsTableActions
- * @property {(log: AuditLogEntry) => void} [onViewDetails] - Voir les détails complets (JSON)
+ * @property {(log: AuditLog) => void} [onViewDetails] - Voir les détails complets (JSON)
  * @property {(userId: number) => void} [onFilterByUser] - Filtrer par cet utilisateur
  */
 export interface AuditLogsTableActions {
   onViewDetails?: (log: AuditLog) => void;
   onFilterByUser?: (userId: number) => void;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ENRICHISSEMENTS POUR LES LOGS D’AUDIT
-// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Enrichissements optionnels pour injecter les données de l’utilisateur
@@ -224,6 +281,7 @@ export interface AuditLogsEnrichments {
  *
  * @interface AuditLogsColumnsOptions
  * @property {AuditLogsColumnConfig} [columnConfig] - Surcharge de la visibilité des colonnes
+ * @property {AuditLogsEnrichments} [enrichments] - Données calculées
  * @property {AuditLogsTableActions} [actions] - Callbacks d’actions
  * @property {'admin' | 'auditor'} [variant] - Profil utilisateur
  *   - `admin` : toutes les colonnes, y compris IP et actions
@@ -234,4 +292,125 @@ export interface AuditLogsColumnsOptions {
   enrichments?: AuditLogsEnrichments;
   actions?: AuditLogsTableActions;
   variant?: 'admin' | 'auditor';
+}
+
+// ============================================================
+// API ADMIN (logs + company config)
+// ============================================================
+
+/**
+ * Réponse paginée pour les logs d’audit.
+ *
+ * @interface AuditLogsPaginatedResponse
+ * @property {AuditLog[]} logs - Liste des logs
+ * @property {number} total - Nombre total
+ * @property {number} page - Page courante
+ * @property {number} limit - Limite par page
+ * @property {number} totalPages - Nombre total de pages
+ */
+export interface AuditLogsPaginatedResponse {
+  logs: AuditLog[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/**
+ * Paramètres pour la récupération des logs d’audit paginés.
+ *
+ * @interface AuditLogsListParams
+ * @property {number} [page=1] - Page courante (1-indexed)
+ * @property {number} [limit=20] - Nombre d’éléments par page
+ * @property {number} [utilisateurId] - Filtrer par utilisateur
+ * @property {string} [action] - Filtrer par action (ex: "LOGIN_SUCCESS")
+ * @property {string} [ressource] - Filtrer par ressource (ex: "Candidat")
+ * @property {'SUCCESS' | 'FAILED'} [statut] - Filtrer par statut
+ * @property {string} [dateDebut] - Date de début (ISO 8601)
+ * @property {string} [dateFin] - Date de fin (ISO 8601)
+ * @property {'today' | 'week' | 'month' | 'all'} [period] - Période prédéfinie
+ * @property {string} [search] - Recherche textuelle (action, ressource, description)
+ */
+export interface AuditLogsListParams {
+  page?: number;
+  limit?: number;
+  utilisateurId?: number;
+  action?: string;
+  ressource?: string;
+  statut?: 'SUCCESS' | 'FAILED';
+  dateDebut?: string;
+  dateFin?: string;
+  period?: 'today' | 'week' | 'month' | 'all';
+  search?: string;
+}
+
+/**
+ * Données d’entrée pour mettre à jour la configuration de l’entreprise.
+ *
+ * @interface UpdateCompanyConfigInput
+ * @property {string} [nom] - Nom de l’auto‑école
+ * @property {string | null} [adresse] - Adresse
+ * @property {string | null} [telephone] - Téléphone
+ * @property {string | null} [email] - Email
+ * @property {string | null} [siteWeb] - Site web
+ * @property {string | null} [numeroFiscal] - Numéro fiscal
+ * @property {string | null} [logoPath] - Chemin du logo
+ */
+export interface UpdateCompanyConfigInput {
+  nom?: string;
+  adresse?: string | null;
+  telephone?: string | null;
+  email?: string | null;
+  siteWeb?: string | null;
+  numeroFiscal?: string | null;
+  logoPath?: string | null;
+}
+
+/**
+ * Interface de l’API d’administration exposée au renderer via `window.api.admin`.
+ *
+ * @interface AdminApi
+ * @description Toutes les méthodes sont asynchrones et communiquent via IPC.
+ *
+ * ## Canaux IPC utilisés
+ * | Méthode               | Canal IPC                         |
+ * |-----------------------|-----------------------------------|
+ * | getAuditLogs          | admin:getAuditLogs                |
+ * | getAdminStats     | admin:getAdminStats           |
+ * | getAdminTrends    | admin:getAdminTrends          |
+ * | getCompanyConfig      | admin:getCompanyConfig            |
+ * | updateCompanyConfig   | admin:updateCompanyConfig         |
+ */
+export interface AdminApi {
+  /**
+   * Récupère la liste paginée des logs d’audit avec filtres.
+   * @param params - Paramètres de pagination, filtres et tri
+   * @returns Réponse paginée
+   */
+  getAuditLogs: (params?: AuditLogsListParams) => Promise<AuditLogsPaginatedResponse>;
+
+  /**
+   * Récupère les statistiques agrégées des logs d’audit (total, succès, échecs, etc.).
+   * @returns Métriques étendues
+   */
+  getAdminStats: () => Promise<AdminStats>;
+
+  /**
+   * Récupère les tendances évolutives des logs d’audit.
+   * @returns Variations en pourcentage (mois en cours vs précédent)
+   */
+  getAdminTrends: () => Promise<AdminTrends>;
+
+  /**
+   * Récupère la configuration actuelle de l’entreprise.
+   * @returns Configuration complète
+   */
+  getCompanyConfig: () => Promise<CompanyConfig>;
+
+  /**
+   * Met à jour la configuration de l’entreprise.
+   * @param data - Champs à modifier (tous optionnels)
+   * @returns Configuration mise à jour
+   */
+  updateCompanyConfig: (data: UpdateCompanyConfigInput) => Promise<CompanyConfig>;
 }

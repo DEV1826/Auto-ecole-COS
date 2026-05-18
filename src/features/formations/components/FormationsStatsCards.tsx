@@ -50,7 +50,7 @@
  * ```
  *
  * @author Stive Junior
- * @version 1.0.0
+ * @version 1.1.0
  * @see {@link FormationsStats} – Métriques agrégées
  * @see {@link FormationsTrends} – Tendances évolutives
  * @see {@link StatsCard} – Carte de statistique réutilisable
@@ -86,9 +86,9 @@ export interface FormationsSparklineData {
  */
 export interface FormationsStatsCardsProps {
   /** Métriques statistiques des formations */
-  stats: FormationsStats;
+  stats: FormationsStats | null; // Accepte null pendant le chargement
   /** Tendances évolutives (optionnelles) */
-  trends?: Partial<FormationsTrends>;
+  trends?: Partial<FormationsTrends> | null;
 
   /** Sparkline pour le nombre de formations actives */
   formationsActivesSparkline?: FormationsSparklineData;
@@ -181,6 +181,31 @@ export function FormationsStatsCards({
     onCardClick?.(cardId);
   };
 
+  if (isLoading) {
+    const skeletonCards: StatsCardProps[] = [
+      { id: 'skeleton-1', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-2', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-3', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-4', title: '', value: '', icon: null, Color: 'gray' },
+    ];
+    return <StatsGrid cards={skeletonCards} cols={2} className={cn('w-full', className)} isLoading={true} />;
+  }
+
+  // Si pas de stats (et pas en chargement), afficher l'état vide
+  if (!stats) {
+    return (
+      <div className={cn('w-full', className)}>
+        <EmptyState
+          title="Aucune statistique disponible"
+          description="Les données sur les formations seront affichées ici une fois disponibles."
+          icon={GraduationCap}
+          variant="dashed"
+          size="md"
+        />
+      </div>
+    );
+  }
+
   // Cartes par défaut
   const defaultCards: StatsCardProps[] = [
     {
@@ -188,14 +213,14 @@ export function FormationsStatsCards({
       title: 'Formations actives',
       value: formatCompactNumber(stats.formationsActives),
       icon: <BookOpen className="size-5" />,
-      iconBg: 'bg-blue-500',
+      Color: 'blue-500',
       description: 'Offres disponibles',
-      trend: buildTrend(trends.formationsActives, 'vs période précédente'),
+      trend: buildTrend(trends?.formationsActives, 'vs période précédente'),
       sparklineData: formationsActivesSparkline
         ? {
-            values: formationsActivesSparkline.values,
-            labels: formationsActivesSparkline.labels,
-          }
+          values: formationsActivesSparkline.values,
+          labels: formationsActivesSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('formations-actives'),
     },
@@ -204,14 +229,14 @@ export function FormationsStatsCards({
       title: 'Prix moyen',
       value: formatCurrency(stats.prixMoyen),
       icon: <Wallet className="size-5" />,
-      iconBg: 'bg-emerald-500',
+      Color: 'emerald-500',
       description: 'Moyenne des formations actives',
-      trend: buildTrend(trends.prixMoyen, 'vs période précédente'),
+      trend: buildTrend(trends?.prixMoyen, 'vs période précédente'),
       sparklineData: prixMoyenSparkline
         ? {
-            values: prixMoyenSparkline.values,
-            labels: prixMoyenSparkline.labels,
-          }
+          values: prixMoyenSparkline.values,
+          labels: prixMoyenSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('prix-moyen'),
     },
@@ -220,14 +245,14 @@ export function FormationsStatsCards({
       title: 'Total inscriptions',
       value: formatCompactNumber(stats.totalInscriptions),
       icon: <Users className="size-5" />,
-      iconBg: 'bg-amber-500',
+      Color: 'amber-500',
       description: 'Candidats inscrits',
-      trend: buildTrend(trends.totalInscriptions, 'vs période précédente'),
+      trend: buildTrend(trends?.totalInscriptions, 'vs période précédente'),
       sparklineData: totalInscriptionsSparkline
         ? {
-            values: totalInscriptionsSparkline.values,
-            labels: totalInscriptionsSparkline.labels,
-          }
+          values: totalInscriptionsSparkline.values,
+          labels: totalInscriptionsSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('total-inscriptions'),
     },
@@ -236,14 +261,14 @@ export function FormationsStatsCards({
       title: 'Inscriptions du mois',
       value: formatCompactNumber(stats.inscriptionsMois),
       icon: <CalendarCheck className="size-5" />,
-      iconBg: 'bg-purple-500',
+      Color: 'purple-500',
       description: 'Nouvelles inscriptions',
-      trend: buildTrend(trends.inscriptionsMois, 'vs mois dernier'),
+      trend: buildTrend(trends?.inscriptionsMois, 'vs mois dernier'),
       sparklineData: inscriptionsMoisSparkline
         ? {
-            values: inscriptionsMoisSparkline.values,
-            labels: inscriptionsMoisSparkline.labels,
-          }
+          values: inscriptionsMoisSparkline.values,
+          labels: inscriptionsMoisSparkline.labels,
+        }
         : undefined,
       onClick: () => handleCardClick('inscriptions-mois'),
     },
@@ -251,16 +276,16 @@ export function FormationsStatsCards({
 
   const cards = customCards ?? defaultCards;
 
-  // Vérification de données significatives
+  // Vérification de données significatives (uniquement si stats existe)
   const hasData = cards.some((card) => {
     const numericValue =
       typeof card.value === 'number'
         ? card.value
         : parseFloat(String(card.value).replace(/[^0-9.-]/g, ''));
-    return !isNaN(numericValue) && numericValue > 0;
+    return !isNaN(numericValue);
   });
 
-  if (!hasData && !isLoading) {
+  if (!hasData) {
     return (
       <div className={cn('w-full', className)}>
         <EmptyState
@@ -275,7 +300,7 @@ export function FormationsStatsCards({
   }
 
   return (
-    <StatsGrid cards={cards} cols={2} className={cn('w-full', className)} isLoading={isLoading} />
+    <StatsGrid cards={cards} cols={2} className={cn('w-full', className)} isLoading={false} />
   );
 }
 

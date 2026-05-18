@@ -59,16 +59,8 @@ export function formatErrorMessage(
 
   if (error instanceof Error) {
     finalMessage = error.message;
-
-    // Si Electron a wrappé l'erreur, le message métier est parfois dans la propriété 'message'
-    // mais le texte brut est "Error invoking remote method...".
-    // On essaie de voir si une cause plus profonde existe.
-    if (error.cause) {
-      if (error.cause instanceof Error) finalMessage = error.cause.message;
-      else if (typeof error.cause === 'string') finalMessage = error.cause;
-    }
   } else if (typeof error === 'object' && error !== null && 'message' in error) {
-    finalMessage = String((error as any).message);
+    finalMessage = String(error.message);
   }
 
   const result = cleanMessage(finalMessage);

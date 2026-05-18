@@ -117,38 +117,56 @@ function buildWhereClause({ search, statut, categorie, dateDebut, dateFin }) {
  * const result = await getAll({ page: 2, limit: 20, search: 'Dupont', statut: 'EN_COURS' });
  */
 export async function getAll(params = {}) {
-  const { page = 1, limit = 10, ...filters } = params;
-  const skip = (Math.max(1, page) - 1) * Math.max(1, limit);
-  const take = Math.max(1, limit);
-
+  const { page, limit, ...filters } = params;
   const where = buildWhereClause(filters);
 
-  return executePrismaOperation(async () => {
-    const [candidats, total] = await Promise.all([
-      findMany(
-        'candidat',
-        where,
-        {
-          // Relations légères par défaut (pas les listes complètes)
-          formation: {
-            include: { formation: true },
+  if (page !== undefined && limit !== undefined) {
+    const skip = (Math.max(1, page) - 1) * Math.max(1, limit);
+    const take = Math.max(1, limit);
+    return executePrismaOperation(async () => {
+      const [candidats, total] = await Promise.all([
+        findMany(
+          'candidat',
+          where,
+          {
+            formation: {
+              include: { formation: true },
+            },
           },
-        },
-        { dateInscription: 'desc' },
-        skip,
-        take
-      ),
-      count('candidat', where),
-    ]);
+          { dateInscription: 'desc' },
+          skip,
+          take
+        ),
+        count('candidat', where),
+      ]);
 
-    return {
-      candidats,
-      total,
-      page,
-      limit: take,
-      totalPages: Math.ceil(total / take),
-    };
-  }, 'Erreur lors de la récupération des candidats');
+      return {
+        candidats,
+        total,
+        page,
+        limit: take,
+        totalPages: Math.ceil(total / take),
+      };
+    }, 'Erreur lors de la récupération des candidats');
+  } else {
+    return executePrismaOperation(async () => {
+      const candidats = await Promise.all([
+        findMany(
+          'candidat',
+          where,
+          {
+            formation: {
+              include: { formation: true },
+            },
+          },
+          { dateInscription: 'desc' }
+        ),
+        count('candidat', where),
+      ]);
+
+      return candidats;
+    }, 'Erreur lors de la récupération des logs d’audit');
+  }
 }
 
 /**
@@ -178,7 +196,7 @@ export async function getById(id) {
         formation: {
           include: { formation: true },
         },
-        documents: { orderBy: { createdAt: 'desc' } },
+        documents: { orderBy: { uploadedAt: 'desc' } },
       }
     );
 
@@ -219,7 +237,7 @@ export async function createCandidat(data) {
   // Vérifier l'unicité de l'email (si fourni)
   if (data.email) {
     const existing = await findUnique('candidat', { email: data.email });
-    if (existing && !existing.deletedAt) {
+    if (existing) {
       throw new Error('Un candidat avec cet email existe déjà.');
     }
   }
@@ -252,16 +270,30 @@ export async function createCandidat(data) {
     // Création dans une transaction si formationId est fourni
     if (data.formationId) {
       return transaction(async (tx) => {
+        // 1. Récupérer la formation pour obtenir le prix total
+        const formation = await tx.formation.findUnique({
+          where: { id: data.formationId },
+          select: { prixTotal: true },
+        });
+        if (!formation) {
+          throw new Error('Formation non trouvée.');
+        }
+
+        // 2. Créer le candidat
         const candidat = await tx.candidat.create({ data: createData });
+
+        // 3. Créer l'entrée formationCandidat avec le montant total de la formation
         await tx.formationCandidat.create({
           data: {
             candidatId: candidat.id,
             formationId: data.formationId,
+            montantTotal: formation.prixTotal,
             dateDebut: new Date(),
             heuresConduiteEffectuees: 0,
             heuresCodeEffectuees: 0,
           },
         });
+
         // Retourner le candidat avec la formation incluse
         return tx.candidat.findUnique({
           where: { id: candidat.id },
@@ -610,7 +642,7 @@ export async function getDocuments(candidatId) {
     if (!candidat) {
       throw new Error('Candidat non trouvé.');
     }
-    return findMany('document', { candidatId }, {}, { createdAt: 'desc' });
+    return findMany('document', { candidatId }, {}, { uploadedAt: 'desc' });
   }, 'Erreur lors de la récupération des documents');
 }
 
@@ -674,4 +706,54 @@ export async function deleteDocument(docId) {
     await prisma.document.delete({ where: { id: docId } });
     return { success: true, message: 'Document supprimé avec succès.' };
   }, 'Erreur lors de la suppression du document');
+}
+
+/**
+ * Récupère les tendances évolutives des indicateurs candidats.
+ * Compare les données des 30 derniers jours avec la période précédente (30 jours avant).
+ *
+ * @returns {Promise<Object>} Tendances (variations en pourcentage)
+ * @property {number} total - Variation du nombre total
+ * @property {number} actifs - Variation des candidats actifs
+ * @property {number} reçus - Variation des candidats reçus
+ * @property {number} echecs - Variation des candidats échoués
+ */
+export async function getTrends() {
+  return executePrismaOperation(async () => {
+    const now = new Date();
+    const endCurrent = now;
+    const startCurrent = new Date(now);
+    startCurrent.setDate(now.getDate() - 30);
+    const startPrevious = new Date(startCurrent);
+    startPrevious.setDate(startCurrent.getDate() - 30);
+    const endPrevious = startCurrent;
+
+    // Fonction pour compter les candidats créés dans une période
+    const countInPeriod = async (start, end) => {
+      const where = {
+        deletedAt: null,
+        createdAt: { gte: start, lt: end },
+      };
+      const total = await count('candidat', where);
+      const actifs = await count('candidat', { ...where, statut: 'EN_COURS' });
+      const recus = await count('candidat', { ...where, statut: 'RECU' });
+      const echecs = await count('candidat', { ...where, statut: 'ECHOUE' });
+      return { total, actifs, recus, echecs };
+    };
+
+    const current = await countInPeriod(startCurrent, endCurrent);
+    const previous = await countInPeriod(startPrevious, endPrevious);
+
+    const calcVar = (curr, prev) => {
+      if (prev === 0) return curr === 0 ? 0 : 100;
+      return parseFloat((((curr - prev) / prev) * 100).toFixed(1));
+    };
+
+    return {
+      total: calcVar(current.total, previous.total),
+      actifs: calcVar(current.actifs, previous.actifs),
+      reçus: calcVar(current.recus, previous.recus),
+      echecs: calcVar(current.echecs, previous.echecs),
+    };
+  }, 'Erreur lors du calcul des tendances');
 }

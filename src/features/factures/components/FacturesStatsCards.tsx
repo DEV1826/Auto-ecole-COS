@@ -62,7 +62,7 @@ import {
 } from '@/features/dashboard/components/common/StatsCard';
 import { EmptyState } from '@/features/dashboard/components/common/EmptyState';
 import { cn } from '@/lib/utils';
-import type { FacturesStats, FacturesTrends } from '@/types/factures.types';
+import type { FacturesStatsExtended, FacturesTrends } from '@/types/factures.types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -83,7 +83,7 @@ export interface FacturesSparklineData {
  */
 export interface FacturesStatsCardsProps {
   /** Métriques statistiques des factures */
-  stats: FacturesStats;
+  stats: FacturesStatsExtended;
   /** Tendances évolutives (optionnelles) */
   trends?: Partial<FacturesTrends>;
 
@@ -173,25 +173,40 @@ export function FacturesStatsCards({
   className,
   customCards,
 }: FacturesStatsCardsProps): React.JSX.Element {
-  const handleCardClick = (cardId: string) => {
-    onCardClick?.(cardId);
-  };
+  const handleCardClick = (cardId: string) => onCardClick?.(cardId);
 
-  // Cartes par défaut
+  // Affichage des squelettes pendant le chargement ou si stats est null
+  if (isLoading || !stats) {
+    const skeletonCards: StatsCardProps[] = [
+      { id: 'skeleton-1', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-2', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-3', title: '', value: '', icon: null, Color: 'gray' },
+      { id: 'skeleton-4', title: '', value: '', icon: null, Color: 'gray' },
+    ];
+    return (
+      <StatsGrid
+        cards={skeletonCards}
+        cols={4}
+        className={cn('w-full', className)}
+        isLoading={true}
+        classGrid='h-auto'
+      />
+    );
+  }
+
+  // Cartes par défaut avec métriques étendues (montantJour, montantMois utilisés comme descriptions)
   const defaultCards: StatsCardProps[] = [
     {
       id: 'total-factures',
       title: 'Total factures',
       value: formatCompactNumber(stats.totalFactures),
+      secondaryValue: `${stats.totalFactures} émises`,
       icon: <FileText className="size-5" />,
-      iconBg: 'bg-blue-500',
-      description: 'Factures émises',
+      Color: 'blue-500',
+      description: `${stats.totalFactures} facture${stats.totalFactures > 1 ? 's' : ''}`,
       trend: buildTrend(trends.totalFactures, 'vs période précédente'),
       sparklineData: totalFacturesSparkline
-        ? {
-            values: totalFacturesSparkline.values,
-            labels: totalFacturesSparkline.labels,
-          }
+        ? { values: totalFacturesSparkline.values, labels: totalFacturesSparkline.labels }
         : undefined,
       onClick: () => handleCardClick('total-factures'),
     },
@@ -199,15 +214,13 @@ export function FacturesStatsCards({
       id: 'montant-total',
       title: 'Montant total',
       value: formatCurrency(stats.montantTotal),
+      secondaryValue: `${formatCurrency(stats.montantMois)} ce mois`,
       icon: <Receipt className="size-5" />,
-      iconBg: 'bg-emerald-500',
+      Color: 'emerald-500',
       description: 'Cumul des factures',
       trend: buildTrend(trends.montantTotal, 'vs période précédente'),
       sparklineData: montantTotalSparkline
-        ? {
-            values: montantTotalSparkline.values,
-            labels: montantTotalSparkline.labels,
-          }
+        ? { values: montantTotalSparkline.values, labels: montantTotalSparkline.labels }
         : undefined,
       onClick: () => handleCardClick('montant-total'),
     },
@@ -215,15 +228,13 @@ export function FacturesStatsCards({
       id: 'montant-impaye',
       title: 'Montant impayé',
       value: formatCurrency(stats.montantImpaye),
+      secondaryValue: stats.facturesImpayees > 0 ? `${stats.facturesImpayees} facture${stats.facturesImpayees > 1 ? 's' : ''} en souffrance` : 'Toutes soldées',
       icon: <Clock className="size-5" />,
-      iconBg: 'bg-amber-500',
+      Color: 'amber-500',
       description: 'Restant à payer',
       trend: buildTrend(trends.montantImpaye, 'vs période précédente'),
       sparklineData: montantImpayeSparkline
-        ? {
-            values: montantImpayeSparkline.values,
-            labels: montantImpayeSparkline.labels,
-          }
+        ? { values: montantImpayeSparkline.values, labels: montantImpayeSparkline.labels }
         : undefined,
       onClick: () => handleCardClick('montant-impaye'),
     },
@@ -231,15 +242,13 @@ export function FacturesStatsCards({
       id: 'paiements-recus',
       title: 'Paiements reçus',
       value: formatCurrency(stats.paiementsRecus),
+      secondaryValue: `${formatCurrency(stats.paiementsRecus)} encaissé`,
       icon: <CheckCircle className="size-5" />,
-      iconBg: 'bg-purple-500',
+      Color: 'purple-500',
       description: 'Total encaissé',
       trend: buildTrend(trends.paiementsRecus, 'vs période précédente'),
       sparklineData: paiementsRecusSparkline
-        ? {
-            values: paiementsRecusSparkline.values,
-            labels: paiementsRecusSparkline.labels,
-          }
+        ? { values: paiementsRecusSparkline.values, labels: paiementsRecusSparkline.labels }
         : undefined,
       onClick: () => handleCardClick('paiements-recus'),
     },
@@ -253,7 +262,7 @@ export function FacturesStatsCards({
       typeof card.value === 'number'
         ? card.value
         : parseFloat(String(card.value).replace(/[^0-9.-]/g, ''));
-    return !isNaN(numericValue) && numericValue > 0;
+    return !isNaN(numericValue);
   });
 
   if (!hasData && !isLoading) {
@@ -271,7 +280,13 @@ export function FacturesStatsCards({
   }
 
   return (
-    <StatsGrid cards={cards} cols={2} className={cn('w-full', className)} isLoading={isLoading} />
+    <StatsGrid
+      cards={cards}
+      cols={4}
+      className={cn('w-full', className)}
+      isLoading={isLoading}
+      classGrid='h-auto'
+    />
   );
 }
 

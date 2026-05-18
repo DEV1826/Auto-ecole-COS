@@ -53,6 +53,9 @@ const ResetPasswordPage = lazy(() =>
 const RegisterPage = lazy(() =>
   import('@/features/auth').then((m) => ({ default: m.RegisterPage }))
 );
+const RegisterAccessPage = lazy(() =>
+  import('@/features/auth').then((m) => ({ default: m.RegisterAccessPage }))
+);
 const OTPPage = lazy(() => import('@/features/auth').then((m) => ({ default: m.OTPPage })));
 
 // ---- DASHBOARD ----
@@ -63,9 +66,6 @@ const DashboardPage = lazy(() =>
 // ---- PROFILE ----
 const ProfilePage = lazy(() =>
   import('@/features/profile').then((m) => ({ default: m.ProfilePage }))
-);
-const SettingsPage = lazy(() =>
-  import('@/features/profile').then((m) => ({ default: m.SettingsPage }))
 );
 
 // ---- CANDIDATS ----
@@ -95,9 +95,6 @@ const FormationCreatePage = lazy(() =>
 const FormationEditPage = lazy(() =>
   import('@/features/formations').then((m) => ({ default: m.FormationEditPage }))
 );
-const FormationTarifsPage = lazy(() =>
-  import('@/features/formations').then((m) => ({ default: m.FormationTarifsPage }))
-);
 
 // ---- MONITEURS ----
 const MoniteursListPage = lazy(() =>
@@ -111,9 +108,6 @@ const MoniteurCreatePage = lazy(() =>
 );
 const MoniteurEditPage = lazy(() =>
   import('@/features/moniteurs').then((m) => ({ default: m.MoniteurEditPage }))
-);
-const MoniteurPlanningPage = lazy(() =>
-  import('@/features/moniteurs').then((m) => ({ default: m.MoniteurPlanningPage }))
 );
 
 // ---- VEHICULES ----
@@ -196,12 +190,12 @@ const FactureEditPage = lazy(() =>
   import('@/features/factures').then((m) => ({ default: m.FactureEditPage }))
 );
 
-// Reçus
-const RecusListPage = lazy(() =>
-  import('@/features/documents').then((m) => ({ default: m.RecusListPage }))
+const DocumentsListPage = lazy(() =>
+  import('@/features/documents').then((m) => ({ default: m.DocumentsListPage }))
 );
-const RecuDetailPage = lazy(() =>
-  import('@/features/documents').then((m) => ({ default: m.RecuDetailPage }))
+
+const DocumentsUploadPage = lazy(() =>
+  import('@/features/documents').then((m) => ({ default: m.DocumentsUploadPage }))
 );
 
 // Dépenses
@@ -213,6 +207,9 @@ const DepenseCreatePage = lazy(() =>
 );
 const DepenseEditPage = lazy(() =>
   import('@/features/depenses').then((m) => ({ default: m.DepenseEditPage }))
+);
+const DepenseDetailPage = lazy(() =>
+  import('@/features/depenses').then((m) => ({ default: m.DepenseDetailPage }))
 );
 
 // Caisse
@@ -263,7 +260,6 @@ const AdminCompanyConfigPage = lazy(() =>
   import('@/features/admin').then((m) => ({ default: m.AdminCompanyConfigPage }))
 );
 
-
 // ---- UTILITAIRES (Notifications, Help, API Docs) ----
 const NotificationsPage = lazy(() =>
   import('@/features/utils').then((m) => ({ default: m.NotificationsPage }))
@@ -310,6 +306,33 @@ export default function App() {
                 </Route>
 
                 <Route path={PUBLIC_ROUTES.AUTH.LOGIN} element={<LoginPage />} />
+                <Route path={PUBLIC_ROUTES.AUTH.REGISTER_ACCESS} element={<RegisterAccessPage />} />
+                <Route
+                  element={
+                    <RequireState
+                      requiredStateKeys={['developerSetupAccess', 'setupAccessToken', 'expiresAt']}
+                      maxAge={10 * 60 * 1000}
+                      redirectTo={PUBLIC_ROUTES.AUTH.REGISTER_ACCESS}
+                      customValidation={(state) => {
+                        const access = state as {
+                          developerSetupAccess?: boolean;
+                          setupAccessToken?: string;
+                          expiresAt?: number;
+                        };
+                        return (
+                          access.developerSetupAccess === true &&
+                          typeof access.setupAccessToken === 'string' &&
+                          access.setupAccessToken.length >= 24 &&
+                          typeof access.expiresAt === 'number' &&
+                          typeof (state as { timestamp?: number }).timestamp === 'number' &&
+                          access.expiresAt > (state as { timestamp: number }).timestamp
+                        );
+                      }}
+                    />
+                  }
+                >
+                  <Route path={PUBLIC_ROUTES.AUTH.REGISTER} element={<RegisterPage />} />
+                </Route>
                 <Route element={<RequireState requiredStateKeys="fromLogout" />}>
                   <Route path={PUBLIC_ROUTES.AUTH.LOGOUT} element={<LogoutPage />} />
                 </Route>
@@ -378,9 +401,6 @@ export default function App() {
                     element={<FormationDetailPage />}
                   />
                   <Route element={<RoleBasedRoute allowedRoles={['ADMIN']} />}>
-                    <Route path={PUBLIC_ROUTES.AUTH.REGISTER} element={<RegisterPage />} />
-                    <Route path={PROTECTED_ROUTES.SETTINGS} element={<SettingsPage />} />
-
                     <Route
                       path={PROTECTED_ROUTES.FORMATIONS.CREATE}
                       element={<FormationCreatePage />}
@@ -388,11 +408,6 @@ export default function App() {
                     <Route
                       path={PROTECTED_ROUTES.FORMATIONS.EDIT(':id')}
                       element={<FormationEditPage />}
-                    />
-
-                    <Route
-                      path={PROTECTED_ROUTES.FORMATIONS.TARIFS(':id')}
-                      element={<FormationTarifsPage />}
                     />
                   </Route>
 
@@ -412,10 +427,6 @@ export default function App() {
                       element={<MoniteurEditPage />}
                     />
                   </Route>
-                  <Route
-                    path={PROTECTED_ROUTES.MONITEURS.PLANNING(':id')}
-                    element={<MoniteurPlanningPage />}
-                  />
 
                   {/* Véhicules - lecture pour tous, gestion ADMIN */}
                   <Route path={PROTECTED_ROUTES.VEHICULES.LIST} element={<VehiculesListPage />} />
@@ -507,14 +518,22 @@ export default function App() {
                     element={<FactureEditPage />}
                   />
 
-                  <Route path={PROTECTED_ROUTES.RECUS.LIST} element={<RecusListPage />} />
-                  <Route path={PROTECTED_ROUTES.RECUS.DETAIL(':id')} element={<RecuDetailPage />} />
+                  <Route path={PROTECTED_ROUTES.DOCUMENTS.LIST} element={<DocumentsListPage />} />
+                  <Route
+                    path={PROTECTED_ROUTES.DOCUMENTS.UPLOAD}
+                    element={<DocumentsUploadPage />}
+                  />
 
                   <Route path={PROTECTED_ROUTES.DEPENSES.LIST} element={<DepensesListPage />} />
                   <Route path={PROTECTED_ROUTES.DEPENSES.CREATE} element={<DepenseCreatePage />} />
                   <Route
                     path={PROTECTED_ROUTES.DEPENSES.EDIT(':id')}
                     element={<DepenseEditPage />}
+                  />
+
+                  <Route
+                    path={PROTECTED_ROUTES.DEPENSES.DETAIL(':id')}
+                    element={<DepenseDetailPage />}
                   />
 
                   <Route path={PROTECTED_ROUTES.CAISSE.INDEX} element={<CaisseIndexPage />} />
@@ -567,7 +586,6 @@ export default function App() {
                       path={PROTECTED_ROUTES.ADMIN.COMPANY_CONFIG}
                       element={<AdminCompanyConfigPage />}
                     />
-
                   </Route>
 
                   {/* Utilitaires */}

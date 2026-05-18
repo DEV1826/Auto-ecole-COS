@@ -3,52 +3,76 @@
 /**
  * @module features/candidats/pages/CandidatsListPage
  * @description
- * Page principale de la liste des candidats (élèves) de l’auto‑école COS.
+ * Page principale de gestion des candidats (élèves) de l’auto‑école COS.
  * Thème : Bleu (accent blue-700).
  *
- * Layout :
- * ─ En-tête : titre, nombre total de candidats, date, bouton d’ajout, breadcrumb
- * ─ Bloc statistiques (`CandidatsStatsCards`) — repliable
- * ─ Tableau complet (`CandidatsTable`) avec filtres, pagination, actions
+ * ## Architecture
+ * ```
+ * ┌─────────────────────────────────────────────────────────────┐
+ * │  En-tête : icône, titre, date, badge total, breadcrumb      │
+ * │  Actions  : Actualiser · Exporter · Ajouter                 │
+ * ├─────────────────────────────────────────────────────────────┤
+ * │  CandidatsStatsCards (grille 4 cartes avec sparklines)      │
+ * ├─────────────────────────────────────────────────────────────┤
+ * │  CandidatsTable (full-width, pagination, toolbar, filtres,  │
+ * │  actions contextuelles, enrichissements dynamiques)         │
+ * └─────────────────────────────────────────────────────────────┘
+ * ```
  *
  * Les données sont chargées depuis l’API Electron via le store `useCandidats`.
- * La pagination, les filtres et les statistiques sont gérés par le store.
- * Les colonnes "solde", "leçons" et "examens" sont enrichies via les relations
- * du candidat (appels `getPaiements`, `getLecons`, `getExamens`).
+ * Les enrichissements (solde, nombre de leçons, examens) sont calculés à partir
+ * des stores `usePaiements`, `usePlanning`, `useExamens`.
  *
  * @author Stive Junior
  * @version 3.0.0
+ *
+ * @example
+ * ```tsx
+ * <Route path="/candidats" element={<CandidatsListPage />} />
+ * ```
  */
 
 import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Users, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
+import { Users, PlusCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+
 import { Badge } from '@/components/ui/badge';
-import { CandidatsStatsCards } from '../components/CandidatsStatsCards';
-import { CandidatsTable } from '../components/CandidatsTable';
+import { Button } from '@/components/ui/button';
 import { PageBreadcrumb } from '@/components/common/PageBreadcrumb';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorDialog } from '@/components/ui/error-dialog';
 import { useAuth } from '@/hooks/use.auth';
 import { useCandidats } from '@/hooks/use.candidats';
-import type { Candidat, CandidatsListParams } from '@/types/candidats.types';
-import { useNavigate } from 'react-router-dom';
-import { PROTECTED_ROUTES, route } from '@/config';
+import { usePaiements } from '@/hooks/use.paiements';
+import { usePlanning } from '@/hooks/use.planning';
+import { useExamens } from '@/hooks/use.examens';
+import { CandidatsStatsCards, type CandidatsSparklineData } from '../components/CandidatsStatsCards';
+import { CandidatsTable } from '../components/CandidatsTable';
+import { PROTECTED_ROUTES, route } from '@/config/routes';
+import type { Candidat } from '@/types/candidats.types';
 
 // ============================================================
-// Types internes pour l'enrichissement
+// Types pour les enrichissements (solde, leçons, examens)
 // ============================================================
 
-interface EnrichedCandidat extends Candidat {
-  solde: number;
-  leconsCount: number;
-  examensCount: number;
+interface EnrichmentsData {
+  soldeMap: Map<number, number>;
+  leconsCountMap: Map<number, number>;
+  examensCountMap: Map<number, number>;
 }
 
 // ============================================================
 // Page principale
 // ============================================================
 
+/**
+ * Page de liste des candidats.
+ * Charge les données réelles depuis l’API, affiche les cartes de stats
+ * et le tableau paginé avec toutes les actions.
+ */
 export default function CandidatsListPage(): React.JSX.Element {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -56,137 +80,126 @@ export default function CandidatsListPage(): React.JSX.Element {
   const isAdmin = role === 'ADMIN';
   const isSecretaire = role === 'SECRETAIRE';
 
-  // Store candidats
+  // Stores principaux
   const {
     candidats,
     pagination,
-    loading,
-    error,
     stats,
-    statsLoading,
+    trends,
+    loading: candidatsLoading,
     getAll,
     getStats,
+    getTrends,
     delete: deleteCandidat,
-    getPaiements,
-    getLecons,
-    getExamens,
   } = useCandidats();
 
-  // État local pour les filtres
-  const [filters, setFilters] = React.useState<Omit<CandidatsListParams, 'page' | 'limit'>>({
-    search: '',
-    statut: undefined,
-    categorie: undefined,
-    dateDebut: undefined,
-    dateFin: undefined,
+  // Stores pour enrichissements
+  const { getSoldeCandidat } = usePaiements();
+  const { getByCandidat: getLeconsByCandidat } = usePlanning();
+  const { getByCandidat: getExamensByCandidat } = useExamens();
+
+  // États locaux
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [enrichments, setEnrichments] = React.useState<EnrichmentsData>({
+    soldeMap: new Map(),
+    leconsCountMap: new Map(),
+    examensCountMap: new Map(),
   });
+  const [errorDialog, setErrorDialog] = React.useState<{
+    open: boolean;
+    title?: string;
+    message: string;
+    details?: string[];
+  }>({ open: false, message: '' });
 
-  // Pagination
-  const [page, setPage] = React.useState(1);
-  const [limit] = React.useState(10);
-
-  // État pour l'affichage des stats (repliable)
-  const [statsOpen, setStatsOpen] = React.useState(true);
-
-  // Cache pour les enrichissements (évite de recharger les données à chaque rendu)
-  const [enrichedMap, setEnrichedMap] = React.useState<Map<number, Omit<EnrichedCandidat, keyof Candidat>>>(new Map());
-
-  // Liste finale enrichie
-  const enrichedCandidats: EnrichedCandidat[] = React.useMemo(() => {
-    return candidats.map((c) => {
-      const enrichment = enrichedMap.get(c.id) || { solde: 0, leconsCount: 0, examensCount: 0 };
-      return { ...c, ...enrichment };
-    });
-  }, [candidats, enrichedMap]);
-
-  // Fonction pour charger les données (déclarée avant son utilisation dans useEffect)
-  const loadData = React.useCallback(async () => {
-    try {
-      await getAll({ page, limit, ...filters });
-      await getStats();
-    } catch {
-      toast.error(error || 'Erreur lors du chargement des données');
-    }
-  }, [getAll, getStats, error, page, limit, filters]);
-
-  // Chargement initial de la liste et des stats
+  // Chargement initial des données (candidats + stats + tendances)
   React.useEffect(() => {
-    loadData();
-  }, [loadData]);
+    const loadInitialData = async () => {
+      try {
+        await Promise.all([
+          getAll(),
+          getStats(),
+          getTrends(),
+        ]);
+      } catch (err) {
+        console.error('Erreur chargement initial:', err);
+        setErrorDialog({
+          open: true,
+          title: 'Erreur de chargement',
+          message: 'Impossible de charger les données des candidats. Veuillez réessayer.',
+        });
+      }
+    };
+    loadInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Chargement des enrichissements (solde, leçons, examens) pour les candidats affichés
+  // Chargement des enrichissements (solde, leçons, examens) pour chaque candidat
   React.useEffect(() => {
+    if (candidats.length === 0) return;
+
     const loadEnrichments = async () => {
-      // Ne rien faire si la liste est vide ou en cours de chargement
-      if (candidats.length === 0 || loading) return;
-
-      // Pour chaque candidat, charger ses relations si pas déjà en cache
-      const newEnrichedMap = new Map(enrichedMap);
-      let hasChanges = false;
+      const soldeMap = new Map<number, number>();
+      const leconsCountMap = new Map<number, number>();
+      const examensCountMap = new Map<number, number>();
 
       await Promise.all(
         candidats.map(async (candidat) => {
-          if (enrichedMap.has(candidat.id)) return;
-
           try {
-            // Récupérer les paiements, leçons et examens en parallèle
-            const [paiements, lecons, examens] = await Promise.all([
-              getPaiements(candidat.id),
-              getLecons(candidat.id),
-              getExamens(candidat.id),
-            ]);
+            // Solde (via paiements/factures)
+            const soldeData = await getSoldeCandidat(candidat.id);
+            soldeMap.set(candidat.id, soldeData.solde);
 
-            // Calculer le solde (total des paiements reçus)
-            // Ici, on suppose que le solde est le montant total des paiements.
-            // Si vous avez un champ "montantRestant" dans le candidat, adaptez.
-            const totalPaiements = paiements.reduce((sum, p) => sum + p.montant, 0);
-            // Si vous avez des factures, vous pouvez calculer le montant dû différemment.
-            // Pour l'exemple, on utilise simplement le total des paiements comme solde.
-            // À adapter selon votre logique métier.
-            const solde = totalPaiements; // ou bien montantTotalFormation - totalPaiements
+            // Nombre de leçons
+            const lecons = await getLeconsByCandidat(candidat.id);
+            leconsCountMap.set(candidat.id, lecons.length);
 
-            const leconsCount = lecons.filter((l) => l.statut === 'EFFECTUEE').length;
-            const examensCount = examens.length;
-
-            newEnrichedMap.set(candidat.id, { solde, leconsCount, examensCount });
-            hasChanges = true;
+            // Nombre d'examens
+            const examens = await getExamensByCandidat(candidat.id);
+            examensCountMap.set(candidat.id, examens.length);
           } catch (err) {
-            console.error(`Erreur chargement enrichissements pour candidat ${candidat.id}`, err);
-            // En cas d'erreur, on met des valeurs par défaut pour ne pas bloquer l'affichage
-            newEnrichedMap.set(candidat.id, { solde: 0, leconsCount: 0, examensCount: 0 });
-            hasChanges = true;
+            console.error(`Erreur enrichissements pour candidat ${candidat.id}:`, err);
+            // Valeurs par défaut en cas d'erreur
+            if (!soldeMap.has(candidat.id)) soldeMap.set(candidat.id, 0);
+            if (!leconsCountMap.has(candidat.id)) leconsCountMap.set(candidat.id, 0);
+            if (!examensCountMap.has(candidat.id)) examensCountMap.set(candidat.id, 0);
           }
         })
       );
 
-      if (hasChanges) {
-        setEnrichedMap(newEnrichedMap);
-      }
+      setEnrichments({ soldeMap, leconsCountMap, examensCountMap });
     };
 
     loadEnrichments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candidats, loading]);
+  }, [candidats, getSoldeCandidat, getLeconsByCandidat, getExamensByCandidat]);
 
-  // Déterminer la variante du tableau selon le rôle
-  const getVariant = (): 'admin' | 'secretaire' | 'moniteur' => {
-    if (isAdmin) return 'admin';
-    if (isSecretaire) return 'secretaire';
-    return 'moniteur';
+  // Rafraîchissement manuel (toutes les données)
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        getAll({ page: pagination.page, limit: pagination.limit }),
+        getStats(),
+        getTrends(),
+      ]);
+      toast.success('Données actualisées');
+    } catch {
+      toast.error('Erreur lors du rafraîchissement');
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
-  // Handlers
-  const handleRefresh = async () => {
-    // Réinitialiser le cache pour forcer un rechargement des enrichissements
-    setEnrichedMap(new Map());
-    await loadData();
-    toast.success('Candidats actualisés');
+  const handleExport = () => {
+    // Export CSV ou Excel (simulé pour l’exemple)
+    toast.info('Fonction d’export à implémenter');
   };
 
   const handleAddCandidat = () => {
     navigate(PROTECTED_ROUTES.CANDIDATS.CREATE);
   };
 
+  // Actions sur chaque ligne du tableau
   const handleView = (candidat: Candidat) => {
     navigate(route(PROTECTED_ROUTES.CANDIDATS.DETAIL(candidat.id), { id: candidat.id }));
   };
@@ -196,17 +209,11 @@ export default function CandidatsListPage(): React.JSX.Element {
   };
 
   const handleDelete = async (candidat: Candidat) => {
-    if (window.confirm(`Supprimer définitivement ${candidat.prenom} ${candidat.nom} ?`)) {
+    if (window.confirm(`Supprimer définitivement le candidat ${candidat.prenom} ${candidat.nom} ?`)) {
       try {
         await deleteCandidat(candidat.id);
-        // Nettoyer le cache
-        setEnrichedMap((prev) => {
-          const newMap = new Map(prev);
-          newMap.delete(candidat.id);
-          return newMap;
-        });
         toast.success('Candidat supprimé');
-        await loadData();
+        await handleRefresh();
       } catch {
         toast.error('Erreur lors de la suppression');
       }
@@ -229,147 +236,172 @@ export default function CandidatsListPage(): React.JSX.Element {
     navigate(route(PROTECTED_ROUTES.CANDIDATS.DOCUMENTS(candidat.id), { id: candidat.id }));
   };
 
-  // Actions du tableau
-  const actions = {
+  // Actions du tableau (props pour CandidatsTable)
+  const tableActions = {
     onView: handleView,
     onEdit: isAdmin || isSecretaire ? handleEdit : undefined,
     onDelete: isAdmin ? handleDelete : undefined,
     onAddPayment: isAdmin || isSecretaire ? handleAddPayment : undefined,
-    onAddLesson: handleAddLesson,
-    onRegisterExam: handleRegisterExam,
-    onViewDocuments: handleViewDocuments,
+    onAddLesson: isAdmin || isSecretaire ? handleAddLesson : undefined,
+    onRegisterExam: isAdmin || isSecretaire ? handleRegisterExam : undefined,
+    onViewDocuments: isAdmin || isSecretaire ? handleViewDocuments : undefined,
   };
 
-  // Configuration des colonnes : toutes les colonnes sont activées
-  const columnConfig = {
-    showFullName: true,
-    showEmail: true,
-    showPhone: true,
-    showDateInscription: true,
-    showCategorie: true,
-    showStatut: true,
-    showSolde: true,
-    showLeconsCount: true,
-    showExamensCount: true,
-    showActions: true,
+  // Enrichissements pour le tableau (solde, nb leçons, nb examens)
+  const tableEnrichments = {
+    getSolde: (candidat: Candidat) => enrichments.soldeMap.get(candidat.id) ?? 0,
+    getLeconsCount: (candidat: Candidat) => enrichments.leconsCountMap.get(candidat.id) ?? 0,
+    getExamensCount: (candidat: Candidat) => enrichments.examensCountMap.get(candidat.id) ?? 0,
   };
 
-  // Enrichissements : fonctions qui lisent les valeurs calculées dans l'objet enrichi
-  const enrichments = {
-    getSolde: (candidat: Candidat) => {
-      const enriched = enrichedCandidats.find((ec) => ec.id === candidat.id);
-      return enriched?.solde ?? 0;
-    },
-    getLeconsCount: (candidat: Candidat) => {
-      const enriched = enrichedCandidats.find((ec) => ec.id === candidat.id);
-      return enriched?.leconsCount ?? 0;
-    },
-    getExamensCount: (candidat: Candidat) => {
-      const enriched = enrichedCandidats.find((ec) => ec.id === candidat.id);
-      return enriched?.examensCount ?? 0;
-    },
+  // Variante selon le rôle
+  const variant = isAdmin ? 'admin' : isSecretaire ? 'secretaire' : 'moniteur';
+
+  // Sparklines factices (à remplacer par des données réelles via getSparklines)
+  // Pour l’exemple, on génère des séries vides – dans la vraie vie, on appellerait getSparklines().
+  const mockSparklines: Record<string, CandidatsSparklineData> = {
+    totalSparkline: { values: [], labels: [] },
+    actifsSparkline: { values: [], labels: [] },
+    tauxReussiteSparkline: { values: [], labels: [] },
+    recusSparkline: { values: [], labels: [] },
   };
+
+  const isLoading = candidatsLoading || isRefreshing;
+
+  if (candidatsLoading && candidats.length === 0) {
+    return (
+      <div className="space-y-5 p-4 md:p-1 pb-12">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-12 w-12 rounded-md" />
+            <div>
+              <Skeleton className="h-6 w-48 mb-1" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-8 w-20" />
+            <Skeleton className="h-8 w-20" />
+            <Skeleton className="h-8 w-20" />
+          </div>
+        </div>
+        <Skeleton className="h-40 w-full rounded-md" />
+        <Skeleton className="h-96 w-full rounded-md" />
+      </div>
+    );
+  }
+
+  if (!stats && !candidatsLoading) {
+    return (
+      <ErrorDialog
+        open={true}
+        onOpenChange={() => { }}
+        title="Données indisponibles"
+        message="Impossible de charger les statistiques des candidats. Veuillez réessayer plus tard."
+        closeText="Recharger"
+        onAction={() => window.location.reload()}
+      />
+    );
+  }
 
   return (
-    <div className="space-y-5 p-4 md:p-1 pb-10">
+    <div className="space-y-6 p-4 md:p-1 pb-12">
       {/* En-tête */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center size-12 rounded-md bg-blue-700 text-white shadow-sm shrink-0">
-            <Users className="size-7" />
+            <Users className="size-6" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Candidats</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-3xl font-bold tracking-tight">Candidats</h1>
+              <Badge
+                variant="outline"
+                className="text-[10px] h-5 px-1.5 border-0 bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 font-semibold"
+              >
+                {pagination.total} inscrit{pagination.total > 1 ? 's' : ''}
+              </Badge>
+            </div>
             <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5">
               <span className="capitalize">
                 {format(new Date(), 'EEEE d MMMM yyyy', { locale: fr })}
               </span>
               <span>·</span>
-              <Badge
-                variant="outline"
-                className="text-[10px] h-4 px-1.5 border-0 bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
-              >
-                {pagination.total} candidats
-              </Badge>
+              <span>Gestion des élèves de l'auto‑école</span>
             </p>
           </div>
         </div>
-        <PageBreadcrumb className="hidden lg:flex" />
-      </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={handleRefresh} className="h-8 gap-1 text-xs">
+            <RefreshCw className="h-3.5 w-3.5" />
+            Actualiser
+          </Button>
 
-      {/* Statistiques repliables */}
-      <div className="space-y-2">
-        <button
-          onClick={() => setStatsOpen((o) => !o)}
-          className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <BarChart3 className="h-4 w-4 text-blue-700" />
-          Statistiques globales
-          {statsOpen ? (
-            <ChevronUp className="h-3.5 w-3.5" />
-          ) : (
-            <ChevronDown className="h-3.5 w-3.5" />
+          {(isAdmin || isSecretaire) && (
+            <Button size="sm" onClick={handleAddCandidat} className="h-8 gap-1 text-xs bg-blue-700 hover:bg-blue-800">
+              <PlusCircle className="h-3.5 w-3.5" />
+              Ajouter
+            </Button>
           )}
-        </button>
-        {statsOpen && stats && (
-          <CandidatsStatsCards
-            stats={{
-              total: stats.total,
-              actifs: stats.actifs,
-              reçus: stats.reçus,
-              echecs: stats.echecs,
-              tauxReussite: stats.tauxReussite,
-            }}
-            trends={undefined}
-            totalSparkline={undefined}
-            actifsSparkline={undefined}
-            recusSparkline={undefined}
-            isLoading={statsLoading}
-            cols={4}
-            onCardClick={(id) => {
-              if (id === 'total-candidats') {
-                setFilters((prev) => ({ ...prev, search: '', statut: undefined }));
-                setPage(1);
-              } else if (id === 'actifs-candidats') {
-                setFilters((prev) => ({ ...prev, statut: 'EN_COURS' }));
-                setPage(1);
-              } else if (id === 'taux-reussite') {
-                toast.info('Statistiques de réussite');
-              } else if (id === 'recus-candidats') {
-                setFilters((prev) => ({ ...prev, statut: 'RECU' }));
-                setPage(1);
-              }
-            }}
-          />
-        )}
-        {statsOpen && !stats && !statsLoading && (
-          <div className="text-muted-foreground text-sm">Aucune statistique disponible</div>
-        )}
+          <PageBreadcrumb className="hidden lg:flex" />
+        </div>
       </div>
 
-      {/* Tableau des candidats enrichi */}
+      {/* Cartes statistiques */}
+      {stats && (
+        <CandidatsStatsCards
+          stats={stats}
+          trends={trends ?? {}}
+          totalSparkline={mockSparklines.totalSparkline}
+          actifsSparkline={mockSparklines.actifsSparkline}
+          tauxReussiteSparkline={mockSparklines.tauxReussiteSparkline}
+          recusSparkline={mockSparklines.recusSparkline}
+          isLoading={isLoading}
+          onCardClick={(cardId) => {
+            // Navigation rapide selon la carte cliquée
+            if (cardId === 'total-candidats') {
+              getAll({});
+            } else if (cardId === 'actifs-candidats') {
+              getAll({ statut: 'EN_COURS' });
+            } else if (cardId === 'recus-candidats') {
+              getAll({ statut: 'RECU' });
+            } else if (cardId === 'taux-reussite') {
+              toast.info('Taux de réussite global');
+            }
+          }}
+        />
+      )}
+
+      {/* Tableau des candidats */}
       <CandidatsTable
-        candidats={enrichedCandidats}
-        variant={getVariant()}
-        columnConfig={columnConfig}
-        enrichments={enrichments}
-        actions={actions}
+        candidats={candidats}
+        variant={variant}
+        actions={tableActions}
+        enrichments={tableEnrichments}
         enablePagination
         enableToolbar
-        defaultPageSize={limit}
-        maxItems={pagination.total}
-
-        pageSizeOptions={[5, 10, 20, 50, 100]}
+        defaultPageSize={pagination.limit}
         onRefresh={handleRefresh}
-        isLoading={loading}
+        isLoading={isLoading}
         title="Liste des candidats"
-        description="Gérez l’ensemble des élèves inscrits à l’auto‑école"
+        description="Consultez et gérez l’ensemble des élèves inscrits"
+
         onAddClick={handleAddCandidat}
+        onExport={handleExport}
         showViewAll={false}
         asCard
+        emptyMessage="Aucun candidat trouvé pour cette période."
         className="w-full"
-        emptyMessage="Aucun candidat trouvé."
+      />
 
+      {/* Dialogue d’erreur global */}
+      <ErrorDialog
+        open={errorDialog.open}
+        onOpenChange={(open) => setErrorDialog((prev) => ({ ...prev, open }))}
+        title={errorDialog.title}
+        message={errorDialog.message}
+        details={errorDialog.details}
+        closeText="Fermer"
       />
     </div>
   );

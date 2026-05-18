@@ -34,6 +34,7 @@ import type {
   CandidatsListParams,
   UpdateCandidatStatusParams,
   CandidatDocumentInput,
+  CandidatsTrends,
 } from '@/types/candidats.types';
 import type { Paiement } from '@/types/paiements.types';
 import type { Lecon } from '@/types/planning.types';
@@ -74,6 +75,10 @@ export interface UseCandidats {
   statsLoading: boolean;
   /** Erreur lors du chargement des statistiques */
   statsError: string | null;
+
+  trends: CandidatsTrends | null;
+  trendsLoading: boolean;
+  trendsError: string | null;
 
   // ===== RECHERCHE RAPIDE =====
   /** Résultats de la dernière recherche */
@@ -165,6 +170,12 @@ export interface UseCandidats {
    */
   getStats: () => Promise<CandidatsStatsExtended>;
 
+  /**
+   *
+   * @returns
+   */
+  getTrends: () => Promise<CandidatsTrends>;
+
   // ===== ACTIONS SUR LES RELATIONS =====
   /** Récupère tous les paiements d’un candidat */
   getPaiements: (candidatId: number) => Promise<Paiement[]>;
@@ -243,6 +254,10 @@ export const useCandidats = (): UseCandidats => {
     statsLoading: store.statsLoading,
     statsError: store.statsError,
 
+    trends: store.trends,
+    trendsLoading: store.trendsLoading,
+    trendsError: store.trendsError,
+
     // Recherche
     searchResults: store.searchResults,
     searchLoading: store.searchLoading,
@@ -282,6 +297,7 @@ export const useCandidats = (): UseCandidats => {
     search: store.search,
     updateStatus: store.updateStatus,
     getStats: store.getStats,
+    getTrends: store.getTrends,
 
     // Actions relations
     getPaiements: store.getPaiements,

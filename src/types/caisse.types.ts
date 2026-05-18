@@ -23,6 +23,8 @@
  */
 
 import type { TypeMouvement } from '@/types/enums';
+import type { Paiement } from './paiements.types';
+import type { Depense } from './depenses.types';
 
 // ============================================================
 // MODÈLE PRINCIPAL
@@ -64,11 +66,14 @@ export interface MouvementCaisse {
   id: number;
   type: TypeMouvement;
   montant: number;
-  solde: number; // solde après le mouvement
+  solde: number;
   description?: string | null;
   reference?: string | null;
   date: Date | string;
   createdAt: Date | string;
+
+  entree?: Paiement;
+  sortie?: Depense;
 }
 
 // ============================================================
@@ -204,10 +209,14 @@ export interface CaisseTableActions {
  * @interface CaisseEnrichments
  * @property {(mouvement: MouvementCaisse) => string} [getVehiculeLibelle] - Retourne le libellé du véhicule associé (si applicable)
  * @property {(mouvement: MouvementCaisse) => string} [getNomCandidat] - Nom du candidat lié au mouvement (si applicable)
+ * @property {(mouvement: MouvementCaisse) => string} [getCandidatAvatarUrl] - Avatar du candidat lié au mouvement (si applicable)
+ * @property {(mouvement: MouvementCaisse) => string} [getCandidatInitials] - Initiaux du candidat lié au mouvement (si applicable)
  */
 export interface CaisseEnrichments {
   getVehiculeLibelle?: (mouvement: MouvementCaisse) => string;
   getNomCandidat?: (mouvement: MouvementCaisse) => string;
+  getCandidatAvatarUrl?: (mouvement: MouvementCaisse) => string;
+  getCandidatInitials?: (mouvement: MouvementCaisse) => string;
 }
 
 /**
@@ -236,4 +245,144 @@ export interface CaisseColumnsOptions {
   actions?: CaisseTableActions;
   enrichments?: CaisseEnrichments;
   variant?: 'admin' | 'secretaire';
+}
+
+// ============================================================
+// PARAMÈTRES & ENTRÉES (DTOs)
+// ============================================================
+
+/**
+ * Paramètres de filtrage et pagination pour la liste des mouvements de caisse.
+ *
+ * @interface CaisseListParams
+ * @description
+ * Utilisé par `CaisseApi.getAll()` et le canal IPC `caisse:getAll`.
+ *
+ * @property {number} [page=1] - Page courante (1-indexed)
+ * @property {number} [limit=20] - Nombre d'éléments par page (max 200)
+ * @property {string} [search] - Recherche textuelle : description, référence
+ * @property {TypeMouvement} [type] - Filtrer par type (ENTREE ou SORTIE)
+ * @property {string} [dateDebut] - Date de début (ISO 8601)
+ * @property {string} [dateFin] - Date de fin (ISO 8601)
+ * @property {'today' | 'week' | 'month' | 'all'} [period] - Période prédéfinie
+ * @property {'date' | 'montant' | 'solde'} [sortBy='date'] - Champ de tri
+ * @property {'asc' | 'desc'} [sortOrder='desc'] - Sens du tri
+ */
+export interface CaisseListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  type?: TypeMouvement;
+  dateDebut?: string;
+  dateFin?: string;
+  period?: 'today' | 'week' | 'month' | 'all';
+  sortBy?: 'date' | 'montant' | 'solde';
+  sortOrder?: 'asc' | 'desc';
+}
+
+// ============================================================
+// RÉPONSES DE L'API
+// ============================================================
+
+/**
+ * Réponse paginée pour la liste des mouvements de caisse.
+ *
+ * @interface CaissePaginatedResponse
+ * @property {MouvementCaisse[]} mouvements - Mouvements de la page (avec enrichissements optionnels)
+ * @property {number} total - Nombre total de mouvements
+ * @property {number} page - Page courante
+ * @property {number} limit - Limite par page
+ * @property {number} totalPages - Nombre total de pages
+ */
+export interface CaissePaginatedResponse {
+  mouvements: MouvementCaisse[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/**
+ * Statistiques étendues de la caisse pour le dashboard.
+ *
+ * @interface CaisseStatsExtended
+ * @extends CaisseStats
+ * @property {number} soldeMoisPrecedent - Solde à la fin du mois précédent
+ * @property {number} evolutionSolde - Évolution du solde (en %)
+ */
+export interface CaisseStatsExtended extends CaisseStats {
+  soldeMoisPrecedent: number;
+  evolutionSolde: number;
+}
+
+/**
+ * Données des sparklines pour la caisse (12 derniers mois).
+ *
+ * @interface CaisseSparklineData
+ * @property {{ values: number[]; labels?: string[] }} soldeSparkline - Solde en fin de mois
+ * @property {{ values: number[]; labels?: string[] }} entreesSparkline - Entrées par mois
+ * @property {{ values: number[]; labels?: string[] }} sortiesSparkline - Sorties par mois
+ * @property {{ values: number[]; labels?: string[] }} fluxNetSparkline - Flux net (entrées - sorties) par mois
+ */
+export interface CaisseSparklineData {
+  soldeSparkline: { values: number[]; labels?: string[] };
+  entreesSparkline: { values: number[]; labels?: string[] };
+  sortiesSparkline: { values: number[]; labels?: string[] };
+  fluxNetSparkline: { values: number[]; labels?: string[] };
+}
+
+// ============================================================
+// API WINDOW — CaisseApi
+// ============================================================
+
+/**
+ * Interface de l'API caisse exposée au renderer via `window.api.caisse`.
+ *
+ * @interface CaisseApi
+ * @description
+ * Toutes les méthodes sont asynchrones et communiquent via IPC Electron.
+ *
+ * ## Canaux IPC utilisés
+ * | Méthode               | Canal IPC                     |
+ * |-----------------------|-------------------------------|
+ * | getAll                | caisse:getAll                 |
+ * | getStats              | caisse:getStats               |
+ * | getTrends             | caisse:getTrends              |
+ * | getSparklines         | caisse:getSparklines          |
+ * | exportMouvements      | caisse:exportMouvements       |
+ */
+export interface CaisseApi {
+  /**
+   * Récupère la liste paginée des mouvements de caisse avec filtres.
+   * @param params - Pagination, filtres et tri
+   * @returns Liste paginée
+   */
+  getAll: (params?: CaisseListParams) => Promise<CaissePaginatedResponse>;
+
+  /**
+   * Récupère les statistiques agrégées de la caisse.
+   * @returns Métriques étendues
+   */
+  getStats: () => Promise<CaisseStatsExtended>;
+
+  /**
+   * Récupère les tendances évolutives (mois vs précédent).
+   * @returns Variations en pourcentage
+   */
+  getTrends: () => Promise<CaisseTrends>;
+
+  /**
+   * Récupère les données des sparklines pour les 12 derniers mois.
+   * @returns Sparklines (solde, entrées, sorties, flux net)
+   */
+  getSparklines: () => Promise<CaisseSparklineData>;
+
+  /**
+   * Exporte l’historique des mouvements (CSV, Excel, PDF).
+   * @param params - Filtres pour l’export
+   * @returns Chemin du fichier exporté
+   */
+  exportMouvements: (
+    params?: CaisseListParams
+  ) => Promise<{ success: boolean; path: string; message?: string }>;
 }

@@ -23,6 +23,7 @@ import type {
   CandidatsListParams,
   UpdateCandidatStatusParams,
   CandidatDocumentInput,
+  CandidatsTrends,
 } from '@/types/candidats.types';
 import type { Paiement } from '@/types/paiements.types';
 import type { Lecon } from '@/types/planning.types';
@@ -63,6 +64,10 @@ interface CandidatsState {
   stats: CandidatsStatsExtended | null;
   statsLoading: boolean;
   statsError: string | null;
+
+  trends: CandidatsTrends | null;
+  trendsLoading: boolean;
+  trendsError: string | null;
 
   // Recherche rapide (optionnelle)
   searchResults: Candidat[];
@@ -105,6 +110,7 @@ interface CandidatsActions {
   search: (query: string) => Promise<Candidat[]>;
   updateStatus: (params: UpdateCandidatStatusParams) => Promise<Candidat>;
   getStats: () => Promise<CandidatsStatsExtended>;
+  getTrends: () => Promise<CandidatsTrends>;
 
   // Accès aux relations
   getPaiements: (candidatId: number) => Promise<Paiement[]>;
@@ -142,6 +148,10 @@ const initialState: CandidatsState = {
   stats: null,
   statsLoading: false,
   statsError: null,
+
+  trends: null,
+  trendsError: null,
+  trendsLoading: false,
 
   searchResults: [],
   searchLoading: false,
@@ -211,7 +221,7 @@ export const useCandidatsStore = create<CandidatsStore>()((set, get) => ({
     } catch (error) {
       const message = formatErrorMessage(error, 'Erreur lors du chargement des candidats');
       set({ loading: false, error: message });
-      throw new Error(message, { cause: error });
+      throw new Error(message);
     }
   },
 
@@ -234,7 +244,7 @@ export const useCandidatsStore = create<CandidatsStore>()((set, get) => ({
     } catch (error) {
       const message = formatErrorMessage(error, 'Erreur lors du chargement du candidat');
       set({ detailLoading: false, detailError: message });
-      throw new Error(message, { cause: error });
+      throw new Error(message);
     }
   },
 
@@ -257,7 +267,7 @@ export const useCandidatsStore = create<CandidatsStore>()((set, get) => ({
     } catch (error) {
       const message = formatErrorMessage(error, 'Erreur lors de la création du candidat');
       set({ loading: false, error: message });
-      throw new Error(message, { cause: error });
+      throw new Error(message);
     }
   },
 
@@ -286,7 +296,7 @@ export const useCandidatsStore = create<CandidatsStore>()((set, get) => ({
     } catch (error) {
       const message = formatErrorMessage(error, 'Erreur lors de la mise à jour');
       set({ loading: false, error: message });
-      throw new Error(message, { cause: error });
+      throw new Error(message);
     }
   },
 
@@ -314,7 +324,7 @@ export const useCandidatsStore = create<CandidatsStore>()((set, get) => ({
     } catch (error) {
       const message = formatErrorMessage(error, 'Erreur lors de la suppression');
       set({ loading: false, error: message });
-      throw new Error(message, { cause: error });
+      throw new Error(message);
     }
   },
 
@@ -337,7 +347,7 @@ export const useCandidatsStore = create<CandidatsStore>()((set, get) => ({
     } catch (error) {
       const message = formatErrorMessage(error, 'Erreur lors de la recherche');
       set({ searchLoading: false, searchError: message });
-      throw new Error(message, { cause: error });
+      throw new Error(message);
     }
   },
 
@@ -365,7 +375,7 @@ export const useCandidatsStore = create<CandidatsStore>()((set, get) => ({
     } catch (error) {
       const message = formatErrorMessage(error, 'Erreur lors du changement de statut');
       set({ loading: false, error: message });
-      throw new Error(message, { cause: error });
+      throw new Error(message);
     }
   },
 
@@ -383,7 +393,25 @@ export const useCandidatsStore = create<CandidatsStore>()((set, get) => ({
     } catch (error) {
       const message = formatErrorMessage(error, 'Erreur lors du chargement des statistiques');
       set({ statsLoading: false, statsError: message });
-      throw new Error(message, { cause: error });
+      throw new Error(message);
+    }
+  },
+
+  /**
+   * Récupère les tendances évolutives des indicateurs candidats.
+   *
+   * @returns Variations en pourcentage ou valeur absolue (total, actifs, reçus, echecs)
+   */
+  getTrends: async () => {
+    set({ trendsLoading: true, trendsError: null });
+    try {
+      const trends = await window.api.candidats.getTrends();
+      set({ trends, trendsLoading: false });
+      return trends;
+    } catch (error) {
+      const message = formatErrorMessage(error, 'Erreur lors du chargement des tendances');
+      set({ trendsLoading: false, trendsError: message });
+      throw new Error(message);
     }
   },
 
@@ -407,7 +435,7 @@ export const useCandidatsStore = create<CandidatsStore>()((set, get) => ({
     } catch (error) {
       const message = formatErrorMessage(error, 'Erreur chargement des paiements');
       set({ paiementsLoading: false, paiementsError: message });
-      throw new Error(message, { cause: error });
+      throw new Error(message);
     }
   },
 
@@ -427,7 +455,7 @@ export const useCandidatsStore = create<CandidatsStore>()((set, get) => ({
     } catch (error) {
       const message = formatErrorMessage(error, 'Erreur chargement des leçons');
       set({ leconsLoading: false, leconsError: message });
-      throw new Error(message, { cause: error });
+      throw new Error(message);
     }
   },
 
@@ -447,7 +475,7 @@ export const useCandidatsStore = create<CandidatsStore>()((set, get) => ({
     } catch (error) {
       const message = formatErrorMessage(error, 'Erreur chargement des examens');
       set({ examensLoading: false, examensError: message });
-      throw new Error(message, { cause: error });
+      throw new Error(message);
     }
   },
 
@@ -467,7 +495,7 @@ export const useCandidatsStore = create<CandidatsStore>()((set, get) => ({
     } catch (error) {
       const message = formatErrorMessage(error, 'Erreur chargement des factures');
       set({ facturesLoading: false, facturesError: message });
-      throw new Error(message, { cause: error });
+      throw new Error(message);
     }
   },
 
@@ -487,7 +515,7 @@ export const useCandidatsStore = create<CandidatsStore>()((set, get) => ({
     } catch (error) {
       const message = formatErrorMessage(error, 'Erreur chargement des documents');
       set({ documentsLoading: false, documentsError: message });
-      throw new Error(message, { cause: error });
+      throw new Error(message);
     }
   },
 
@@ -515,7 +543,7 @@ export const useCandidatsStore = create<CandidatsStore>()((set, get) => ({
     } catch (error) {
       const message = formatErrorMessage(error, "Erreur lors de l'ajout du document");
       set({ documentsLoading: false, documentsError: message });
-      throw new Error(message, { cause: error });
+      throw new Error(message);
     }
   },
 
@@ -540,7 +568,7 @@ export const useCandidatsStore = create<CandidatsStore>()((set, get) => ({
     } catch (error) {
       const message = formatErrorMessage(error, 'Erreur lors de la suppression du document');
       set({ documentsLoading: false, documentsError: message });
-      throw new Error(message, { cause: error });
+      throw new Error(message);
     }
   },
 

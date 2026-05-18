@@ -1,504 +1,441 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 // src/features/dashboard/pages/common/AdminDashboard.tsx
 
 /**
  * @module features/dashboard/pages/common/AdminDashboard
  * @description
  * Tableau de bord principal de l’administrateur de l’auto‑école COS.
- *
- * ## Architecture
- * 1. **En‑tête de bienvenue** (`AdminWelcomeHeader`)
- * 2. **Cartes de statistiques métier** (`AdminStatsCards`)
- * 3. **Tableau des candidats récents** (`CandidatsTable`)
- * 4. **Cartes de statistiques système** (`AuthStatsCards`)
- * 5. **Section financière** (`FinanceOverviewCard` + `CaisseMouvementsRecentCard`)
- * 6. **Graphique d’activité globale** (`AppActivityChart`)
- *
+ * 
+ * ## Correction Bug de Boucle Infinie (Recharts / Maximum Update Depth)
+ * L'erreur provenait de la mise à jour asynchrone de l'état `soldeMap` qui recréait 
+ * indirectement le tableau `activityData` transmis à Recharts à chaque rendu.
+ * Recharts interceptait ce changement de référence, provoquant des re-renders en cascade.
+ * 
+ * Solutions appliquées :
+ * 1. Mémorisation stricte de `activityData` via `React.useMemo`.
+ * 2. Stabilisation des actions et enrichissements passés aux tableaux.
+ * 3. Utilisation de structures figées pour les valeurs par défaut.
+ * 
  * @author Stive Junior
- * @version 2.0.0 (ajout de la section financière)
+ * @version 3.2.0
  */
 
+import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCallback, useEffect, useState } from 'react';
-import { PROTECTED_ROUTES } from '@/config/routes';
+import { format } from 'date-fns';
+import { toast } from 'sonner';
+
+import { PROTECTED_ROUTES, route } from '@/config/routes';
+import { useAuth } from '@/hooks/use.auth';
+import { useCandidats } from '@/hooks/use.candidats';
+import { useMoniteurs } from '@/hooks/use.moniteurs';
+import { useVehicules } from '@/hooks/use.vehicules';
+import { usePaiements } from '@/hooks/use.paiements';
+import { useCaisse } from '@/hooks/use.caisse';
+import { usePlanning } from '@/hooks/use.planning';
+import { useExamens } from '@/hooks/use.examens';
+import { useDepenses } from '@/hooks/use.depenses';
+
 import { AdminWelcomeHeader } from '@/features/dashboard/components/admin/AdminWelcomeHeader';
 import { AdminStatsCards } from '@/features/dashboard/components/admin/AdminStatsCards';
-import { AuthStatsCards } from '@/features/admin/components/AuthStatsCards';
 import { CandidatsTable } from '@/features/candidats/components/CandidatsTable';
-import { AppActivityChart } from '@/features/dashboard/components/admin/AppActivityChart';
+import { AuthStatsCards } from '@/features/admin/components/AuthStatsCards';
 import { FinanceOverviewCard } from '@/features/dashboard/components/admin/FinanceOverviewCard';
-import { CaisseMouvementsRecentCard } from '@/features/dashboard/components/admin/CaisseMouvementsRecentCard';
-import type { Session, Utilisateur } from '@/types/auth.types';
-import type { Candidat } from '@/types/candidats.types';
-import type { CaisseStats, CaisseTrends, MouvementCaisse } from '@/types/caisse.types';
-import { getAvatarUrl } from '@/lib';
+import { CaisseMouvementsRecentCard } from '@/features/caisse/components/CaisseMouvementsRecentCard';
+import { AppActivityChart, type AppActivityDataPoint } from '@/features/dashboard/components/admin/AppActivityChart';
 import { Footer } from '@/components/footer';
 
-// ============================================================
-// Types
-// ============================================================
+import type { Candidat } from '@/types/candidats.types';
+import { getAvatarUrl } from '@/lib/utils';
 
-export interface AdminDashboardProps {
-  session?: Session | null;
-  user: Utilisateur;
-  onReady?: () => void;
-}
+// Constantes globales gelées pour éviter les instanciations inutiles en mémoire
+const STATIC_EMPTY_OBJECT = Object.freeze({});
+const STATIC_SPARKLINE_DEFAULT = Object.freeze({
+  values: [112, 118, 125, 132, 138, 148, 158],
+  labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil']
+});
+const STATIC_COLUMN_CONFIG = Object.freeze({ showLeconsCount: false, showExamensCount: false });
 
-// ============================================================
-// Données mockées (finances)
-// ============================================================
-
-const MOCK_CAISSE_STATS: CaisseStats = {
-  soldeActuel: 285_000,
-  totalEntrees: 1_250_000,
-  totalSorties: 965_000,
-  nombreMouvements: 56,
-  entreesMois: 320_000,
-  sortiesMois: 210_000,
-};
-
-const MOCK_CAISSE_TRENDS: CaisseTrends = {
-  soldeActuel: 8.5,
-  totalEntrees: 12,
-  totalSorties: -3,
-  entreesMois: 5.2,
-  sortiesMois: 7.4,
-};
-
-const MOCK_MOUVEMENTS_RECENTS: MouvementCaisse[] = [
-  {
-    id: 1,
-    type: 'ENTREE',
-    montant: 50_000,
-    solde: 285_000,
-    description: 'Paiement candidat Dupont Jean',
-    reference: 'PAY-100',
-    date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 2,
-    type: 'SORTIE',
-    montant: 15_000,
-    solde: 235_000,
-    description: 'Achat carburant – Toyota Corolla LT-456',
-    reference: 'DEP-045',
-    date: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 3,
-    type: 'ENTREE',
-    montant: 75_000,
-    solde: 250_000,
-    description: 'Inscription candidat Martin Sophie',
-    reference: 'PAY-099',
-    date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 4,
-    type: 'SORTIE',
-    montant: 8_500,
-    solde: 175_000,
-    description: 'Fournitures de bureau',
-    date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 5,
-    type: 'ENTREE',
-    montant: 100_000,
-    solde: 183_500,
-    description: 'Paiement candidat Kone Ibrahim',
-    reference: 'PAY-098',
-    date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
-
-// ============================================================
-// Composant principal
-// ============================================================
-// ── Candidats mockés ─────────────────────────────────────────────────────
-const MOCK_CANDIDATS: Candidat[] = [
-  {
-    id: 1,
-    nom: 'Ndong',
-    prenom: 'Charles',
-    email: 'charles.ndong@example.com',
-    telephone: '691234567',
-    dateInscription: '2025-01-15T08:00:00Z',
-    categorie: 'B',
-    statut: 'EN_COURS',
-    numeroPermis: null,
-    dateNaissance: '1995-04-12',
-    adresse: 'Rue 123, Omnisport, Yaoundé',
-    notes: null,
-    createdAt: '2025-01-15T08:00:00Z',
-    updatedAt: '2025-01-15T08:00:00Z',
-    deletedAt: null,
-    paiements: [],
-    lecons: [],
-    examens: [],
-    factures: [],
-    formation: null,
-    documents: [],
-  },
-  {
-    id: 2,
-    nom: 'Mbarga',
-    prenom: 'Catherine',
-    email: 'catherine.mbarga@example.com',
-    telephone: '698765432',
-    dateInscription: '2025-01-20T10:30:00Z',
-    categorie: 'B',
-    statut: 'EN_COURS',
-    numeroPermis: null,
-    dateNaissance: '1992-08-25',
-    adresse: 'Avenue Mvog-Mbi, Yaoundé',
-    notes: 'Premier paiement effectué',
-    createdAt: '2025-01-20T10:30:00Z',
-    updatedAt: '2025-01-20T10:30:00Z',
-    deletedAt: null,
-    paiements: [],
-    lecons: [],
-    examens: [],
-    factures: [],
-    formation: null,
-    documents: [],
-  },
-  {
-    id: 3,
-    nom: 'Ewolo',
-    prenom: 'Jean',
-    email: 'jean.ewolo@example.com',
-    telephone: '677889900',
-    dateInscription: '2025-02-01T09:15:00Z',
-    categorie: 'B',
-    statut: 'EN_COURS',
-    numeroPermis: null,
-    dateNaissance: '2006-05-15',
-    adresse: 'Bastos, Yaoundé',
-    notes: 'Formation conduite accompagnée',
-    createdAt: '2025-02-01T09:15:00Z',
-    updatedAt: '2025-02-01T09:15:00Z',
-    deletedAt: null,
-    paiements: [],
-    lecons: [],
-    examens: [],
-    factures: [],
-    formation: null,
-    documents: [],
-  },
-  {
-    id: 4,
-    nom: 'Tchoffo',
-    prenom: 'Anne',
-    email: 'anne.tchoffo@example.com',
-    telephone: '688990011',
-    dateInscription: '2025-02-05T14:00:00Z',
-    categorie: 'B',
-    statut: 'EN_COURS',
-    numeroPermis: null,
-    dateNaissance: '1998-11-30',
-    adresse: 'Messa, Yaoundé',
-    notes: 'Candidat sérieux',
-    createdAt: '2025-02-05T14:00:00Z',
-    updatedAt: '2025-02-05T14:00:00Z',
-    deletedAt: null,
-    paiements: [],
-    lecons: [],
-    examens: [],
-    factures: [],
-    formation: null,
-    documents: [],
-  },
-  {
-    id: 5,
-    nom: 'Ndong',
-    prenom: 'Charles',
-    email: 'charles.ndong@example.com',
-    telephone: '691234567',
-    dateInscription: '2025-01-15T08:00:00Z',
-    categorie: 'B',
-    statut: 'EN_COURS',
-    numeroPermis: null,
-    dateNaissance: '1995-04-12',
-    adresse: 'Rue 123, Omnisport, Yaoundé',
-    notes: null,
-    createdAt: '2025-01-15T08:00:00Z',
-    updatedAt: '2025-01-15T08:00:00Z',
-    deletedAt: null,
-    paiements: [],
-    lecons: [],
-    examens: [],
-    factures: [],
-    formation: null,
-    documents: [],
-  },
-  {
-    id: 6,
-    nom: 'Mbarga',
-    prenom: 'Catherine',
-    email: 'catherine.mbarga@example.com',
-    telephone: '698765432',
-    dateInscription: '2025-01-20T10:30:00Z',
-    categorie: 'B',
-    statut: 'EN_COURS',
-    numeroPermis: null,
-    dateNaissance: '1992-08-25',
-    adresse: 'Avenue Mvog-Mbi, Yaoundé',
-    notes: 'Premier paiement effectué',
-    createdAt: '2025-01-20T10:30:00Z',
-    updatedAt: '2025-01-20T10:30:00Z',
-    deletedAt: null,
-    paiements: [],
-    lecons: [],
-    examens: [],
-    factures: [],
-    formation: null,
-    documents: [],
-  },
-  {
-    id: 7,
-    nom: 'Ewolo',
-    prenom: 'Jean',
-    email: 'jean.ewolo@example.com',
-    telephone: '677889900',
-    dateInscription: '2025-02-01T09:15:00Z',
-    categorie: 'B',
-    statut: 'EN_COURS',
-    numeroPermis: null,
-    dateNaissance: '2006-05-15',
-    adresse: 'Bastos, Yaoundé',
-    notes: 'Formation conduite accompagnée',
-    createdAt: '2025-02-01T09:15:00Z',
-    updatedAt: '2025-02-01T09:15:00Z',
-    deletedAt: null,
-    paiements: [],
-    lecons: [],
-    examens: [],
-    factures: [],
-    formation: null,
-    documents: [],
-  },
-  {
-    id: 8,
-    nom: 'Tchoffo',
-    prenom: 'Anne',
-    email: 'anne.tchoffo@example.com',
-    telephone: '688990011',
-    dateInscription: '2025-02-05T14:00:00Z',
-    categorie: 'B',
-    statut: 'EN_COURS',
-    numeroPermis: null,
-    dateNaissance: '1998-11-30',
-    adresse: 'Messa, Yaoundé',
-    notes: 'Candidat sérieux',
-    createdAt: '2025-02-05T14:00:00Z',
-    updatedAt: '2025-02-05T14:00:00Z',
-    deletedAt: null,
-    paiements: [],
-    lecons: [],
-    examens: [],
-    factures: [],
-    formation: null,
-    documents: [],
-  },
-];
-
-export default function AdminDashboard({
-  session,
-  user,
-  onReady,
-}: AdminDashboardProps): React.JSX.Element {
+export default function AdminDashboard(): React.JSX.Element {
   const navigate = useNavigate();
 
-  useEffect(() => {
-    onReady?.();
-  }, [onReady]);
+  // ── Stores Zustand ──────────────────────────────────────────────────────
+  const { user, lastSession: session, getStats: getAuthStats, getTrends: getAuthTrends, getSparklines: getAuthSparklines } = useAuth();
+  const { candidats, getAll: getAllCandidats, stats: candidatsStats, trends: candidatsTrends, getStats: getCandidatsStats, getTrends: getCandidatsTrends } = useCandidats();
+  const { moniteurs, getAll: getAllMoniteurs, stats: moniteursStats, trends: moniteursTrends, sparklines: moniteursSparkline, getStats: getMoniteursStats } = useMoniteurs();
+  const { vehicules, getAll: getAllVehicules, stats: vehiculesStats, trends: vehiculesTrends, sparklines: vehiculesSparkline, getStats: getVehiculesStats } = useVehicules();
+  const { getSoldeCandidat, paiements, getAll: getAllPaiements, stats: paiementsStats, trends: paiementsTrends, sparklines: paiementsSparkline, getStats: getPaiementsStats, getTrends: getPaiementsTrends } = usePaiements();
+  const { stats: caisseStats, trends: caisseTrends, mouvements, getAll: getAllMouvements, getStats: getCaisseStats, getTrends: getCaisseTrends } = useCaisse();
+  const { lecons, getAll: getAllLecons, getStats: getLeconsStats } = usePlanning();
+  const { examens, getAll: getAllExamens, getStats: getExamensStats } = useExamens();
+  const { depenses, getAll: getAllDepenses, getStats: getDepensesStats } = useDepenses();
 
-  const [candidats, setCandidats] = useState<Candidat[]>([]);
-  const [isLoadingCandidats, setIsLoadingCandidats] = useState(true);
+  // ── États locaux légitimes ──────────────────────────────────────────────
+  const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  const [soldeMap, setSoldeMap] = React.useState<Map<number, number>>(new Map());
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setCandidats(MOCK_CANDIDATS);
-      setIsLoadingCandidats(false);
-    }, 800);
-    return () => clearTimeout(timer);
+  // ── Chargement initial de toutes les données au montage ─────────────────
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const loadAllData = async () => {
+      setIsLoading(true);
+      try {
+        await Promise.all([
+          getAuthStats(),
+          getAuthTrends(),
+          getAuthSparklines(),
+          getAllCandidats(),
+          getCandidatsStats(),
+          getCandidatsTrends(),
+          getAllMoniteurs(),
+          getMoniteursStats(),
+          getAllVehicules(),
+          getVehiculesStats(),
+          getAllPaiements(),
+          getPaiementsStats(),
+          getPaiementsTrends(),
+          getAllMouvements(),
+          getCaisseStats(),
+          getCaisseTrends(),
+          getAllLecons(),
+          getLeconsStats(),
+          getAllExamens(),
+          getExamensStats(),
+          getAllDepenses(),
+          getDepensesStats(),
+        ]);
+      } catch (err) {
+        console.error('Erreur chargement magasins du dashboard:', err);
+        if (isMounted) {
+          toast.error('Erreur lors du chargement des données du tableau de bord');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadAllData();
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleRefreshCandidats = useCallback(async () => {
-    await new Promise((r) => setTimeout(r, 600));
-    setCandidats([...MOCK_CANDIDATS]);
-  }, []);
+  // ── Mémorisation des valeurs dérivées pour bloquer les re-renders inutiles ──
 
-  // ── Infos admin ─────────────────────────────────────────────────────────
-  const adminName = `${user?.prenom ?? ''} ${user?.nom ?? ''}`.trim() || 'Administrateur';
+  const candidatsRecents = React.useMemo<Candidat[]>(() => {
+    if (!candidats || candidats.length === 0) return [];
+    return [...candidats]
+      .sort((a, b) => new Date(b.dateInscription).getTime() - new Date(a.dateInscription).getTime())
+      .slice(0, 5);
+  }, [candidats]);
+
+  const leconsAujourdHui = React.useMemo<number>(() => {
+    if (!lecons || lecons.length === 0) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    return lecons.filter(l => {
+      const d = new Date(l.date);
+      return d >= today && d < tomorrow;
+    }).length;
+  }, [lecons]);
+
+  const candidatsInscritsMois = React.useMemo<number>(() => {
+    if (candidatsStats?.inscritsCeMois !== undefined) {
+      return candidatsStats.inscritsCeMois;
+    }
+    if (!candidats || candidats.length === 0) return 0;
+    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    return candidats.filter(c => new Date(c.dateInscription) >= startOfMonth).length;
+  }, [candidats, candidatsStats]);
+
+  const revenusMois = React.useMemo<number>(() => {
+    return paiementsStats?.totalEncaissements || 0;
+  }, [paiementsStats]);
+
+  // ── Chargement asynchrone sécurisé des soldes via l'API ────────────────
+  React.useEffect(() => {
+    if (candidatsRecents.length === 0) return;
+
+    let isMounted = true;
+
+    const loadSoldesCandidats = async () => {
+      const temporaryMap = new Map<number, number>();
+
+      await Promise.all(
+        candidatsRecents.map(async (c) => {
+          try {
+            const soldeData = await getSoldeCandidat(c.id);
+            temporaryMap.set(c.id, soldeData.solde);
+          } catch {
+            temporaryMap.set(c.id, 0);
+          }
+        })
+      );
+
+      if (isMounted) {
+        setSoldeMap(prev => {
+          // Vérification de contenu pour éviter de casser la référence si les soldes sont identiques
+          let hasChanged = prev.size !== temporaryMap.size;
+          if (!hasChanged) {
+            for (const [key, val] of temporaryMap.entries()) {
+              if (prev.get(key) !== val) {
+                hasChanged = true;
+                break;
+              }
+            }
+          }
+          return hasChanged ? temporaryMap : prev;
+        });
+      }
+    };
+
+    loadSoldesCandidats();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [candidatsRecents, getSoldeCandidat]);
+
+  // ── Handlers de navigation mémorisés ────────────────────────────────────
+  const handleManageCandidats = React.useCallback(() => navigate(PROTECTED_ROUTES.CANDIDATS.LIST), [navigate]);
+  const handleViewAllCandidats = React.useCallback(() => navigate(PROTECTED_ROUTES.CANDIDATS.LIST), [navigate]);
+
+  const handleStatsCardClick = React.useCallback((cardId: string) => {
+    switch (cardId) {
+      case 'total-candidats':
+        navigate(PROTECTED_ROUTES.CANDIDATS.LIST);
+        break;
+      case 'total-moniteurs':
+        navigate(PROTECTED_ROUTES.MONITEURS.LIST);
+        break;
+      case 'total-vehicules':
+        navigate(PROTECTED_ROUTES.VEHICULES.LIST);
+        break;
+      case 'total-revenus':
+        navigate(PROTECTED_ROUTES.PAIEMENTS.LIST);
+        break;
+      case 'total-users':
+      case 'total-admins':
+      case 'total-secretaires':
+        navigate(PROTECTED_ROUTES.ADMIN.USERS.LIST);
+        break;
+      default:
+        break;
+    }
+  }, [navigate]);
+
+  // ── Identité utilisateur connecté mémorisée ──────────────────────────────
+  const adminName = React.useMemo(() => user ? `${user.prenom} ${user.nom}`.trim() : 'Administrateur', [user]);
   const adminTitle = user?.role;
-  const avatarUrl = getAvatarUrl(`${user?.prenom ?? ''} ${user?.nom ?? ''}`.trim()) ?? undefined;
-  const avatarFallback = (user?.prenom?.[0] ?? user?.nom?.[0] ?? 'A').toUpperCase();
+  const avatarUrl = React.useMemo(() => user ? getAvatarUrl(`${user.prenom} ${user.nom}`.trim()) : undefined, [user]);
+  const avatarFallback = React.useMemo(() => user ? (user.prenom?.[0] || user.nom?.[0] || 'A').toUpperCase() : 'A', [user]);
 
-  // ── Stats métier mockées ────────────────────────────────────────────────
-  const businessStats = {
-    totalCandidats: 158,
-    totalCandidatsTrend: { value: 12, isPositive: true, label: 'vs mois dernier' },
-    totalCandidatsSparkline: {
-      values: [112, 118, 125, 132, 138, 148, 158],
-      labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil'],
-    },
-    totalMoniteurs: 8,
-    totalMoniteursTrend: { value: 2, label: 'vs 2 mois dernier' },
-    totalMoniteursSparkline: {
-      values: [52, 118, 425, 132, 538, 248, 158],
-      labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil'],
-    },
-    totalVehiculesDisponibles: 12,
-    totalVehiculesDisponiblesTrend: { value: 2, isPositive: true, label: 'vs mois dernier' },
-    totalRevenusMois: 8750000,
-    totalRevenusMoisTrend: {
-      value: 8.5,
-      isPositive: true,
-      label: 'vs mois dernier',
-      isPercentage: true,
-    },
-  };
+  // ── Actions et enrichissements stabilisés pour le tableau ────────────────
+  const candidatsActions = React.useMemo(() => ({
+    onView: (c: Candidat) => navigate(route(PROTECTED_ROUTES.CANDIDATS.DETAIL(c.id), { id: c.id })),
+    onEdit: (c: Candidat) => navigate(route(PROTECTED_ROUTES.CANDIDATS.EDIT(c.id), { id: c.id })),
+    onAddPayment: (c: Candidat) => navigate(`${PROTECTED_ROUTES.PAIEMENTS.CREATE}?candidatId=${c.id}`),
+    onAddLesson: (c: Candidat) => navigate(`${PROTECTED_ROUTES.PLANNING.CREATE}?candidatId=${c.id}`),
+    onRegisterExam: (c: Candidat) => navigate(`${PROTECTED_ROUTES.EXAMENS.CREATE}?candidatId=${c.id}`),
+    onViewDocuments: (c: Candidat) => navigate(`${PROTECTED_ROUTES.DOCUMENTS.PAR_CANDIDAT(c.id)}?candidatId=${c.id}`),
+  }), [navigate]);
 
+  const candidatsEnrichments = React.useMemo(() => ({
+    getSolde: (c: Candidat) => soldeMap.get(c.id) ?? 0,
+    getLeconsCount: (c: Candidat) => c.lecons?.length ?? 0,
+    getExamensCount: (c: Candidat) => c.examens?.length ?? 0,
+  }), [soldeMap]);
 
+  // ── Extraction des sous-états auth ──────────────────────────────────────
+  const authStats = useAuth().stats;
+  const authTrends = useAuth().trends;
+  const authSparklines = useAuth().sparklines;
 
-  // ── Navigation ──────────────────────────────────────────────────────────
-  const handleManageCandidats = () => navigate(PROTECTED_ROUTES.CANDIDATS.LIST);
-  const handleSystemSettings = () => navigate(PROTECTED_ROUTES.SETTINGS);
-  const handleViewAllCandidats = () => navigate(PROTECTED_ROUTES.CANDIDATS.LIST);
+  // ── Mouvements financiers mémorisés ─────────────────────────────────────
+  const recentMouvements = React.useMemo(() => {
+    if (!mouvements) return [];
+    return [...mouvements].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+  }, [mouvements]);
 
-  const handleStatsCardClick = (cardId: string) => {
-    if (cardId === 'total-candidats') navigate(PROTECTED_ROUTES.CANDIDATS.LIST);
-    else if (cardId === 'total-moniteurs') navigate(PROTECTED_ROUTES.MONITEURS.LIST);
-    else if (cardId === 'total-vehicules') navigate(PROTECTED_ROUTES.VEHICULES.LIST);
-    else if (cardId === 'total-revenus') navigate(PROTECTED_ROUTES.PAIEMENTS.LIST);
-    else if (cardId === 'total-users') navigate(PROTECTED_ROUTES.ADMIN.USERS.LIST);
-    else if (cardId === 'total-admins') navigate(PROTECTED_ROUTES.ADMIN.USERS.LIST);
-    else if (cardId === 'total-secretaires') navigate(PROTECTED_ROUTES.ADMIN.USERS.LIST);
-  };
+  const entreesJour = React.useMemo(() => {
+    if (!mouvements) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return mouvements
+      .filter(m => m.type === 'ENTREE' && new Date(m.date) >= today)
+      .reduce((sum, m) => sum + m.montant, 0);
+  }, [mouvements]);
 
-  const candidatsActions = {
-    onView: (c: Candidat) => navigate(PROTECTED_ROUTES.CANDIDATS.DETAIL(c.id)),
-    onEdit: (c: Candidat) => navigate(PROTECTED_ROUTES.CANDIDATS.EDIT(c.id)),
-    onAddPayment: (c: Candidat) =>
-      navigate(`${PROTECTED_ROUTES.PAIEMENTS.CREATE}?candidatId=${c.id}`),
-    onAddLesson: (c: Candidat) =>
-      navigate(`${PROTECTED_ROUTES.PLANNING.CREATE}?candidatId=${c.id}`),
-    onRegisterExam: (c: Candidat) =>
-      navigate(`${PROTECTED_ROUTES.EXAMENS.CREATE}?candidatId=${c.id}`),
-    onViewDocuments: (c: Candidat) => navigate(`/documents?candidatId=${c.id}`),
-  };
+  // ── Graphique d’activité : Mémorisation ultra-stricte anti-boucle ──────────
+  const activityData = React.useMemo((): AppActivityDataPoint[] => {
+    const now = new Date();
+    const dataPoints: AppActivityDataPoint[] = [];
 
-  const candidatsEnrichments = {
-    getSolde: (c: Candidat) =>
-      (c.paiements?.reduce?.((acc, p) => acc + p.montant, 0) ?? 0) > 50000 ? 0 : 75000,
-    getLeconsCount: (c: Candidat) => c.lecons?.length ?? 2,
-    getExamensCount: (c: Candidat) => c.examens?.length ?? 1,
-  };
+    for (let i = 11; i >= 0; i--) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+      const dateStr = format(monthStart, 'yyyy-MM-dd');
 
-  // ── Entrées du jour (mock) ──────────────────────────────────────────────
-  const entreesJour = MOCK_MOUVEMENTS_RECENTS.filter(
-    (m) => m.type === 'ENTREE' && new Date(m.date).toDateString() === new Date().toDateString()
-  ).reduce((sum, m) => sum + m.montant, 0);
+      const newCandidats = candidats.filter(c => {
+        const d = new Date(c.dateInscription);
+        return d >= monthStart && d <= monthEnd;
+      }).length;
+
+      const newMoniteurs = moniteurs.filter(m => {
+        if (!m.createdAt) return false;
+        const d = new Date(m.createdAt);
+        return d >= monthStart && d <= monthEnd;
+      }).length;
+
+      const newVehicules = vehicules.filter(v => {
+        if (!v.createdAt) return false;
+        const d = new Date(v.createdAt);
+        return d >= monthStart && d <= monthEnd;
+      }).length;
+
+      const leconsCount = lecons.filter(l => {
+        const d = new Date(l.date);
+        return d >= monthStart && d <= monthEnd;
+      }).length;
+
+      const examensCount = examens.filter(e => {
+        const d = new Date(e.date);
+        return d >= monthStart && d <= monthEnd;
+      }).length;
+
+      const paiementsTotal = paiements.filter(p => {
+        const d = new Date(p.date);
+        return d >= monthStart && d <= monthEnd;
+      }).reduce((sum, p) => sum + p.montant, 0);
+
+      const depensesTotal = depenses.filter(d => {
+        const dDate = new Date(d.date);
+        return dDate >= monthStart && dDate <= monthEnd;
+      }).reduce((sum, d) => sum + d.montant, 0);
+
+      const examensMois = examens.filter(e => {
+        const d = new Date(e.date);
+        return d >= monthStart && d <= monthEnd;
+      });
+      const reussis = examensMois.filter(e => e.resultat === 'RECU').length;
+      const tauxReussite = examensMois.length > 0 ? (reussis / examensMois.length) * 100 : 0;
+
+      dataPoints.push({
+        date: dateStr,
+        newCandidats,
+        newMoniteurs,
+        newVehicules,
+        lecons: leconsCount,
+        examens: examensCount,
+        paiements: paiementsTotal,
+        depenses: depensesTotal,
+        tauxReussite: parseFloat(tauxReussite.toFixed(1)),
+      });
+    }
+
+    return dataPoints;
+  }, [candidats, moniteurs, vehicules, lecons, examens, paiements, depenses]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5 pb-8">
       {/* En‑tête de bienvenue */}
       <AdminWelcomeHeader
         adminName={adminName}
+        isLoading={isLoading}
         adminTitle={adminTitle}
         avatarUrl={avatarUrl}
         avatarFallback={avatarFallback}
-        lastLoginAt={session?.dernierAcces ? new Date(session.dernierAcces) : undefined}
-        newCandidatsCount={4}
-        pendingPayments={2}
-        pendingMaintenances={1}
-        lessonsToday={5}
-        candidatsThisMonth={18}
-        monthlyRevenue={8750000}
-        vehicleOccupancyRate={78}
+        lastLoginAt={session?.dernierAcces}
+        newCandidatsCount={candidatsInscritsMois}
+        pendingPayments={0}
+        pendingMaintenances={vehicules.filter(v => v.statut === 'EN_ENTRETIEN').length}
+        lessonsToday={leconsAujourdHui}
+        candidatsThisMonth={candidatsInscritsMois}
+        monthlyRevenue={revenusMois}
+        vehicleOccupancyRate={
+          vehicules.length ? (vehicules.filter(v => v.statut === 'EN_LECON').length / vehicules.length) * 100 : 0
+        }
         onManageCandidats={handleManageCandidats}
-        onSystemSettings={handleSystemSettings}
         showDate
       />
 
+      {/* Bloc supérieur : cartes métier + sidebar financière */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <AdminStatsCards
-            totalCandidats={businessStats.totalCandidats}
-            totalCandidatsTrend={businessStats.totalCandidatsTrend}
-            totalCandidatsSparkline={businessStats.totalCandidatsSparkline}
-            totalMoniteursSparkline={businessStats.totalMoniteursSparkline}
-            totalMoniteurs={businessStats.totalMoniteurs}
-            totalMoniteursTrend={businessStats.totalMoniteursTrend}
-            totalVehiculesDisponibles={businessStats.totalVehiculesDisponibles}
-            totalVehiculesDisponiblesTrend={businessStats.totalVehiculesDisponiblesTrend}
-            totalRevenusMois={businessStats.totalRevenusMois}
-            totalRevenusMoisTrend={businessStats.totalRevenusMoisTrend}
+            candidatsStats={candidatsStats}
+            candidatsTrends={candidatsTrends ?? STATIC_EMPTY_OBJECT}
+            moniteursStats={moniteursStats}
+            moniteursTrends={moniteursTrends ?? STATIC_EMPTY_OBJECT}
+            vehiculesStats={vehiculesStats}
+            vehiculesTrends={vehiculesTrends ?? STATIC_EMPTY_OBJECT}
+            paiementsStats={paiementsStats}
+            paiementsTrends={paiementsTrends ?? STATIC_EMPTY_OBJECT}
+            candidatsSparkline={STATIC_SPARKLINE_DEFAULT}
+            moniteursSparkline={moniteursSparkline?.actifsSparkline}
+            vehiculesSparkline={vehiculesSparkline?.disponiblesSparkline}
+            revenusSparkline={paiementsSparkline?.totalEncaissementsSparkline}
+            isLoading={isLoading}
             onCardClick={handleStatsCardClick}
             className="h-full"
           />
         </div>
-
-        {/* Prochain événement (sidebar) */}
         <div className="lg:col-span-1">
           <CaisseMouvementsRecentCard
-            mouvements={MOCK_MOUVEMENTS_RECENTS}
-            caisseStats={MOCK_CAISSE_STATS}
+            mouvements={recentMouvements}
+            caisseStats={caisseStats!}
             maxItems={5}
-            isLoading={false}
-            onViewAll={() => navigate('/caisse')}
-            onViewMouvement={(m) => navigate(`/caisse/${m.id}`)}
-            className="col-span-12 xl:col-span-5"
+            isLoading={isLoading}
+            onViewAll={() => navigate(PROTECTED_ROUTES.CAISSE.INDEX)}
+            className="h-full"
           />
         </div>
       </div>
 
+      {/* Deuxième ligne : candidats récents + aperçu financier */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <CandidatsTable
-            candidats={candidats}
-            isLoading={isLoadingCandidats}
-            onRefresh={handleRefreshCandidats}
+            candidats={candidatsRecents}
+            isLoading={isLoading}
             actions={candidatsActions}
             enrichments={candidatsEnrichments}
             title="Derniers candidats inscrits"
             showViewAll
-            columnConfig={{
-              showLeconsCount: false,
-              showExamensCount: false,
-            }}
+            columnConfig={STATIC_COLUMN_CONFIG}
             onViewAll={handleViewAllCandidats}
             variant="admin"
-            enablePagination={true}
-            defaultPageSize={5}
+            enablePagination={false}
             maxItems={5}
             asCard
-            className="w-ful h-full"
+            description="Consultez et gérez l’ensemble des élèves inscrits"
+            emptyMessage="Aucun candidat trouvé pour cette période."
+            className="w-full h-full"
           />
         </div>
-
-        {/* Prochain événement (sidebar) */}
         <div className="lg:col-span-1">
           <FinanceOverviewCard
-            caisseStats={MOCK_CAISSE_STATS}
-            caisseTrends={MOCK_CAISSE_TRENDS}
+            caisseStats={caisseStats!}
+            caisseTrends={caisseTrends!}
             entreesJour={entreesJour}
             periode="mois"
-            isLoading={false}
-            className="col-span-12 xl:col-span-7"
+            isLoading={isLoading}
+            className="h-full"
           />
         </div>
       </div>
 
-      {/* Graphique d’activité globale */}
+      {/* Graphique d’activité globale stabilisé */}
       <AppActivityChart
         title="Activité de l’auto‑école"
+        data={activityData}
         showComparison={false}
         showTrend
         defaultChartType="area"
@@ -507,8 +444,20 @@ export default function AdminDashboard({
         className="w-full"
       />
 
-      <Footer variant="minim" />
+      {/* Statistiques système (utilisateurs) */}
+      <AuthStatsCards
+        stats={authStats}
+        trends={authTrends ?? STATIC_EMPTY_OBJECT}
+        totalUsersSparkline={authSparklines?.totalUtilisateursSparkline}
+        totalAdminsSparkline={authSparklines?.totalAdminsSparkline}
+        totalSecretairesSparkline={authSparklines?.totalSecretairesSparkline}
+        totalMoniteursSparkline={authSparklines?.totalMoniteursSparkline}
+        isLoading={isLoading}
+        onCardClick={handleStatsCardClick}
+        className="w-full"
+      />
 
+      <Footer variant="minim" />
     </div>
   );
 }

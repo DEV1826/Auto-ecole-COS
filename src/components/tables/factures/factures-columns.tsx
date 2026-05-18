@@ -76,6 +76,7 @@ import type {
 import type { StatutFacture } from '@/types/enums';
 import { STATUT_FACTURE_CONFIG } from '@/types/enums';
 import type { RowActionsConfig, CustomRowAction } from '@/components/tables/types';
+import { useTheme } from 'next-themes';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UTILITAIRES
@@ -89,6 +90,65 @@ function formatCurrency(montant: number): string {
   if (montant >= 1_000_000) return (montant / 1_000_000).toFixed(1) + 'M FCFA';
   if (montant >= 1_000) return (montant / 1_000).toFixed(1) + 'k FCFA';
   return montant.toLocaleString('fr-FR') + ' FCFA';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIGURATION DES TYPES DE DOCUMENTS (pour les icônes SVG)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Mappe un type de document vers le chemin de l’icône SVG (clair/sombre).
+ * @internal
+ */
+function getDocumentIconPath(theme?: string): string {
+  switch (theme) {
+    case 'light':
+      return '/images/icons/file-image.svg';
+    case 'carte_identite':
+      return '/images/icons/file-image-dark.svg';
+    default:
+      return '/images/icons/file-image.svg';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UTILITAIRES
+// ─────────────────────────────────────────────────────────────────────────────
+
+
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COLONNES COMMUNES
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Colonne principale : icône SVG + nom du fichier + taille.
+ * Utilise `createAvatarWithTextColumn` avec une icône custom (SVG).
+ * @internal
+ */
+function colDocumentInfo(): ColumnDef<Facture> {
+
+
+
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const { resolvedTheme } = useTheme();
+
+  return createAvatarWithTextColumn<Facture>({
+    accessorKey: 'nomFichier',
+    title: 'Document',
+    icon: FileText,
+    getAvatarUrl: () => getDocumentIconPath(resolvedTheme),
+    getInitials: () => '📄',
+    getPrimaryText: (fac) => fac.numero,
+    getSecondaryText: (doc) => formatCurrency(doc.montantTotal),
+    avatarSize: 'md',
+    img: true,
+    enableSorting: true,
+    size: 320,
+    cellClassName: 'min-w-0',
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -152,6 +212,33 @@ function colMontantPaye(getMontantPaye: (f: Facture) => number): ColumnDef<Factu
     },
     enableSorting: true,
     sortingFn: (a, b) => getMontantPaye(a.original) - getMontantPaye(b.original),
+    size: 120,
+  };
+}
+
+/**
+ * Colonne "Reste à payer" (via enrichissement)
+ * @param getResteAPayer - Fonction retournant le reste à payer
+ * @internal
+ */
+function colResteAPayer(getResteAPayer: (f: Facture) => number): ColumnDef<Facture> {
+  return {
+    id: 'resteAPayer',
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Reste à payer" icon={CreditCard} />
+    ),
+    cell: ({ row }) => {
+      const reste = getResteAPayer(row.original);
+
+      if (reste <= 0) return <span className="text-xs text-emerald-600">Soldé</span>;
+      return (
+        <span className="text-xs text-amber-600 dark:text-amber-400">
+          {formatCurrency(reste)}
+        </span>
+      );
+    },
+    enableSorting: true,
+    sortingFn: (a, b) => getResteAPayer(a.original) - getResteAPayer(b.original),
     size: 120,
   };
 }
@@ -266,13 +353,13 @@ function colCandidatEnriched(enrichments: FacturesEnrichments): ColumnDef<Factur
     accessorKey: 'candidatId',
     title: 'Candidat',
     icon: User,
-    getAvatarUrl: () => getCandidatAvatarUrl?.() ?? '',
-    getInitials: () => getCandidatInitials?.() ?? '?',
-    getPrimaryText: () => getCandidatNomComplet(),
-    getSecondaryText: () => {
-      const email = getCandidatEmail?.();
-      const phone = getCandidatTelephone?.();
-      if (email && phone) return `${email} · ${phone}`;
+    getAvatarUrl: (facture) => getCandidatAvatarUrl?.(facture) ?? '',
+    getInitials: (facture) => getCandidatInitials?.(facture) ?? '?',
+    getPrimaryText: (facture) => getCandidatNomComplet?.(facture) ?? '',
+    getSecondaryText: (facture) => {
+      const email = getCandidatEmail?.(facture);
+      const phone = getCandidatTelephone?.(facture);
+      if (email && phone) return `${email}`;
       return email ?? phone ?? '';
     },
     avatarSize: 'md',
@@ -384,11 +471,13 @@ export function getFacturesColumns({
     showDateEmission = true,
     showDateEcheance = false,
     showMontantPaye = true,
+    showResteAPayer = true,
     showActions = true,
   } = columnConfig;
 
   const cols: ColumnDef<Facture>[] = [];
 
+  cols.push(colDocumentInfo());
   if (showNumero) cols.push(colNumero());
 
   // Colonne candidat
@@ -413,6 +502,8 @@ export function getFacturesColumns({
   if (showMontant) cols.push(colMontantTotal());
   if (showMontantPaye && variant === 'admin' && enrichments.getMontantPaye)
     cols.push(colMontantPaye(enrichments.getMontantPaye));
+  if (showResteAPayer && variant === 'admin' && enrichments.getResteAPayer)
+    cols.push(colResteAPayer(enrichments.getResteAPayer));
   if (showStatut) cols.push(colStatut());
   if (showDateEmission && variant === 'admin') cols.push(colDateEmission());
   if (showDateEcheance && variant === 'admin') cols.push(colDateEcheance());
@@ -446,6 +537,7 @@ export function getAdminFacturesColumns(
       showDateEmission: true,
       showDateEcheance: true,
       showMontantPaye: true,
+      showResteAPayer: true,
       showActions: true,
       ...columnConfig,
     },
@@ -472,6 +564,7 @@ export function getSecretaireFacturesColumns(
       showDateEmission: false,
       showDateEcheance: false,
       showMontantPaye: false,
+      showResteAPayer: true,
       showActions: true,
       ...columnConfig,
     },

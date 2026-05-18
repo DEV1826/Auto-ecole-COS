@@ -97,7 +97,7 @@ export const updateCandidatSchema = z.object({
   numeroPermis: z.string().max(50).optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
   formationId: positiveIntSchema.optional().nullable(),
-  dateInscription: z.string().datetime().optional(),
+  dateInscription: z.string().optional(),
 });
 
 /**
