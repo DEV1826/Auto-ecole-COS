@@ -1,7 +1,7 @@
 import { createRequire } from 'module';
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { applyMigrations } from './migrations.js';
 
 const requirePrisma = createRequire(import.meta.url);
 const { app } = globalThis.__ELECTRON_MAIN__ ?? {};
@@ -32,31 +32,10 @@ function getDatabasePath() {
   return path.join(userDataPath, 'database.db');
 }
 
-function initializeSqliteFromMigrations(dbFilePath, prismaDir) {
-  const initScriptPath = path.join(process.cwd(), 'scripts', 'init_sqlite_from_migrations.py');
-  const migrationsDir = path.join(prismaDir, 'migrations');
-
-  if (!fs.existsSync(initScriptPath)) {
-    throw new Error(`SQLite init script not found: ${initScriptPath}`);
-  }
-
-  if (!fs.existsSync(migrationsDir)) {
-    throw new Error(`Migrations directory not found: ${migrationsDir}`);
-  }
-
-  execSync(`python "${initScriptPath}" "${dbFilePath}" "${migrationsDir}"`, {
-    stdio: 'inherit',
-  });
-}
-
-function copyBundledDatabaseTemplate(targetDbPath) {
-  const bundledDbPath = path.join(process.resourcesPath, 'prisma', 'dev.db');
-
-  if (!fs.existsSync(bundledDbPath)) {
-    throw new Error(`Bundled SQLite database not found: ${bundledDbPath}`);
-  }
-
-  fs.copyFileSync(bundledDbPath, targetDbPath);
+function getMigrationsDir() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'prisma', 'migrations')
+    : path.join(process.cwd(), 'prisma', 'migrations');
 }
 
 export async function initializePrisma() {
@@ -67,31 +46,16 @@ export async function initializePrisma() {
   dbPath = getDatabasePath();
   process.env.DATABASE_URL = `file:${dbPath}`;
 
-  if (!fs.existsSync(dbPath)) {
-    const prismaDir = app.isPackaged
-      ? path.join(process.resourcesPath, 'prisma')
-      : path.join(process.cwd(), 'prisma');
-
-    if (app.isPackaged) {
-      copyBundledDatabaseTemplate(dbPath);
-    } else {
-      const schemaPath = path.join(prismaDir, 'schema.prisma');
-      if (!fs.existsSync(schemaPath)) {
-        throw new Error(`Prisma schema not found: ${schemaPath}`);
-      }
-
-      try {
-        execSync(`npx.cmd prisma migrate deploy --schema "${schemaPath}"`, {
-          stdio: 'inherit',
-          env: {
-            ...process.env,
-            DATABASE_URL: `file:${dbPath}`,
-          },
-        });
-      } catch {
-        initializeSqliteFromMigrations(dbPath, prismaDir);
-      }
-    }
+  // Crée la base si besoin et applique les migrations manquantes (y compris
+  // lors d'une mise à jour de l'application sur un poste existant).
+  const { applied, baselined } = applyMigrations(dbPath, getMigrationsDir(), (message) =>
+    console.log(`[migrations] ${message}`)
+  );
+  if (baselined.length > 0) {
+    console.log(`[migrations] Base existante reconnue : ${baselined.join(', ')}`);
+  }
+  if (applied.length > 0) {
+    console.log(`[migrations] Migrations appliquées : ${applied.join(', ')}`);
   }
 
   if (!prismaInstance) {
