@@ -57,7 +57,7 @@ prisma/               schéma, migrations, seed
 Au démarrage, `electron/services/migrations.js` applique les migrations manquantes de
 `prisma/migrations/`. Il utilise la table `_prisma_migrations`, compatible avec Prisma. Une
 installation neuve part d'une base vide. Une mise à jour applique les nouvelles migrations sur la
-base existante, stockée dans `%APPDATA%/Auto-Ecole COS/database.db`.
+base existante, stockée dans `%APPDATA%/autoecole-app/database.db`.
 
 Pour faire évoluer le schéma : modifier `prisma/schema.prisma`, lancer `pnpm db:migrate`, puis
 commiter le dossier de migration généré.
