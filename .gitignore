@@ -26,3 +26,17 @@ dist-ssr
 .env
 prisma/dev.db
 prisma/dev.db-journal
+
+# Client Prisma généré (pnpm prisma:generate)
+generated/
+generated-prisma/
+
+# Données locales Electron / pnpm / journaux de démarrage
+.electron-user-data/
+.codex-run/
+.pnpm-store/
+prisma/*.db
+prisma/*.db-journal
+
+# Code d'installation embarqué dans l'installeur (secret, ne pas versionner)
+build/setup-code.txt
