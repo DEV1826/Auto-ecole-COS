@@ -12,6 +12,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { getPrismaClient, disconnectPrisma, initializePrisma } from './services/prisma.client.js';
+import { createSecureIpc, assertSelfOrAdmin, isAdminLevel } from './ipc/security.js';
 const { app, BrowserWindow, dialog, ipcMain, protocol, shell } = globalThis.__ELECTRON_MAIN__ ?? {};
 
 import {
@@ -325,7 +326,9 @@ async function printPdfFile(filePath, title = 'Document') {
     title,
     autoHideMenuBar: true,
     webPreferences: {
-      sandbox: false,
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
     },
   });
 
@@ -396,26 +399,6 @@ if (isDev) {
   app.setPath('userData', localUserDataPath);
 }
 
-function ensureProductionDatabase() {
-  if (isDev) return;
-
-  const userDataPath = app.getPath('userData');
-  const targetDbPath = path.join(userDataPath, 'database.db');
-  const bundledDbPath = path.join(process.resourcesPath, 'prisma', 'dev.db');
-
-  if (fs.existsSync(targetDbPath)) return;
-
-  if (!fs.existsSync(userDataPath)) {
-    fs.mkdirSync(userDataPath, { recursive: true });
-  }
-
-  if (!fs.existsSync(bundledDbPath)) {
-    throw new Error(`Base SQLite embarquee introuvable : ${bundledDbPath}`);
-  }
-
-  fs.copyFileSync(bundledDbPath, targetDbPath);
-  logStartup(`Base SQLite copiee vers ${targetDbPath}`);
-}
 
 /**
  * Crée et retourne la fenêtre principale de l'application.
@@ -435,9 +418,27 @@ function createWindow() {
       preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
-      enableRemoteModule: false,
+      sandbox: true,
+      webSecurity: true,
     },
+  });
+
+  // Aucune nouvelle fenêtre : les liens http(s) s'ouvrent dans le navigateur système.
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url) && !isTrustedUrl(url)) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
+  // La fenêtre principale ne doit jamais quitter l'application.
+  window.webContents.on('will-navigate', (event, url) => {
+    if (!isTrustedUrl(url)) {
+      event.preventDefault();
+      if (/^https?:\/\//i.test(url)) {
+        shell.openExternal(url);
+      }
+    }
   });
 
   
@@ -479,6 +480,20 @@ function getClientInfo(event) {
   };
 }
 
+/**
+ * Indique si une URL appartient à l'application (serveur Vite en dev, fichiers locaux en prod).
+ * @param {string} url
+ * @returns {boolean}
+ */
+function isTrustedUrl(url) {
+  if (typeof url !== 'string' || url.length === 0) return false;
+  const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+  if (isDev && devServerUrl && url.startsWith(devServerUrl.replace(/\/+$/, ''))) {
+    return true;
+  }
+  return url.startsWith('file://');
+}
+
 async function getExportService() {
   return import('./services/exportService.js');
 }
@@ -495,113 +510,148 @@ function createExportTimestamp() {
  * Enregistre tous les handlers IPC pour la communication entre le renderer et le main.
  */
 function registerIpcHandlers() {
+  const { handle } = createSecureIpc({
+    ipcMain,
+    validateToken,
+    isTrustedUrl,
+    log: logStartup,
+  });
+
   // =============================
   // AUTHENTIFICATION
   // =============================
-  ipcMain.handle('auth:login', async (event, { email, password }) => {
+  handle('auth:login', async (event, { email, password } = {}) => {
     const { ip, userAgent } = getClientInfo(event);
     return login({ email, password, ipAddress: ip, userAgent });
   });
 
-  ipcMain.handle('auth:logout', async (event, { sessionId, userId }) => {
+  // Public : une déconnexion avec un token déjà expiré ne doit pas échouer.
+  handle('auth:logout', async (event) => {
+    const { auth } = event;
+    if (!auth?.sessionId) {
+      return { success: true, message: 'Déconnexion réussie' };
+    }
     const { ip } = getClientInfo(event);
-    return logout({ sessionId, userId, ipAddress: ip });
+    return logout({ sessionId: auth.sessionId, userId: auth.userId, ipAddress: ip });
   });
 
-  ipcMain.handle('auth:validate', async (event, { token }) => validateToken(token));
+  handle('auth:validate', async (event, { token } = {}) => validateToken(token));
 
-  ipcMain.handle('auth:refresh', async (event, { refreshToken: rt }) =>
+  handle('auth:refresh', async (event, { refreshToken: rt } = {}) =>
     refreshToken({ refreshToken: rt })
   );
 
   // GESTION DES UTILISATEURS
-  ipcMain.handle('auth:createUser', async (event, payload) => {
+  handle('auth:createUser', async (event, payload = {}) => {
     const { ip } = getClientInfo(event);
-    return createUser({ ...payload, ipAddress: ip });
+    return createUser({ ...payload, creeParId: event.auth.userId, ipAddress: ip });
   });
 
-  ipcMain.handle('auth:verifyDeveloperSetupCode', async (event, { code }) => {
+  handle('auth:verifyDeveloperSetupCode', async (event, { code } = {}) => {
     const { ip } = getClientInfo(event);
     return verifyDeveloperSetupCode({ code, ipAddress: ip });
   });
 
-  ipcMain.handle('auth:createInitialSetup', async (event, payload) => {
+  handle('auth:createInitialSetup', async (event, payload = {}) => {
     const { ip } = getClientInfo(event);
     return createInitialSetup({ ...payload, ipAddress: ip });
   });
 
-  ipcMain.handle('auth:updateUser', async (event, payload) => {
+  handle('auth:updateUser', async (event, payload = {}) => {
     const { ip } = getClientInfo(event);
-    return updateUser({ ...payload, ipAddress: ip });
+    return updateUser({ ...payload, updatedByUserId: event.auth.userId, ipAddress: ip });
   });
 
-  ipcMain.handle('auth:deleteUser', async (event, { userId, deletedByUserId }) => {
+  handle('auth:deleteUser', async (event, { userId } = {}) => {
     const { ip } = getClientInfo(event);
-    return deleteUser({ userId, deletedByUserId, ipAddress: ip });
+    return deleteUser({ userId, deletedByUserId: event.auth.userId, ipAddress: ip });
   });
 
-  ipcMain.handle('auth:getAllUsers', async (event, { userId, page, limit }) =>
-    getAllUsers({ userId, page, limit })
+  handle('auth:getAllUsers', async (event, { page, limit } = {}) =>
+    getAllUsers({ userId: event.auth.userId, page, limit })
   );
 
-  ipcMain.handle('auth:getUserById', async (event, { userId, requesterId }) =>
-    getUserById({ userId, requesterId })
+  handle('auth:getUserById', async (event, { userId } = {}) =>
+    getUserById({ userId, requesterId: event.auth.userId })
   );
 
-  ipcMain.handle('auth:changePassword', async (event, { userId, oldPassword, newPassword }) => {
+  // Un utilisateur ne peut changer que son propre mot de passe (l'ancien est exigé).
+  handle('auth:changePassword', async (event, { oldPassword, newPassword } = {}) => {
     const { ip } = getClientInfo(event);
-    return changePassword({ userId, oldPassword, newPassword, ipAddress: ip });
+    return changePassword({
+      userId: event.auth.userId,
+      oldPassword,
+      newPassword,
+      ipAddress: ip,
+    });
   });
 
   // PERMISSIONS
-  ipcMain.handle('auth:assignPermission', async (event, payload) => {
+  handle('auth:assignPermission', async (event, payload = {}) => {
     const { ip } = getClientInfo(event);
-    return assignPermission({ ...payload, ipAddress: ip });
+    return assignPermission({ ...payload, assignedByUserId: event.auth.userId, ipAddress: ip });
   });
 
-  ipcMain.handle('auth:revokePermission', async (event, { permissionId, revokedByUserId }) => {
+  handle('auth:revokePermission', async (event, { permissionId } = {}) => {
     const { ip } = getClientInfo(event);
-    return revokePermission({ permissionId, revokedByUserId, ipAddress: ip });
+    return revokePermission({ permissionId, revokedByUserId: event.auth.userId, ipAddress: ip });
   });
 
-  ipcMain.handle('auth:getUserPermissions', async (event, { userId }) =>
-    getUserPermissions({ userId })
-  );
+  handle('auth:getUserPermissions', async (event, { userId } = {}) => {
+    assertSelfOrAdmin(event.auth, userId);
+    return getUserPermissions({ userId });
+  });
 
-  ipcMain.handle('auth:checkPermission', async (event, { userId, ressource, action }) =>
-    checkPermission({ userId, ressource, action })
-  );
+  handle('auth:checkPermission', async (event, { userId, ressource, action } = {}) => {
+    assertSelfOrAdmin(event.auth, userId);
+    return checkPermission({ userId, ressource, action });
+  });
 
   // SESSIONS
-  ipcMain.handle('auth:getUserSessions', async (event, { userId }) => getUserSessions({ userId }));
-
-  ipcMain.handle('auth:revokeSession', async (event, { sessionId, revokedByUserId }) => {
-    const { ip } = getClientInfo(event);
-    return revokeSession({ sessionId, revokedByUserId, ipAddress: ip });
+  handle('auth:getUserSessions', async (event, { userId } = {}) => {
+    assertSelfOrAdmin(event.auth, userId);
+    return getUserSessions({ userId });
   });
 
-  ipcMain.handle('auth:revokeAllUserSessions', async (event, { userId, revokedByUserId }) => {
+  handle('auth:revokeSession', async (event, { sessionId } = {}) => {
+    const session = await getPrismaClient().session.findUnique({
+      where: { id: Number(sessionId) },
+      select: { utilisateurId: true },
+    });
+    if (!session) {
+      throw new Error('Session introuvable.');
+    }
+    assertSelfOrAdmin(event.auth, session.utilisateurId);
     const { ip } = getClientInfo(event);
-    return revokeAllUserSessions({ userId, revokedByUserId, ipAddress: ip });
+    return revokeSession({ sessionId, revokedByUserId: event.auth.userId, ipAddress: ip });
+  });
+
+  handle('auth:revokeAllUserSessions', async (event, { userId } = {}) => {
+    assertSelfOrAdmin(event.auth, userId);
+    const { ip } = getClientInfo(event);
+    return revokeAllUserSessions({ userId, revokedByUserId: event.auth.userId, ipAddress: ip });
   });
 
   // RÉINITIALISATION PAR CODE OTP
-  ipcMain.handle('auth:requestPasswordResetByEmail', async (event, email, isAdmin) => {
+  // Le code n'est renvoyé que si l'appelant est un administrateur connecté.
+  handle('auth:requestPasswordResetByEmail', async (event, { email, isAdmin } = {}) => {
     const { ip } = getClientInfo(event);
-    return requestPasswordResetByEmail({ email, isAdmin, ipAddress: ip });
+    const callerIsAdmin = Boolean(isAdmin) && isAdminLevel(event.auth);
+    return requestPasswordResetByEmail({ email, isAdmin: callerIsAdmin, ipAddress: ip });
   });
 
-  ipcMain.handle('auth:validateResetCode', async (event, code) => {
+  handle('auth:validateResetCode', async (event, payload) => {
+    const code = payload && typeof payload === 'object' ? payload.code : payload;
     return validateResetCode({ code });
   });
 
-  ipcMain.handle('auth:resetPassword', async (event, { code, newPassword }) => {
+  handle('auth:resetPassword', async (event, { code, newPassword } = {}) => {
     const { ip } = getClientInfo(event);
     return resetPassword({ code, newPassword, ipAddress: ip });
   });
 
-  ipcMain.handle('auth:getAllResetCodes', async (event, { userId, page, limit, onlyActive }) => {
-    return getAllResetCodes({ userId, page, limit, onlyActive });
+  handle('auth:getAllResetCodes', async (event, { page, limit, onlyActive } = {}) => {
+    return getAllResetCodes({ userId: event.auth.userId, page, limit, onlyActive });
   });
 
   /**
@@ -609,7 +659,7 @@ function registerIpcHandlers() {
    * @route auth:getStats
    * @returns {Promise<AuthStats>} Statistiques des utilisateurs
    */
-  ipcMain.handle('auth:getStats', async () => {
+  handle('auth:getStats', async () => {
     return getUserStats();
   });
 
@@ -619,7 +669,7 @@ function registerIpcHandlers() {
    * @route auth:getTrends
    * @returns {Promise<AuthTrends>} Variations en pourcentage
    */
-  ipcMain.handle('auth:getTrends', async () => {
+  handle('auth:getTrends', async () => {
     return getUserTrends();
   });
 
@@ -629,7 +679,7 @@ function registerIpcHandlers() {
    * @route auth:getSparklines
    * @returns {Promise<AuthSparklineData>} Données historiques mensuelles
    */
-  ipcMain.handle('auth:getSparklines', async () => {
+  handle('auth:getSparklines', async () => {
     return getUserSparklines();
   });
 
@@ -637,67 +687,67 @@ function registerIpcHandlers() {
   // CANDIDATS
   // =============================
 
-  ipcMain.handle('candidats:getAll', async (event, params) => {
+  handle('candidats:getAll', async (event, params) => {
     return getAllCandidats(params);
   });
 
-  ipcMain.handle('candidats:getById', async (event, id) => {
+  handle('candidats:getById', async (event, id) => {
     return getCandidatById(id);
   });
 
-  ipcMain.handle('candidats:create', async (event, data) => {
+  handle('candidats:create', async (event, data) => {
     return createCandidat(data);
   });
 
-  ipcMain.handle('candidats:update', async (event, { id, data }) => {
+  handle('candidats:update', async (event, { id, data }) => {
     return updateCandidat(id, data);
   });
 
-  ipcMain.handle('candidats:delete', async (event, id) => {
+  handle('candidats:delete', async (event, id) => {
     return removeCandidat(id);
   });
 
-  ipcMain.handle('candidats:search', async (event, query) => {
+  handle('candidats:search', async (event, query) => {
     return searchCandidats(query);
   });
 
-  ipcMain.handle('candidats:updateStatus', async (event, params) => {
+  handle('candidats:updateStatus', async (event, params) => {
     return updateCandidatStatus(params);
   });
 
-  ipcMain.handle('candidats:getStats', async () => {
+  handle('candidats:getStats', async () => {
     return getCandidatsStats();
   });
 
-  ipcMain.handle('candidats:getTrends', async () => {
+  handle('candidats:getTrends', async () => {
     return await getCandidatsTrends();
   });
 
-  ipcMain.handle('candidats:getPaiements', async (event, candidatId) => {
+  handle('candidats:getPaiements', async (event, candidatId) => {
     return getCandidatPaiements(candidatId);
   });
 
-  ipcMain.handle('candidats:getLecons', async (event, candidatId) => {
+  handle('candidats:getLecons', async (event, candidatId) => {
     return getCandidatLecons(candidatId);
   });
 
-  ipcMain.handle('candidats:getExamens', async (event, candidatId) => {
+  handle('candidats:getExamens', async (event, candidatId) => {
     return getCandidatExamens(candidatId);
   });
 
-  ipcMain.handle('candidats:getFactures', async (event, candidatId) => {
+  handle('candidats:getFactures', async (event, candidatId) => {
     return getCandidatFactures(candidatId);
   });
 
-  ipcMain.handle('candidats:getDocuments', async (event, candidatId) => {
+  handle('candidats:getDocuments', async (event, candidatId) => {
     return getCandidatDocuments(candidatId);
   });
 
-  ipcMain.handle('candidats:addDocument', async (event, data) => {
+  handle('candidats:addDocument', async (event, data) => {
     return addCandidatDocument(data);
   });
 
-  ipcMain.handle('candidats:deleteDocument', async (event, docId) => {
+  handle('candidats:deleteDocument', async (event, docId) => {
     return deleteCandidatDocument(docId);
   });
 
@@ -705,42 +755,42 @@ function registerIpcHandlers() {
   // DOCUMENTS
   // =============================
 
-  ipcMain.handle('documents:upload', async (event, payload) => {
+  handle('documents:upload', async (event, payload) => {
     return uploadDocument(payload);
   });
-  ipcMain.handle('documents:getAll', async (event, params) => {
+  handle('documents:getAll', async (event, params) => {
     return getAllDocuments(params);
   });
 
-  ipcMain.handle('documents:getById', async (event, id) => {
+  handle('documents:getById', async (event, id) => {
     return getDocumentById(id);
   });
 
-  ipcMain.handle('documents:getStats', async () => {
+  handle('documents:getStats', async () => {
     return getDocumentsStats();
   });
 
-  ipcMain.handle('documents:getTrends', async () => {
+  handle('documents:getTrends', async () => {
     return getDocumentsTrends();
   });
 
-  ipcMain.handle('documents:getSparklines', async () => {
+  handle('documents:getSparklines', async () => {
     return getDocumentsSparklines();
   });
 
-  ipcMain.handle('documents:delete', async (event, id) => {
+  handle('documents:delete', async (event, id) => {
     return deleteDocument(id);
   });
 
-  ipcMain.handle('documents:download', async (event, id) => {
+  handle('documents:download', async (event, id) => {
     return downloadDocument(id);
   });
 
-  ipcMain.handle('documents:open', async (event, { chemin }) => {
+  handle('documents:open', async (event, { chemin }) => {
     return openDocument(chemin);
   });
 
-  ipcMain.handle('documents:print', async (_event, { chemin, title }) => {
+  handle('documents:print', async (_event, { chemin, title }) => {
     return printPdfFile(chemin, title);
   });
 
@@ -748,51 +798,51 @@ function registerIpcHandlers() {
   // FORMATIONS
   // =============================
 
-  ipcMain.handle('formations:getAll', async (event, params) => {
+  handle('formations:getAll', async (event, params) => {
     return getAllFormations(params);
   });
 
-  ipcMain.handle('formations:getById', async (event, id) => {
+  handle('formations:getById', async (event, id) => {
     return getFormationById(id);
   });
 
-  ipcMain.handle('formations:create', async (event, data) => {
+  handle('formations:create', async (event, data) => {
     return createFormation(data);
   });
 
-  ipcMain.handle('formations:update', async (event, { id, data }) => {
+  handle('formations:update', async (event, { id, data }) => {
     return updateFormation(id, data);
   });
 
-  ipcMain.handle('formations:delete', async (event, id) => {
+  handle('formations:delete', async (event, id) => {
     return deleteFormation(id);
   });
 
-  ipcMain.handle('formations:getStats', async () => {
+  handle('formations:getStats', async () => {
     return getFormationsStats();
   });
 
-  ipcMain.handle('formations:getTrends', async () => {
+  handle('formations:getTrends', async () => {
     return getFormationsTrends();
   });
 
-  ipcMain.handle('formations:getSparklines', async () => {
+  handle('formations:getSparklines', async () => {
     return getFormationsSparklines();
   });
 
-  ipcMain.handle('formations:getMonthlyInscriptions', async (event, formationId) => {
+  handle('formations:getMonthlyInscriptions', async (event, formationId) => {
     return getMonthlyInscriptions(formationId);
   });
 
-  ipcMain.handle('formations:getCandidatsByFormation', async (event, formationId) => {
+  handle('formations:getCandidatsByFormation', async (event, formationId) => {
     return getCandidatsByFormation(formationId);
   });
 
-  ipcMain.handle('formations:getPopularityStats', async () => {
+  handle('formations:getPopularityStats', async () => {
     return getPopularityStats();
   });
 
-  ipcMain.handle('formations:getNbInscriptions', async (event, formationId) => {
+  handle('formations:getNbInscriptions', async (event, formationId) => {
     return getNbInscriptions(formationId);
   });
 
@@ -805,7 +855,7 @@ function registerIpcHandlers() {
    * @param {Object} event - Objet IPC
    * @param {PaiementsListParams} params - Paramètres de pagination/filtres
    */
-  ipcMain.handle('paiements:getAll', async (event, params) => {
+  handle('paiements:getAll', async (event, params) => {
     return getAllPaiements(params);
   });
 
@@ -814,7 +864,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {number} id - Identifiant du paiement
    */
-  ipcMain.handle('paiements:getById', async (event, id) => {
+  handle('paiements:getById', async (event, id) => {
     return getPaiementById(id);
   });
 
@@ -823,7 +873,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {CreatePaiementInput} data - Données du paiement
    */
-  ipcMain.handle('paiements:create', async (event, data) => {
+  handle('paiements:create', async (event, data) => {
     return createPaiement(data);
   });
 
@@ -833,7 +883,7 @@ function registerIpcHandlers() {
    * @param {number} id - Identifiant du paiement
    * @param {UpdatePaiementInput} data - Champs à modifier
    */
-  ipcMain.handle('paiements:update', async (event, { id, data }) => {
+  handle('paiements:update', async (event, { id, data }) => {
     return updatePaiement(id, data);
   });
 
@@ -842,7 +892,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {number} id - Identifiant du paiement
    */
-  ipcMain.handle('paiements:delete', async (event, id) => {
+  handle('paiements:delete', async (event, id) => {
     return deletePaiement(id);
   });
 
@@ -850,7 +900,7 @@ function registerIpcHandlers() {
    * Récupère les statistiques complètes des paiements (dashboard).
    * @param {Object} event
    */
-  ipcMain.handle('paiements:getStats', async () => {
+  handle('paiements:getStats', async () => {
     return getPaiementsStats();
   });
 
@@ -858,7 +908,7 @@ function registerIpcHandlers() {
    * Récupère les tendances évolutives des paiements (mois courant vs précédent).
    * @param {Object} event
    */
-  ipcMain.handle('paiements:getTrends', async () => {
+  handle('paiements:getTrends', async () => {
     return getPaiementsTrends();
   });
 
@@ -866,7 +916,7 @@ function registerIpcHandlers() {
    * Récupère les sparklines des paiements pour les 12 derniers mois.
    * @param {Object} event
    */
-  ipcMain.handle('paiements:getSparklines', async () => {
+  handle('paiements:getSparklines', async () => {
     return getPaiementsSparklines();
   });
 
@@ -875,7 +925,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {number} candidatId
    */
-  ipcMain.handle('paiements:getByCandidat', async (event, candidatId) => {
+  handle('paiements:getByCandidat', async (event, candidatId) => {
     return getPaiementsByCandidat(candidatId);
   });
 
@@ -884,7 +934,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {number} candidatId
    */
-  ipcMain.handle('paiements:getSoldeCandidat', async (event, candidatId) => {
+  handle('paiements:getSoldeCandidat', async (event, candidatId) => {
     return getSoldeCandidat(candidatId);
   });
 
@@ -894,7 +944,7 @@ function registerIpcHandlers() {
    * @param {number} annee
    * @param {number} mois
    */
-  ipcMain.handle('paiements:getResumeMensuel', async (event, annee, mois) => {
+  handle('paiements:getResumeMensuel', async (event, annee, mois) => {
     return getResumeMensuel(annee, mois);
   });
 
@@ -903,7 +953,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {number} id
    */
-  ipcMain.handle('paiements:printReceipt', async (event, id) => {
+  handle('paiements:printReceipt', async (event, id) => {
     return printReceipt(id);
   });
 
@@ -916,7 +966,7 @@ function registerIpcHandlers() {
    * @param {Object} event - Objet IPC
    * @param {DepensesListParams} params - Paramètres de pagination/filtres
    */
-  ipcMain.handle('depenses:getAll', async (event, params) => {
+  handle('depenses:getAll', async (event, params) => {
     return getAllDepenses(params);
   });
 
@@ -925,7 +975,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {number} id - Identifiant de la dépense
    */
-  ipcMain.handle('depenses:getById', async (event, id) => {
+  handle('depenses:getById', async (event, id) => {
     return getDepenseById(id);
   });
 
@@ -934,7 +984,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {CreateDepenseInput} data - Données de la dépense
    */
-  ipcMain.handle('depenses:create', async (event, data) => {
+  handle('depenses:create', async (event, data) => {
     return createDepense(data);
   });
 
@@ -945,7 +995,7 @@ function registerIpcHandlers() {
    * @param {number} id - Identifiant de la dépense
    * @param {UpdateDepenseInput} data - Champs à modifier
    */
-  ipcMain.handle('depenses:update', async (event, { id, data }) => {
+  handle('depenses:update', async (event, { id, data }) => {
     return updateDepense(id, data);
   });
 
@@ -954,7 +1004,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {number} id - Identifiant de la dépense
    */
-  ipcMain.handle('depenses:delete', async (event, id) => {
+  handle('depenses:delete', async (event, id) => {
     return deleteDepense(id);
   });
 
@@ -962,7 +1012,7 @@ function registerIpcHandlers() {
    * Récupère les statistiques agrégées des dépenses (total, moyenne, par catégorie, etc.).
    * @param {Object} event
    */
-  ipcMain.handle('depenses:getStats', async () => {
+  handle('depenses:getStats', async () => {
     return getDepensesStats();
   });
 
@@ -970,7 +1020,7 @@ function registerIpcHandlers() {
    * Récupère les tendances évolutives des dépenses (mois courant vs précédent, catégories en hausse/baisse, etc.).
    * @param {Object} event
    */
-  ipcMain.handle('depenses:getTrends', async () => {
+  handle('depenses:getTrends', async () => {
     return getDepensesTrends();
   });
 
@@ -978,7 +1028,7 @@ function registerIpcHandlers() {
    * Récupère les données des tendances évolutives des dépenses pour les graphiques (évolution mensuelle, répartition par catégorie, etc.).
    * @param {Object} event
    */
-  ipcMain.handle('depenses:getTrendChartData', async () => {
+  handle('depenses:getTrendChartData', async () => {
     return getDepensesTrendChartData();
   });
 
@@ -986,7 +1036,7 @@ function registerIpcHandlers() {
    * Récupère les données des sparklines (12 mois) pour les dépenses.
    * @param {Object} event
    */
-  ipcMain.handle('depenses:getSparklines', async () => {
+  handle('depenses:getSparklines', async () => {
     return getDepensesSparklines();
   });
 
@@ -995,7 +1045,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {number} vehiculeId
    */
-  ipcMain.handle('depenses:getByVehicule', async (event, vehiculeId) => {
+  handle('depenses:getByVehicule', async (event, vehiculeId) => {
     return getDepensesByVehicule(vehiculeId);
   });
 
@@ -1005,7 +1055,7 @@ function registerIpcHandlers() {
    * @param {number} id - Identifiant de la dépense
    * @param {string} filePath - Chemin du
    */
-  ipcMain.handle('depenses:attachReceipt', async (event, { id, filePath }) => {
+  handle('depenses:attachReceipt', async (event, { id, filePath }) => {
     return attachReceiptToDepense(id, filePath);
   });
 
@@ -1018,7 +1068,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {CaisseListParams} params
    */
-  ipcMain.handle('caisse:getAll', async (event, params) => {
+  handle('caisse:getAll', async (event, params) => {
     return getAllMouvements(params);
   });
 
@@ -1026,7 +1076,7 @@ function registerIpcHandlers() {
    * Récupère les statistiques agrégées de la caisse.
    * @param {Object} event
    */
-  ipcMain.handle('caisse:getStats', async () => {
+  handle('caisse:getStats', async () => {
     return getCaisseStats();
   });
 
@@ -1034,7 +1084,7 @@ function registerIpcHandlers() {
    * Récupère les tendances évolutives (mois vs précédent).
    * @param {Object} event
    */
-  ipcMain.handle('caisse:getTrends', async () => {
+  handle('caisse:getTrends', async () => {
     return getCaisseTrends();
   });
 
@@ -1042,7 +1092,7 @@ function registerIpcHandlers() {
    * Récupère les données des sparklines pour les 12 derniers mois.
    * @param {Object} event
    */
-  ipcMain.handle('caisse:getSparklines', async () => {
+  handle('caisse:getSparklines', async () => {
     return getCaisseSparklines();
   });
 
@@ -1051,7 +1101,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {CaisseListParams} params
    */
-  ipcMain.handle('caisse:exportMouvements', async (event, params) => {
+  handle('caisse:exportMouvements', async (event, params) => {
     return exportCaisseMouvementsFile(params);
   });
 
@@ -1064,7 +1114,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {FacturesListParams} params
    */
-  ipcMain.handle('factures:getAll', async (event, params) => {
+  handle('factures:getAll', async (event, params) => {
     return getAllFactures(params);
   });
 
@@ -1073,7 +1123,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {number} id
    */
-  ipcMain.handle('factures:getById', async (event, id) => {
+  handle('factures:getById', async (event, id) => {
     return getFactureById(id);
   });
 
@@ -1082,7 +1132,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {CreateFactureInput} data
    */
-  ipcMain.handle('factures:create', async (event, data) => {
+  handle('factures:create', async (event, data) => {
     return createFacture(data);
   });
 
@@ -1092,7 +1142,7 @@ function registerIpcHandlers() {
    * @param {number} id
    * @param {UpdateFactureInput} data
    */
-  ipcMain.handle('factures:update', async (event, { id, data }) => {
+  handle('factures:update', async (event, { id, data }) => {
     return updateFacture(id, data);
   });
 
@@ -1101,7 +1151,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {number} id
    */
-  ipcMain.handle('factures:delete', async (event, id) => {
+  handle('factures:delete', async (event, id) => {
     return deleteFacture(id);
   });
 
@@ -1109,7 +1159,7 @@ function registerIpcHandlers() {
    * Récupère les statistiques agrégées des factures.
    * @param {Object} event
    */
-  ipcMain.handle('factures:getStats', async () => {
+  handle('factures:getStats', async () => {
     return getFacturesStats();
   });
 
@@ -1117,7 +1167,7 @@ function registerIpcHandlers() {
    * Récupère les tendances évolutives des factures.
    * @param {Object} event
    */
-  ipcMain.handle('factures:getTrends', async () => {
+  handle('factures:getTrends', async () => {
     return getFacturesTrends();
   });
 
@@ -1125,7 +1175,7 @@ function registerIpcHandlers() {
    * Récupère les données des sparklines (12 mois) pour les factures.
    * @param {Object} event
    */
-  ipcMain.handle('factures:getSparklines', async () => {
+  handle('factures:getSparklines', async () => {
     return getFacturesSparklines();
   });
 
@@ -1134,7 +1184,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {number} factureId
    */
-  ipcMain.handle('factures:getPaiements', async (event, factureId) => {
+  handle('factures:getPaiements', async (event, factureId) => {
     return getPaiementsByFacture(factureId);
   });
 
@@ -1143,7 +1193,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {number} candidatId
    */
-  ipcMain.handle('factures:getByCandidat', async (event, candidatId) => {
+  handle('factures:getByCandidat', async (event, candidatId) => {
     return getFacturesByCandidat(candidatId);
   });
 
@@ -1152,7 +1202,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {number} id
    */
-  ipcMain.handle('factures:generatePDF', async (event, id) => {
+  handle('factures:generatePDF', async (event, id) => {
     return generateFacturePDFDesktop(id);
   });
 
@@ -1161,7 +1211,7 @@ function registerIpcHandlers() {
    * @param {Object} event
    * @param {number} id
    */
-  ipcMain.handle('factures:sendByEmail', async (event, id) => {
+  handle('factures:sendByEmail', async (event, id) => {
     return sendFactureByEmail(id);
   });
 
@@ -1172,98 +1222,98 @@ function registerIpcHandlers() {
   /**
    * Récupère la liste paginée des véhicules avec filtres.
    */
-  ipcMain.handle('vehicules:getAll', async (event, params) => {
+  handle('vehicules:getAll', async (event, params) => {
     return getAllVehicules(params);
   });
 
   /**
    * Récupère un véhicule par son identifiant avec toutes ses relations.
    */
-  ipcMain.handle('vehicules:getById', async (event, id) => {
+  handle('vehicules:getById', async (event, id) => {
     return getVehiculeById(id);
   });
 
   /**
    * Crée un nouveau véhicule.
    */
-  ipcMain.handle('vehicules:create', async (event, data) => {
+  handle('vehicules:create', async (event, data) => {
     return createVehicule(data);
   });
 
   /**
    * Met à jour un véhicule existant (patch partiel).
    */
-  ipcMain.handle('vehicules:update', async (event, { id, data }) => {
+  handle('vehicules:update', async (event, { id, data }) => {
     return updateVehicule(id, data);
   });
 
   /**
    * Supprime (désactive) un véhicule.
    */
-  ipcMain.handle('vehicules:delete', async (event, id) => {
+  handle('vehicules:delete', async (event, id) => {
     return removeVehicule(id);
   });
 
   /**
    * Récupère les statistiques agrégées des véhicules.
    */
-  ipcMain.handle('vehicules:getStats', async () => {
+  handle('vehicules:getStats', async () => {
     return getVehiculesStats();
   });
 
   /**
    * Récupère les tendances évolutives des véhicules.
    */
-  ipcMain.handle('vehicules:getTrends', async () => {
+  handle('vehicules:getTrends', async () => {
     return getVehiculesTrends();
   });
 
   /**
    * Récupère les données des sparklines pour les 12 derniers mois.
    */
-  ipcMain.handle('vehicules:getSparklines', async () => {
+  handle('vehicules:getSparklines', async () => {
     return getVehiculesSparklines();
   });
 
   /**
    * Récupère tous les entretiens d’un véhicule.
    */
-  ipcMain.handle('vehicules:getEntretiensByVehicule', async (event, vehiculeId) => {
+  handle('vehicules:getEntretiensByVehicule', async (event, vehiculeId) => {
     return getEntretiensByVehicule(vehiculeId);
   });
 
   /**
    * Enregistre un nouvel entretien pour un véhicule.
    */
-  ipcMain.handle('vehicules:createEntretien', async (event, data) => {
+  handle('vehicules:createEntretien', async (event, data) => {
     return createEntretien(data);
   });
 
   /**
    * Met à jour un entretien existant.
    */
-  ipcMain.handle('vehicules:updateEntretien', async (event, { id, data }) => {
+  handle('vehicules:updateEntretien', async (event, { id, data }) => {
     return updateEntretien(id, data);
   });
 
   /**
    * Supprime un entretien.
    */
-  ipcMain.handle('vehicules:deleteEntretien', async (event, id) => {
+  handle('vehicules:deleteEntretien', async (event, id) => {
     return deleteEntretien(id);
   });
 
   /**
    * Met à jour le kilométrage d’un véhicule.
    */
-  ipcMain.handle('vehicules:updateKilometrage', async (event, data) => {
+  handle('vehicules:updateKilometrage', async (event, data) => {
     return updateVehiculeKilometrage(data);
   });
 
   /**
    * Vérifie si une immatriculation est unique.
    */
-  ipcMain.handle(
+  handle(
     'vehicules:isImmatriculationUnique',
     async (event, { immatriculation, excludeId }) => {
       return isImmatriculationUnique(immatriculation, excludeId);
@@ -1277,84 +1327,84 @@ function registerIpcHandlers() {
   /**
    * Récupère la liste paginée des leçons avec filtres.
    */
-  ipcMain.handle('planning:getAll', async (event, params) => {
+  handle('planning:getAll', async (event, params) => {
     return getAllLecons(params);
   });
 
   /**
    * Récupère une leçon par son identifiant.
    */
-  ipcMain.handle('planning:getById', async (event, id) => {
+  handle('planning:getById', async (event, id) => {
     return getLeconById(id);
   });
 
   /**
    * Crée une nouvelle leçon.
    */
-  ipcMain.handle('planning:create', async (event, data) => {
+  handle('planning:create', async (event, data) => {
     return createLecon(data);
   });
 
   /**
    * Met à jour une leçon existante.
    */
-  ipcMain.handle('planning:update', async (event, { id, data }) => {
+  handle('planning:update', async (event, { id, data }) => {
     return updateLecon(id, data);
   });
 
   /**
    * Supprime définitivement une leçon.
    */
-  ipcMain.handle('planning:delete', async (event, id) => {
+  handle('planning:delete', async (event, id) => {
     return deleteLecon(id);
   });
 
   /**
    * Récupère les statistiques agrégées des leçons.
    */
-  ipcMain.handle('planning:getStats', async () => {
+  handle('planning:getStats', async () => {
     return getLeconsStats();
   });
 
   /**
    * Récupère les tendances évolutives des leçons.
    */
-  ipcMain.handle('planning:getTrends', async () => {
+  handle('planning:getTrends', async () => {
     return getLeconsTrends();
   });
 
   /**
    * Récupère les données des sparklines (12 mois) pour les leçons.
    */
-  ipcMain.handle('planning:getSparklines', async () => {
+  handle('planning:getSparklines', async () => {
     return getLeconsSparklines();
   });
 
   /**
    * Récupère toutes les leçons d’un candidat.
    */
-  ipcMain.handle('planning:getByCandidat', async (event, candidatId) => {
+  handle('planning:getByCandidat', async (event, candidatId) => {
     return getLeconsByCandidat(candidatId);
   });
 
   /**
    * Récupère toutes les leçons d’un moniteur.
    */
-  ipcMain.handle('planning:getByMoniteur', async (event, moniteurId) => {
+  handle('planning:getByMoniteur', async (event, moniteurId) => {
     return getLeconsByMoniteur(moniteurId);
   });
 
   /**
    * Récupère toutes les leçons d’un véhicule.
    */
-  ipcMain.handle('planning:getByVehicule', async (event, vehiculeId) => {
+  handle('planning:getByVehicule', async (event, vehiculeId) => {
     return getLeconsByVehicule(vehiculeId);
   });
 
   /**
    * Récupère les leçons pour une période donnée.
    */
-  ipcMain.handle('planning:getBetweenDates', async (event, { startDate, endDate, moniteurId }) => {
+  handle('planning:getBetweenDates', async (event, { startDate, endDate, moniteurId }) => {
     return getLeconsBetweenDates(startDate, endDate, moniteurId);
   });
 
@@ -1365,56 +1415,56 @@ function registerIpcHandlers() {
   /**
    * Récupère la liste paginée des moniteurs avec filtres.
    */
-  ipcMain.handle('moniteurs:getAll', async (event, params) => {
+  handle('moniteurs:getAll', async (event, params) => {
     return getAllMoniteurs(params);
   });
 
   /**
    * Récupère un moniteur par son identifiant.
    */
-  ipcMain.handle('moniteurs:getById', async (event, id) => {
+  handle('moniteurs:getById', async (event, id) => {
     return getMoniteurById(id);
   });
 
   /**
    * Crée un nouveau moniteur.
    */
-  ipcMain.handle('moniteurs:create', async (event, data) => {
+  handle('moniteurs:create', async (event, data) => {
     return createMoniteur(data);
   });
 
   /**
    * Met à jour un moniteur existant.
    */
-  ipcMain.handle('moniteurs:update', async (event, { id, data }) => {
+  handle('moniteurs:update', async (event, { id, data }) => {
     return updateMoniteur(id, data);
   });
 
   /**
    * Désactive (soft delete) un moniteur.
    */
-  ipcMain.handle('moniteurs:delete', async (event, id) => {
+  handle('moniteurs:delete', async (event, id) => {
     return deleteMoniteur(id);
   });
 
   /**
    * Récupère les statistiques agrégées des moniteurs.
    */
-  ipcMain.handle('moniteurs:getStats', async () => {
+  handle('moniteurs:getStats', async () => {
     return getMoniteursStats();
   });
 
   /**
    * Récupère les tendances évolutives des moniteurs.
    */
-  ipcMain.handle('moniteurs:getTrends', async () => {
+  handle('moniteurs:getTrends', async () => {
     return getMoniteursTrends();
   });
 
   /**
    * Récupère les données des sparklines (12 mois) pour les moniteurs.
    */
-  ipcMain.handle('moniteurs:getSparklines', async () => {
+  handle('moniteurs:getSparklines', async () => {
     return getMoniteursSparklines();
   });
 
@@ -1425,70 +1475,70 @@ function registerIpcHandlers() {
   /**
    * Récupère la liste paginée des examens avec filtres.
    */
-  ipcMain.handle('examens:getAll', async (event, params) => {
+  handle('examens:getAll', async (event, params) => {
     return getAllExamens(params);
   });
 
   /**
    * Récupère un examen par son identifiant.
    */
-  ipcMain.handle('examens:getById', async (event, id) => {
+  handle('examens:getById', async (event, id) => {
     return getExamenById(id);
   });
 
   /**
    * Crée un nouvel examen.
    */
-  ipcMain.handle('examens:create', async (event, data) => {
+  handle('examens:create', async (event, data) => {
     return createExamen(data);
   });
 
   /**
    * Met à jour un examen existant.
    */
-  ipcMain.handle('examens:update', async (event, { id, data }) => {
+  handle('examens:update', async (event, { id, data }) => {
     return updateExamen(id, data);
   });
 
   /**
    * Supprime définitivement un examen.
    */
-  ipcMain.handle('examens:delete', async (event, id) => {
+  handle('examens:delete', async (event, id) => {
     return deleteExamen(id);
   });
 
   /**
    * Récupère les statistiques agrégées des examens.
    */
-  ipcMain.handle('examens:getStats', async () => {
+  handle('examens:getStats', async () => {
     return getExamensStats();
   });
 
   /**
    * Récupère les tendances évolutives des examens.
    */
-  ipcMain.handle('examens:getTrends', async () => {
+  handle('examens:getTrends', async () => {
     return getExamensTrends();
   });
 
   /**
    * Récupère les données des sparklines (12 mois) pour les examens.
    */
-  ipcMain.handle('examens:getSparklines', async () => {
+  handle('examens:getSparklines', async () => {
     return getExamensSparklines();
   });
 
   /**
    * Récupère tous les examens d’un candidat.
    */
-  ipcMain.handle('examens:getByCandidat', async (event, candidatId) => {
+  handle('examens:getByCandidat', async (event, candidatId) => {
     return getExamensByCandidat(candidatId);
   });
 
   /**
    * Génère l’attestation (PDF) pour un examen réussi.
    */
-  ipcMain.handle('examens:printCertificate', async (event, id) => {
+  handle('examens:printCertificate', async (event, id) => {
     return printCertificate(id);
   });
 
@@ -1502,7 +1552,7 @@ function registerIpcHandlers() {
    * @param {AuditLogsListParams} params - Paramètres de pagination/filtres
    * @returns {Promise<AuditLogsPaginatedResponse>}
    */
-  ipcMain.handle('admin:getAuditLogs', async (event, params) => {
+  handle('admin:getAuditLogs', async (event, params) => {
     return getAuditLogs(params);
   });
 
@@ -1510,7 +1560,7 @@ function registerIpcHandlers() {
    * Handler : récupère les statistiques agrégées des logs d'audit.
    * @returns {Promise<AdminStats>}
    */
-  ipcMain.handle('admin:getAdminStats', async () => {
+  handle('admin:getAdminStats', async () => {
     return getAdminStats();
   });
 
@@ -1518,7 +1568,7 @@ function registerIpcHandlers() {
    * Handler : récupère les tendances évolutives des logs d'audit.
    * @returns {Promise<AdminTrends>}
    */
-  ipcMain.handle('admin:getAdminTrends', async () => {
+  handle('admin:getAdminTrends', async () => {
     return getAdminTrends();
   });
 
@@ -1526,7 +1576,7 @@ function registerIpcHandlers() {
    * Handler : récupère la configuration de l'entreprise.
    * @returns {Promise<CompanyConfig>}
    */
-  ipcMain.handle('admin:getCompanyConfig', async () => {
+  handle('admin:getCompanyConfig', async () => {
     return getCompanyConfig();
   });
 
@@ -1536,50 +1586,50 @@ function registerIpcHandlers() {
    * @param {UpdateCompanyConfigInput} data - Champs à modifier
    * @returns {Promise<CompanyConfig>}
    */
-  ipcMain.handle('admin:updateCompanyConfig', async (event, data) => {
+  handle('admin:updateCompanyConfig', async (event, data) => {
     return updateCompanyConfig(data);
   });
 
-  ipcMain.handle('globalSearch:search', async (event, query) => {
+  handle('globalSearch:search', async (event, query) => {
     return globalSearch(query);
   });
 
-  ipcMain.handle('recu:list', async () => {
+  handle('recu:list', async () => {
     const recuService = await getRecuService();
     return recuService.getAll();
   });
-  ipcMain.handle('recu:get', async (_event, id) => {
+  handle('recu:get', async (_event, id) => {
     const recuService = await getRecuService();
     return recuService.getById(id);
   });
-  ipcMain.handle('recu:export', async (_event, id) => {
+  handle('recu:export', async (_event, id) => {
     const recuService = await getRecuService();
     return recuService.exportReceipt(id);
   });
 
-  ipcMain.handle('export:recu', async (_event, payload) => {
+  handle('export:recu', async (_event, payload) => {
     const exportService = await getExportService();
     return exportService.exportFactures(payload);
   });
-  ipcMain.handle('export:bilan', async (_event, payload) => {
+  handle('export:bilan', async (_event, payload) => {
     const exportService = await getExportService();
     return exportService.exportDashboardSnapshot(payload);
   });
-  ipcMain.handle('export:excel', async (_event, payload) => {
+  handle('export:excel', async (_event, payload) => {
     const exportService = await getExportService();
     return exportService.exportFactures(payload);
   });
-  ipcMain.handle('export:openFolder', async () => {
+  handle('export:openFolder', async () => {
     const exportService = await getExportService();
     const exportDir = await exportService.getExportDirectory();
     await shell.openPath(exportDir);
     return { path: exportDir };
   });
-  ipcMain.handle('exports:dashboard', async (_event, payload) => {
+  handle('exports:dashboard', async (_event, payload) => {
     const exportService = await getExportService();
     return exportService.exportDashboardSnapshot(payload);
   });
-  ipcMain.handle('exports:saveFile', async (_event, payload = {}) => {
+  handle('exports:saveFile', async (_event, payload = {}) => {
     const {
       folder = 'general',
       baseName = 'export',
@@ -1600,14 +1650,14 @@ function registerIpcHandlers() {
 
     return { success: true, path: filePath };
   });
-  ipcMain.handle('exports:factures', async (_event, payload) => {
+  handle('exports:factures', async (_event, payload) => {
     const exportService = await getExportService();
     return exportService.exportFactures(payload);
   });
-  ipcMain.handle('exports:paiements', async (_event, payload) => {
+  handle('exports:paiements', async (_event, payload) => {
     return exportPaiementsReport(payload);
   });
-  ipcMain.handle('exports:examens', async (_event, payload) => {
+  handle('exports:examens', async (_event, payload) => {
     return exportExamensReport(payload);
   });
 }
@@ -1626,7 +1676,6 @@ app.whenReady().then(async () => {
   try {
     logStartup('Application prete, debut initialisation');
     registerFileAssetInterceptor();
-    ensureProductionDatabase();
     await initializePrisma();
     logStartup('Base de donnees prete');
 

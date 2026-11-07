@@ -18,6 +18,7 @@ import { BrowserRouter, HashRouter, Routes, Route } from 'react-router-dom';
 import { appConfig } from '@/config/app.config';
 import { SuspenseFallback } from '@/components/common/SuspenseFallback';
 import { ScrollToTop } from '@/components/common/ScrollToTop';
+import { SessionWatcher } from '@/components/common/SessionWatcher';
 import { PageTransition } from '@/components/common/PageTransition';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { NotFound } from '@/components/common/NotFound';
@@ -291,6 +292,7 @@ export default function App() {
 
   return (
     <Router>
+      <SessionWatcher />
       <ScrollToTop />
       <ErrorBoundary>
         <Suspense fallback={<SuspenseFallback message="Chargement..." />}>

@@ -489,7 +489,7 @@ export interface UtilisateursColumnsOptions {
  *
  * @interface AuthApi
  * @description Toutes les méthodes sont asynchrones et communiquent via IPC Electron.
- * Les canaux correspondants sont définis dans `preload.js` et `main.js`.
+ * Les canaux correspondants sont définis dans `electron/preload.cjs` et `electron/main.js`.
  *
  * ## Canaux IPC utilisés
  * | Méthode                      | Canal IPC                           |
