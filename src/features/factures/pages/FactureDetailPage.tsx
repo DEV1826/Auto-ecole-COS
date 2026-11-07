@@ -44,31 +44,29 @@ import {
   FileText,
   User,
   Mail,
-  Phone,
-  MapPin,
+  
   Printer,
   Download,
   PlusCircle,
   CheckCircle2,
   Clock,
   Eye,
-  Hash,
+  
   MessageSquare,
-  GraduationCap,
+  
   Banknote,
   BadgeCheck,
   RotateCcw,
   Smartphone,
   ChevronRight,
   Car,
-  LinkIcon,
+  
   Loader2,
-  AlertTriangle,
-  Info,
+  
   TrendingUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, openDesktopPath, printDesktopPdf } from '@/lib/utils';
 
 import { PROTECTED_ROUTES, route } from '@/config/routes';
 import { PageBreadcrumb } from '@/components/common/PageBreadcrumb';
@@ -99,19 +97,12 @@ import type { Candidat } from '@/types/candidats.types';
 import { STATUT_FACTURE_CONFIG, MODE_PAIEMENT_CONFIG, CATEGORIE_PERMIS_CONFIG, STATUT_CANDIDAT_CONFIG, type StatutFacture } from '@/types/enums';
 import { useFactures } from '@/hooks/use.factures';
 import { useCandidats } from '@/hooks/use.candidats';
-import { usePaiements } from '@/hooks/use.paiements';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 function formatMontant(n: number): string {
-  return n.toLocaleString('fr-FR');
-}
-
-function formatMontantCompact(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
-  if (n >= 1_000) return (n / 1_000).toFixed(0) + 'k';
   return n.toLocaleString('fr-FR');
 }
 
@@ -299,13 +290,11 @@ function ActionsPanel({
   onDownloadPDF,
   onSendEmail,
   onAddPayment,
-  pdfPath,
 }: {
   onPrint: () => void;
   onDownloadPDF: () => void;
   onSendEmail: () => void;
   onAddPayment: () => void;
-  pdfPath?: string | null;
 }) {
   return (
     <Card className="border shadow-sm overflow-hidden py-0">
@@ -602,9 +591,21 @@ export default function FactureDetailPage(): React.JSX.Element {
   const relativeSince = formatDistanceToNow(createdAtDate, { addSuffix: true, locale: fr });
 
   // Handlers
-  const handlePrint = () => {
-    toast.info('Préparation de l’impression…');
-    setTimeout(() => window.print(), 300);
+  const handlePrint = async () => {
+    setActionLoading(true);
+    try {
+      const result = await generatePDF(facture.id);
+      if (result.success && result.path) {
+        toast.success('PDF généré, ouverture...');
+        await printDesktopPdf(result.path, `Facture ${facture.numero}`);
+      } else {
+        toast.error(result.message || 'Erreur lors de la génération du PDF');
+      }
+    } catch {
+      toast.error('Erreur lors de la génération du PDF');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleDownloadPDF = async () => {
@@ -613,7 +614,7 @@ export default function FactureDetailPage(): React.JSX.Element {
       const result = await generatePDF(facture.id);
       if (result.success && result.path) {
         toast.success('PDF généré avec succès');
-        window.open(result.path, '_blank');
+        await openDesktopPath(result.path);
       } else {
         toast.error(result.message || 'Erreur lors de la génération du PDF');
       }
@@ -652,9 +653,7 @@ export default function FactureDetailPage(): React.JSX.Element {
     navigate(route(PROTECTED_ROUTES.FACTURES.DETAIL(f.id), { id: f.id }));
   };
 
-  const handleViewCandidat = () => {
-    if (candidat) navigate(route(PROTECTED_ROUTES.CANDIDATS.DETAIL(candidat.id), { id: candidat.id }));
-  };
+  
 
   const statutCfg = STATUT_FACTURE_CONFIG[facture.statut];
 
@@ -809,10 +808,10 @@ export default function FactureDetailPage(): React.JSX.Element {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[100px]">Date</TableHead>
+                          <TableHead className="w-24">Date</TableHead>
                           <TableHead>Mode</TableHead>
                           <TableHead className="text-right">Montant</TableHead>
-                          <TableHead className="text-center w-[80px]">Reçu</TableHead>
+                          <TableHead className="text-center w-20">Reçu</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -886,7 +885,6 @@ export default function FactureDetailPage(): React.JSX.Element {
               onDownloadPDF={handleDownloadPDF}
               onSendEmail={handleSendEmail}
               onAddPayment={handleAddPayment}
-              pdfPath={facture.pdfPath}
             />
             <CandidatPanel candidat={candidat!} />
             <AutresFacturesPanel

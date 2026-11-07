@@ -63,7 +63,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { DataTableColumnHeader } from '@/components/tables/data-table-column-header';
 import { DataTableRowActions } from '@/components/tables/data-table-row-actions';
 import { createAvatarWithTextColumn } from '@/components/tables/factory';
-import { cn } from '@/lib/utils';
+import { cn, resolveAssetPath } from '@/lib/utils';
 import type { Document, DocumentsEnrichments } from '@/types/documents.types';
 import type { DocumentsTableActions, DocumentsColumnsOptions } from '@/types/documents.types';
 import type { RowActionsConfig, CustomRowAction } from '@/components/tables/types';
@@ -82,15 +82,15 @@ import { useTheme } from 'next-themes';
 function getDocumentIconPath(type: string): { light: string; dark: string } {
   switch (type) {
     case 'permis':
-      return { light: '/images/icons/file-image.svg', dark: '/images/icons/file-image-dark.svg' };
+      return { light: resolveAssetPath('/images/icons/file-image.svg'), dark: resolveAssetPath('/images/icons/file-image-dark.svg') };
     case 'carte_identite':
-      return { light: '/images/icons/file-image.svg', dark: '/images/icons/file-image-dark.svg' };
+      return { light: resolveAssetPath('/images/icons/file-image.svg'), dark: resolveAssetPath('/images/icons/file-image-dark.svg') };
     case 'facture':
-      return { light: '/images/icons/pdf.svg', dark: '/images/icons/pdf.svg' };
+      return { light: resolveAssetPath('/images/icons/pdf.svg'), dark: resolveAssetPath('/images/icons/pdf.svg') };
     case 'recu':
-      return { light: '/images/icons/file-image.svg', dark: '/images/icons/file-image-dark.svg' };
+      return { light: resolveAssetPath('/images/icons/file-image.svg'), dark: resolveAssetPath('/images/icons/file-image-dark.svg') };
     default:
-      return { light: '/images/icons/file-image.svg', dark: '/images/icons/file-image-dark.svg' };
+      return { light: resolveAssetPath('/images/icons/file-image.svg'), dark: resolveAssetPath('/images/icons/file-image-dark.svg') };
   }
 }
 

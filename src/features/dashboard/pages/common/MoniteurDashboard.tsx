@@ -1,211 +1,162 @@
-// src/features/dashboard/pages/common/MoniteursDashboard.tsx
-
-/**
- * @module features/dashboard/pages/common/MoniteursDashboard
- * @description
- * Tableau de bord principal du moniteur (instructeur) de l’auto‑école COS.
- *
- * ## Architecture
- * 1. **En‑tête de bienvenue** (`MoniteurWelcomeHeader`)
- * 2. **Cartes de statistiques personnelles** (`MoniteurStatsCards`)
- * 3. **Tableau des candidats suivis** (`CandidatsTable` – vue moniteur)
- * 4. **Tableau des prochaines leçons** (`LeconsTable` – vue moniteur)
- * 5. **Graphique d’activité personnelle** (`AppActivityChart` filtré)
- *
- * @author Stive Junior
- * @version 1.0.0
- */
-
 import { useNavigate } from 'react-router-dom';
-import { useCallback, useEffect, useState } from 'react';
-import { PROTECTED_ROUTES, route } from '@/config/routes';
+import { useCallback, useEffect, useMemo } from 'react';
+import { type Utilisateur, type Session } from '@/types/auth.types';
 import { MoniteurWelcomeHeader } from '@/features/dashboard/components/moniteurs/MoniteurWelcomeHeader';
 import { MoniteurStatsCards } from '@/features/dashboard/components/moniteurs/MoniteurStatsCards';
 import { CandidatsTable } from '@/features/candidats/components/CandidatsTable';
 import { LeconsTable } from '@/features/planning/components/LeconsTable';
-import { AppActivityChart } from '@/features/dashboard/components/admin/AppActivityChart';
-import type { Session, Utilisateur } from '@/types/auth.types';
+import { PROTECTED_ROUTES, route } from '@/config/routes';
+import { getAvatarUrl } from '@/lib';
+import { usePlanning } from '@/hooks/use.planning';
+import { useExamens } from '@/hooks/use.examens';
+import { useCandidats } from '@/hooks/use.candidats';
 import type { Candidat } from '@/types/candidats.types';
 import type { Lecon } from '@/types/planning.types';
-import { getAvatarUrl } from '@/lib';
 
-// ============================================================
-// Types
-// ============================================================
-
-export interface MoniteurDashboardProps {
-  /** Session active (optionnelle) */
-  session?: Session | null;
-  /** Utilisateur connecté (moniteur) */
+interface MoniteurDashboardProps {
   user: Utilisateur;
-  /** Callback de notification de prêt */
+  session?: Session | null;
   onReady?: () => void;
 }
 
-// ============================================================
-// Données mockées (à remplacer par des appels API réels)
-// ============================================================
-
-const MOCK_CANDIDATS: Candidat[] = [
-  {
-    id: 1,
-    nom: 'Ndong',
-    prenom: 'Charles',
-    email: 'charles.ndong@example.com',
-    telephone: '691234567',
-    dateInscription: '2025-01-15T08:00:00Z',
-    categorie: 'B',
-    statut: 'EN_COURS',
-    numeroPermis: null,
-    dateNaissance: '1995-04-12',
-    adresse: 'Rue 123, Omnisport, Yaoundé',
-    notes: null,
-    createdAt: '2025-01-15T08:00:00Z',
-    updatedAt: '2025-01-15T08:00:00Z',
-    deletedAt: null,
-    paiements: [],
-    lecons: [],
-    examens: [],
-    factures: [],
-    formation: null,
-    documents: [],
-  },
-  {
-    id: 2,
-    nom: 'Mbarga',
-    prenom: 'Catherine',
-    email: 'catherine.mbarga@example.com',
-    telephone: '698765432',
-    dateInscription: '2025-01-20T10:30:00Z',
-    categorie: 'B',
-    statut: 'EN_COURS',
-    numeroPermis: null,
-    dateNaissance: '1992-08-25',
-    adresse: 'Avenue Mvog-Mbi, Yaoundé',
-    notes: 'Premier paiement effectué',
-    createdAt: '2025-01-20T10:30:00Z',
-    updatedAt: '2025-01-20T10:30:00Z',
-    deletedAt: null,
-    paiements: [],
-    lecons: [],
-    examens: [],
-    factures: [],
-    formation: null,
-    documents: [],
-  },
-];
-
-const MOCK_LECONS: Lecon[] = [
-  {
-    id: 1,
-    date: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-    duree: 60,
-    type: 'CONDUITE',
-    statut: 'PLANIFIEE',
-    notes: 'Récupération stationnement',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    candidatId: 1,
-    moniteurId: 10,
-    vehiculeId: 3,
-    candidat: MOCK_CANDIDATS[0],
-    moniteur: undefined,
-    vehicule: undefined,
-  },
-  {
-    id: 2,
-    date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    duree: 90,
-    type: 'CONDUITE_ACCOMPAGNEE',
-    statut: 'PLANIFIEE',
-    notes: 'Parcours ville',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    candidatId: 2,
-    moniteurId: 10,
-    vehiculeId: 5,
-    candidat: MOCK_CANDIDATS[1],
-    moniteur: undefined,
-    vehicule: undefined,
-  },
-];
-
-// ============================================================
-// Composant principal
-// ============================================================
-
 export default function MoniteurDashboard({
-  session,
   user,
+  session,
   onReady,
-}: MoniteurDashboardProps): React.JSX.Element {
+}: MoniteurDashboardProps) {
   const navigate = useNavigate();
+  const {
+    lecons,
+    loading: leconsLoading,
+    stats: planningStats,
+    trends: planningTrends,
+    getAll: getLecons,
+    getStats: getPlanningStats,
+    getTrends: getPlanningTrends,
+    update: updateLecon,
+  } = usePlanning();
+  const {
+    examens,
+    stats: examensStats,
+    getAll: getExamens,
+    loading: examensLoading,
+  } = useExamens();
+  const {
+    candidats,
+    loading: candidatsLoading,
+    getAll: getCandidats,
+  } = useCandidats();
 
   useEffect(() => {
     onReady?.();
   }, [onReady]);
 
-  // ── États ──────────────────────────────────────────────────────────────
-  const [candidats, setCandidats] = useState<Candidat[]>([]);
-  const [lecons, setLecons] = useState<Lecon[]>([]);
-  const [isLoadingCandidats, setIsLoadingCandidats] = useState(true);
-  const [isLoadingLecons, setIsLoadingLecons] = useState(true);
-
-  // ── Chargement mock ────────────────────────────────────────────────────
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setCandidats(MOCK_CANDIDATS);
-      setLecons(MOCK_LECONS);
-      setIsLoadingCandidats(false);
-      setIsLoadingLecons(false);
-    }, 800);
-    return () => clearTimeout(timer);
-  }, []);
+    void Promise.allSettled([
+      getLecons({
+        page: 1,
+        limit: 50,
+        moniteurId: user.id,
+        sortBy: 'date',
+        sortOrder: 'asc',
+      }),
+      getPlanningStats(),
+      getPlanningTrends(),
+      getExamens({ page: 1, limit: 100, sortBy: 'date', sortOrder: 'desc' }),
+      getCandidats({ page: 1, limit: 100 }),
+    ]);
+  }, [
+    getLecons,
+    getPlanningStats,
+    getPlanningTrends,
+    getExamens,
+    getCandidats,
+    user.id,
+  ]);
 
-  // ── Handlers ───────────────────────────────────────────────────────────
-  const handleRefreshCandidats = useCallback(async () => {
-    await new Promise((r) => setTimeout(r, 600));
-    setCandidats([...MOCK_CANDIDATS]);
-  }, []);
-
-  const handleRefreshLecons = useCallback(async () => {
-    await new Promise((r) => setTimeout(r, 600));
-    setLecons([...MOCK_LECONS]);
-  }, []);
-
-  // ── Infos moniteur ─────────────────────────────────────────────────────
   const moniteurName = `${user?.prenom ?? ''} ${user?.nom ?? ''}`.trim() || 'Moniteur';
   const moniteurTitle = user?.role ?? 'MONITEUR';
   const avatarUrl = getAvatarUrl(moniteurName) ?? undefined;
   const avatarFallback = (user?.prenom?.[0] ?? user?.nom?.[0] ?? 'M').toUpperCase();
 
-  // ── Métriques personnelles (mock) ──────────────────────────────────────
-  const stats = {
-    mesCandidats: candidats.length,
-    mesCandidatsTrend: { value: 2, isPositive: true, label: 'vs mois dernier' },
-    mesCandidatsSparkline: {
-      values: [8, 10, 11, 12, 12, 12, 12],
-      labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil'],
-    },
-    leconsAVenir: lecons.filter((l) => l.statut === 'PLANIFIEE').length,
-    leconsAVenirTrend: { value: -1, isPositive: false, label: 'vs semaine dernière' },
-    heuresConduiteMois: 28.5,
-    heuresConduiteMoisTrend: { value: 3.5, isPositive: true, label: 'vs mois dernier' },
-    tauxReussite: 82,
-    tauxReussiteTrend: { value: 5, isPositive: true, label: 'vs mois dernier', isPercentage: true },
-  };
+  const mesLecons = useMemo(
+    () => lecons.filter((lecon) => lecon.moniteurId === user.id),
+    [lecons, user.id]
+  );
+  const mesCandidats = useMemo(() => {
+    const candidatIds = new Set(mesLecons.map((lecon) => lecon.candidatId));
+    return candidats.filter((candidat) => candidatIds.has(candidat.id));
+  }, [candidats, mesLecons]);
+  const mesExamens = useMemo(() => {
+    const candidatIds = new Set(mesCandidats.map((candidat) => candidat.id));
+    return examens.filter((examen) => candidatIds.has(examen.candidatId));
+  }, [examens, mesCandidats]);
 
-  // ── Callbacks de navigation ───────────────────────────────────────────
-  const handleManagePlanning = () => {
-    navigate(route(PROTECTED_ROUTES.PLANNING.MONITEUR(user.id), { moniteurId: String(user.id) }));
-  };
-  const handleManageCandidats = () => navigate(PROTECTED_ROUTES.CANDIDATS.LIST);
-  const handleManageLessons = () => navigate(PROTECTED_ROUTES.PLANNING.CALENDAR);
-  const handleManageExamens = () => navigate(PROTECTED_ROUTES.EXAMENS.LIST);
-  const handleProfile = () => navigate(PROTECTED_ROUTES.PROFILE);
-  const handleHelp = () => navigate(PROTECTED_ROUTES.UTILS.HELP);
+  const lessonsToday = useMemo(() => {
+    const today = new Date();
+    return mesLecons.filter((lecon) => {
+      const date = new Date(lecon.date);
+      return (
+        date.getFullYear() === today.getFullYear() &&
+        date.getMonth() === today.getMonth() &&
+        date.getDate() === today.getDate()
+      );
+    }).length;
+  }, [mesLecons]);
 
-  // ── Actions sur les lignes du tableau des candidats ────────────────────
+  const upcomingLessons = useMemo(() => {
+    const now = Date.now();
+    const nextWeek = now + 7 * 24 * 60 * 60 * 1000;
+    return mesLecons.filter((lecon) => {
+      const date = new Date(lecon.date).getTime();
+      return date >= now && date <= nextWeek && lecon.statut === 'PLANIFIEE';
+    }).length;
+  }, [mesLecons]);
+
+  const totalHoursThisMonth = useMemo(() => {
+    const now = new Date();
+    return (
+      mesLecons
+        .filter((lecon) => {
+          const date = new Date(lecon.date);
+          return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+        })
+        .reduce((acc, lecon) => acc + lecon.duree, 0) / 60
+    );
+  }, [mesLecons]);
+
+  const successRate = useMemo(() => {
+    if (mesExamens.length === 0) {
+      return examensStats?.tauxReussiteGlobal ?? 0;
+    }
+    const reussites = mesExamens.filter((examen) => examen.resultat === 'RECU').length;
+    return Math.round((reussites / mesExamens.length) * 100);
+  }, [examensStats?.tauxReussiteGlobal, mesExamens]);
+
+  const handleRefreshCandidats = useCallback(async () => {
+    await Promise.allSettled([
+      getLecons({
+        page: 1,
+        limit: 50,
+        moniteurId: user.id,
+        sortBy: 'date',
+        sortOrder: 'asc',
+      }),
+      getExamens({ page: 1, limit: 100, sortBy: 'date', sortOrder: 'desc' }),
+      getCandidats({ page: 1, limit: 100 }),
+    ]);
+  }, [getLecons, getExamens, getCandidats, user.id]);
+
+  const handleRefreshLecons = useCallback(async () => {
+    await getLecons({
+      page: 1,
+      limit: 50,
+      moniteurId: user.id,
+      sortBy: 'date',
+      sortOrder: 'asc',
+    });
+  }, [getLecons, user.id]);
+
   const candidatsActions = {
     onView: (c: Candidat) => navigate(PROTECTED_ROUTES.CANDIDATS.DETAIL(c.id)),
     onAddLesson: (c: Candidat) =>
@@ -215,27 +166,21 @@ export default function MoniteurDashboard({
   };
 
   const candidatsEnrichments = {
-    getLeconsCount: (c: Candidat) => c.lecons?.length ?? 2,
-    getExamensCount: (c: Candidat) => c.examens?.length ?? 1,
+    getLeconsCount: (c: Candidat) =>
+      mesLecons.filter((lecon) => lecon.candidatId === c.id).length,
+    getExamensCount: (c: Candidat) =>
+      mesExamens.filter((examen) => examen.candidatId === c.id).length,
   };
 
-  // ── Actions sur les lignes du tableau des leçons ───────────────────────
   const leconsActions = {
     onView: (l: Lecon) => navigate(PROTECTED_ROUTES.PLANNING.DETAIL(l.id)),
     onMarkDone: async (l: Lecon) => {
-      // Simulation mise à jour
-      setLecons((prev) =>
-        prev.map((lecon) =>
-          lecon.id === l.id ? { ...lecon, statut: 'EFFECTUEE' } : lecon
-        )
-      );
+      await updateLecon(l.id, { statut: 'EFFECTUEE' });
+      await handleRefreshLecons();
     },
     onReportAbsence: async (l: Lecon) => {
-      setLecons((prev) =>
-        prev.map((lecon) =>
-          lecon.id === l.id ? { ...lecon, statut: 'ABSENCE' } : lecon
-        )
-      );
+      await updateLecon(l.id, { statut: 'ABSENCE' });
+      await handleRefreshLecons();
     },
   };
 
@@ -246,61 +191,74 @@ export default function MoniteurDashboard({
 
   return (
     <div className="space-y-4 pb-5">
-      {/* En‑tête de bienvenue */}
       <MoniteurWelcomeHeader
         moniteurName={moniteurName}
         moniteurTitle={moniteurTitle}
         avatarUrl={avatarUrl}
         avatarFallback={avatarFallback}
-        lessonsToday={stats.leconsAVenir}
-        candidatsCount={stats.mesCandidats}
+        lessonsToday={lessonsToday}
+        candidatsCount={mesCandidats.length}
         lastLoginAt={session?.dernierAcces}
-        pendingExams={2}
-        missedLessons={0}
-        totalHoursThisMonth={stats.heuresConduiteMois}
-        successRate={stats.tauxReussite}
-        onManagePlanning={handleManagePlanning}
-        onManageCandidats={handleManageCandidats}
-        onManageLessons={handleManageLessons}
-        onManageExamens={handleManageExamens}
-        onProfile={handleProfile}
-        onHelp={handleHelp}
+        pendingExams={mesExamens.filter((examen) => new Date(examen.date) >= new Date()).length}
+        missedLessons={mesLecons.filter((lecon) => lecon.statut === 'ABSENCE').length}
+        totalHoursThisMonth={totalHoursThisMonth}
+        successRate={successRate}
+        onManagePlanning={() =>
+          navigate(route(PROTECTED_ROUTES.PLANNING.MONITEUR(user.id), { moniteurId: String(user.id) }))
+        }
+        onManageCandidats={() => navigate(PROTECTED_ROUTES.CANDIDATS.LIST)}
+        onManageLessons={() => navigate(PROTECTED_ROUTES.PLANNING.CALENDAR)}
+        onManageExamens={() => navigate(PROTECTED_ROUTES.EXAMENS.LIST)}
+        onProfile={() => navigate(PROTECTED_ROUTES.PROFILE)}
+        onHelp={() => navigate(PROTECTED_ROUTES.UTILS.HELP)}
       />
-
-
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <div className="lg:col-span-1">
-          {/* Cartes statistiques personnelles */}
           <MoniteurStatsCards
-            mesCandidats={stats.mesCandidats}
-            mesCandidatsTrend={stats.mesCandidatsTrend}
-            mesCandidatsSparkline={stats.mesCandidatsSparkline}
-            leconsAVenir={stats.leconsAVenir}
-            leconsAVenirTrend={stats.leconsAVenirTrend}
-            heuresConduiteMois={stats.heuresConduiteMois}
-            heuresConduiteMoisTrend={stats.heuresConduiteMoisTrend}
-            tauxReussite={stats.tauxReussite}
-            tauxReussiteTrend={stats.tauxReussiteTrend}
+            mesCandidats={mesCandidats.length}
+            mesCandidatsTrend={{
+              value: 0,
+              isPositive: true,
+              label: 'suivis actuellement',
+            }}
+            leconsAVenir={upcomingLessons}
+            leconsAVenirTrend={{
+              value: Math.abs(planningTrends?.leconsPlanifiees ?? 0),
+              isPositive: (planningTrends?.leconsPlanifiees ?? 0) >= 0,
+              label: 'vs periode precedente',
+            }}
+            heuresConduiteMois={totalHoursThisMonth}
+            heuresConduiteMoisTrend={{
+              value: Math.abs(planningTrends?.heuresConduiteTotal ?? 0),
+              isPositive: (planningTrends?.heuresConduiteTotal ?? 0) >= 0,
+              label: 'vs mois dernier',
+            }}
+            tauxReussite={successRate}
+            tauxReussiteTrend={{
+              value: Math.abs((examensStats?.evolutionReussite ?? 0) || 0),
+              isPositive: (examensStats?.evolutionReussite ?? 0) >= 0,
+              label: 'vs mois dernier',
+            }}
             onCardClick={(id) => {
               if (id === 'mes-candidats') navigate(PROTECTED_ROUTES.CANDIDATS.LIST);
               else if (id === 'lecons-a-venir') navigate(PROTECTED_ROUTES.PLANNING.CALENDAR);
               else if (id === 'heures-mois') navigate(PROTECTED_ROUTES.PLANNING.CALENDAR);
               else if (id === 'taux-reussite') navigate(PROTECTED_ROUTES.EXAMENS.LIST);
             }}
-            className='h-full'
+            className="h-full"
+            isLoading={leconsLoading || examensLoading || candidatsLoading}
           />
         </div>
 
-        {/* Prochain événement (sidebar) */}
         <div className="lg:col-span-1">
           <LeconsTable
-            lecons={lecons}
-            isLoading={isLoadingLecons}
+            lecons={mesLecons.slice(0, 5)}
+            isLoading={leconsLoading}
             onRefresh={handleRefreshLecons}
             actions={leconsActions}
             enrichments={leconsEnrichments}
-            title="Prochaines leçons"
+            title="Prochaines lecons"
             showViewAll
             onViewAll={() => navigate(PROTECTED_ROUTES.PLANNING.CALENDAR)}
             variant="moniteur"
@@ -313,10 +271,9 @@ export default function MoniteurDashboard({
         </div>
       </div>
 
-
       <CandidatsTable
-        candidats={candidats}
-        isLoading={isLoadingCandidats}
+        candidats={mesCandidats}
+        isLoading={candidatsLoading || leconsLoading}
         onRefresh={handleRefreshCandidats}
         actions={candidatsActions}
         enrichments={candidatsEnrichments}
@@ -326,14 +283,10 @@ export default function MoniteurDashboard({
         variant="moniteur"
         enablePagination
         enableToolbar
-
         defaultPageSize={5}
         asCard
         className="h-full"
       />
-
-
-
     </div>
   );
 }

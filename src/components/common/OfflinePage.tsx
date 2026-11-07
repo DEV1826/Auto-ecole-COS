@@ -12,6 +12,7 @@ import { PUBLIC_ROUTES } from '@/config/routes';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Link } from 'react-router-dom';
 import { appConfig } from '@/config/app.config';
+import { resolveAssetPath } from '@/lib/utils';
 
 export interface OfflinePageProps {
   /** Message personnalisé */
@@ -50,12 +51,12 @@ export function OfflinePage({ message = 'Vous êtes actuellement hors ligne.' }:
           {/* Illustration (claire/sombre) – utilisation d'une image générique "offline" */}
           <div className="flex justify-center">
             <img
-              src="/images/error/offline.svg"
+              src={resolveAssetPath('/images/error/offline.svg')}
               alt="Hors ligne"
               className="block dark:hidden sm:w-sm"
             />
             <img
-              src="/images/error/offline-dark.svg"
+              src={resolveAssetPath('/images/error/offline-dark.svg')}
               alt="Hors ligne"
               className="hidden dark:block sm:w-sm"
             />

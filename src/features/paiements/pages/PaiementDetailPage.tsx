@@ -36,7 +36,7 @@
 'use client';
 
 import * as React from 'react';
-import { useParams, useNavigate, href } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { format, formatDistanceToNow, differenceInDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { motion } from 'framer-motion';
@@ -75,7 +75,7 @@ import {
   Info,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, openDesktopPath, printDesktopPdf } from '@/lib/utils';
 
 import { PROTECTED_ROUTES, route } from '@/config/routes';
 import { PageBreadcrumb } from '@/components/common/PageBreadcrumb';
@@ -371,6 +371,7 @@ function ActionsPanel({
 // ─────────────────────────────────────────────────────────────────────────────
 
 function FormationPanel({ candidat }: { candidat?: Candidat }) {
+  const navigate = useNavigate();
   if (!candidat) return null;
 
   const statutCfg = STATUT_CANDIDAT_CONFIG[candidat.statut] ?? {
@@ -444,7 +445,7 @@ function FormationPanel({ candidat }: { candidat?: Candidat }) {
           size="sm"
           className="w-full justify-start gap-1.5 h-8 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/30"
           onClick={() => {
-            window.open(href(route(PROTECTED_ROUTES.CANDIDATS.DETAIL(candidat.id), { id: candidat.id })), '_blank');
+            navigate(route(PROTECTED_ROUTES.CANDIDATS.DETAIL(candidat.id), { id: candidat.id }));
           }}
         >
           <Eye className="h-3.5 w-3.5" />
@@ -533,6 +534,7 @@ export default function PaiementDetailPage(): React.JSX.Element {
     detailLoading,
     getById,
     getByCandidat,
+    printReceipt,
     update,
   } = usePaiements();
   const {
@@ -680,15 +682,45 @@ export default function PaiementDetailPage(): React.JSX.Element {
   const relativeSince = formatDistanceToNow(createdDate, { addSuffix: true, locale: fr });
 
   // Handlers
-  const handlePrint = () => {
+  const handlePrint = async () => {
+    try {
+      const result = await printReceipt(paiement.id);
+      if (result.success && result.path) {
+          await printDesktopPdf(result.path, `Recu ${paiement.reference ?? paiement.id}`);
+        toast.success('Reçu généré et ouvert');
+      } else {
+        toast.error(result.message || 'Erreur lors de la génération du reçu');
+      }
+      return;
+    } catch {
+      toast.error("Erreur lors de l'impression du reçu");
+      return;
+    }
     toast.info("Préparation de l'impression…");
     setTimeout(() => window.print(), 300);
   };
-  const handleDownload = () => {
-    if (facture?.pdfPath) {
+  const handleDownload = async () => {
+    try {
+      const result = await printReceipt(paiement.id);
+      if (result.success && result.path) {
+        await openDesktopPath(result.path);
+        toast.success('Reçu PDF prêt');
+      } else {
+        toast.error(result.message || 'Aucun reçu disponible pour ce paiement');
+      }
+      return;
+    } catch {
+      toast.error('Erreur lors du téléchargement du reçu');
+      return;
+    }
+    {
+      const factureActive = paiement!.facture as Facture;
+      const facture = factureActive;
+      if (factureActive?.pdfPath && factureActive?.numero) {
       toast.success(`Téléchargement de ${facture.numero}`);
-    } else {
-      toast.info('Aucun document PDF disponible pour ce paiement');
+      } else {
+        toast.info('Aucun document PDF disponible pour ce paiement');
+      }
     }
   };
   const handleCreateInvoice = () => {

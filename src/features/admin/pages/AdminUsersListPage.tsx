@@ -66,7 +66,7 @@ import { UserFormDialog } from '../components/UserFormDialog';
 import { UserDetailDialog } from '../components/UserDetailDialog';
 
 import { useAuth } from '@/hooks/use.auth';
-import { getAvatarUrl } from '@/lib/utils';
+import { getAvatarUrl, saveDesktopCsv } from '@/lib/utils';
 import { PROTECTED_ROUTES, route } from '@/config/routes';
 
 import type { Utilisateur } from '@/types/auth.types';
@@ -183,7 +183,30 @@ export default function AdminUsersListPage(): React.JSX.Element {
   /**
    * Exporte la liste des utilisateurs (fonctionnalité à implémenter côté service).
    */
-  const handleExport = React.useCallback(() => {
+  const handleExport = React.useCallback(async () => {
+    try {
+      const path = await saveDesktopCsv(
+        'exports/utilisateurs',
+        `utilisateurs-${new Date().toISOString().slice(0, 10)}`,
+        ['ID', 'Nom', 'Prenom', 'Email', 'Role', 'Niveau', 'Actif', 'Sessions actives', 'Permissions'],
+        allUsers.map((utilisateur) => [
+          utilisateur.id,
+          utilisateur.nom,
+          utilisateur.prenom,
+          utilisateur.email,
+          utilisateur.role,
+          utilisateur.niveau,
+          utilisateur.actif ? 'Oui' : 'Non',
+          utilisateur.sessionsActivesCount ?? 0,
+          utilisateur.permissionsCount ?? 0,
+        ])
+      );
+      toast.success(`Export des utilisateurs genere: ${path}`);
+      return;
+    } catch {
+      toast.error("Impossible d'exporter les utilisateurs");
+      return;
+    }
     toast.info('Export en cours de développement');
   }, []);
 

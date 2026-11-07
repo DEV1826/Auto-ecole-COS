@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, ChevronRight, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
+import { cn, resolveAssetPath } from '@/lib/utils';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { appConfig, PUBLIC_ROUTES } from '@/config';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -190,7 +190,7 @@ export function Footer({
           <div className="lg:col-span-4 col-span- space-y-6">
             <Link to={PUBLIC_ROUTES.HOME} className="flex items-center gap-2 group">
               <img
-                src="/icons/logo.svg"
+                src={resolveAssetPath('/icons/logo.svg')}
                 alt={appConfig.name}
                 className="h-9 w-auto transition-transform group-hover:scale-105"
               />

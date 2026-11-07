@@ -38,7 +38,7 @@ import { SearchCommand, type SearchResult } from './search-command';
 import { UserDropdown } from './user-dropdown';
 import { useAuth } from '@/hooks/use.auth';
 import { PUBLIC_ROUTES, PROTECTED_ROUTES } from '@/config/routes';
-import { cn, getAvatarUrl } from '@/lib/utils';
+import { cn, getAvatarUrl, resolveAssetPath } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useTheme } from 'next-themes';
 import { appConfig } from '@/config';
@@ -282,7 +282,7 @@ export function Header({ variant = 'app', className }: HeaderProps) {
     },
   ];
 
-  const logoSrc = '/icons/hero.png';
+  const logoSrc = resolveAssetPath('/icons/hero.png');
 
   // ============================================================
   // VARIANTE : APPLICATION (AUTHENTIFIÉE)

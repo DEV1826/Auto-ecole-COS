@@ -66,7 +66,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, openDesktopPath } from '@/lib/utils';
 
 import { PROTECTED_ROUTES, route } from '@/config/routes';
 import { PageBreadcrumb } from '@/components/common/PageBreadcrumb';
@@ -577,7 +577,7 @@ export default function ExamenDetailPage(): React.JSX.Element {
       const result = await printCertificate(examen.id);
       if (result.success && result.path) {
         toast.success(`Certificat généré : ${result.path}`);
-        window.open(result.path, '_blank');
+        await openDesktopPath(result.path);
       } else {
         toast.error(result.message || 'Erreur lors de la génération');
       }

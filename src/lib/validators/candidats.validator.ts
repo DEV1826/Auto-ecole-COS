@@ -114,7 +114,8 @@ export const deleteCandidatSchema = z.object({
  */
 export const candidatsListSchema = z.object({
   page: z.number().int().positive().default(1).optional(),
-  limit: z.number().int().positive().max(200).default(20).optional(),
+  // Augmentée à 1000 pour permettre des listes plus larges lors d'exports ou sélecteurs
+  limit: z.number().int().positive().max(1000).default(20).optional(),
   search: z.string().max(50).optional(),
   statut: z.enum(STATUT_CANDIDAT_VALUES).optional(),
   categorie: z.enum(CATEGORIE_PERMIS_VALUES).optional(),

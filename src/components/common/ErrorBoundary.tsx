@@ -7,7 +7,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { GridShape } from '@/components/layout';
-import { cn } from '@/lib/utils';
+import { cn, resolveAssetPath } from '@/lib/utils';
 import { Home, RefreshCcw } from 'lucide-react';
 import { appConfig } from '@/config';
 
@@ -75,12 +75,12 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                   </h1>
                   <div className="mb-6 flex justify-center">
                     <img
-                      src="/images/error/500.svg"
+                      src={resolveAssetPath('/images/error/500.svg')}
                       alt="Erreur serveur"
                       className="block h-16 w-auto dark:hidden sm:h-20"
                     />
                     <img
-                      src="/images/error/500-dark.svg"
+                      src={resolveAssetPath('/images/error/500-dark.svg')}
                       alt="Erreur serveur"
                       className="hidden h-16 w-auto dark:block sm:h-20"
                     />

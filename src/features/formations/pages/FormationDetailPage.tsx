@@ -47,7 +47,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { cn, formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency, resolveAssetPath } from '@/lib/utils';
 
 import { PROTECTED_ROUTES, route } from '@/config/routes';
 import { PageBreadcrumb } from '@/components/common/PageBreadcrumb';
@@ -138,7 +138,7 @@ interface CarIllustrationProps {
 }
 
 function CarIllustration({ categorie }: CarIllustrationProps) {
-  const imagePath = `/images/permis/${categorie}.png`;
+  const imagePath = resolveAssetPath(`/images/permis/${categorie}.png`);
   const [imgError, setImgError] = React.useState(false);
 
   return (

@@ -34,7 +34,7 @@ import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { PageBreadcrumb } from '@/components/common/PageBreadcrumb';
-import { cn } from '@/lib/utils';
+import { cn, resolveAssetPath } from '@/lib/utils';
 import { ErrorDialog } from '@/components/ui/error-dialog';
 
 import FormWrapper from '@/components/forms/FormWrapper';
@@ -95,7 +95,7 @@ function FormationPreviewCard({ data, original }: FormationPreviewCardProps) {
     <div className="space-y-5">
       <div className="relative flex h-28 w-full items-center justify-center rounded-lg b p-4">
 
-        <img src={`/images/permis/${categorie}.png`} alt={categorie} className='shrink-0 h-auto w-auto' />
+        <img src={resolveAssetPath(`/images/permis/${categorie}.png`)} alt={categorie} className='shrink-0 h-auto w-auto' />
 
       </div>{/* Titre et statut */}
       <div className="text-center">

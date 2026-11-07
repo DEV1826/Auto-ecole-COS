@@ -34,7 +34,7 @@ import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PageBreadcrumb } from '@/components/common/PageBreadcrumb';
-import { cn, getAvatarUrl } from '@/lib/utils';
+import { cn, getAvatarUrl, openDesktopPath } from '@/lib/utils';
 
 import { CaisseStatsCards } from '../components/CaisseStatsCards';
 import { CaisseTable } from '../components/CaisseTable';
@@ -56,6 +56,7 @@ export default function CaisseIndexPage(): React.JSX.Element {
   // Store caisse
   const {
     mouvements,
+    pagination,
     stats,
     trends,
     sparklines,
@@ -72,12 +73,11 @@ export default function CaisseIndexPage(): React.JSX.Element {
 
   const [isLoading, setIsLoading] = React.useState(false);
 
-  // Chargement initial : toutes les mouvements (non paginés)
+  // Chargement initial paginé
   React.useEffect(() => {
     const loadInitialData = async () => {
       try {
-        // Récupérer tous les mouvements avec relations
-        await getAll({});
+        await getAll({ page: 1, limit: 20 });
         await getStats();
         await getTrends();
         await getSparklines();
@@ -92,7 +92,7 @@ export default function CaisseIndexPage(): React.JSX.Element {
   const handleRefresh = async () => {
     setIsLoading(true);
     try {
-      await getAll({});
+      await getAll({ page: pagination.page, limit: pagination.limit });
       await getStats();
       await getTrends();
       await getSparklines();
@@ -104,12 +104,23 @@ export default function CaisseIndexPage(): React.JSX.Element {
     }
   };
 
+  const handlePaginationChange = React.useCallback(
+    async ({ pageIndex, pageSize }: { pageIndex: number; pageSize: number }) => {
+      try {
+        await getAll({ page: pageIndex + 1, limit: pageSize });
+      } catch {
+        toast.error('Erreur lors du changement de page');
+      }
+    },
+    [getAll]
+  );
+
   const handleExport = async () => {
     try {
       const result = await exportMouvements({});
       if (result.success && result.path) {
         toast.success(`Export généré : ${result.path}`);
-        window.open(result.path, '_blank');
+        await openDesktopPath(result.path);
       } else {
         toast.error(result.message || 'Erreur lors de l’export');
       }
@@ -224,8 +235,8 @@ export default function CaisseIndexPage(): React.JSX.Element {
       {/* Bloc supérieur : statistiques (2/3) + mouvements récents (1/3) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <div className="lg:col-span-2">
-          <CaisseStatsCards
-            stats={stats!}
+          {stats ? <CaisseStatsCards
+            stats={stats}
             trends={trends || undefined}
             soldeSparkline={sparklines?.soldeSparkline}
             entreesMoisSparkline={sparklines?.entreesSparkline}
@@ -239,16 +250,16 @@ export default function CaisseIndexPage(): React.JSX.Element {
               else if (id === 'solde-net') toast.info('Solde net du mois');
             }}
             className="h-full"
-          />
+          /> : <div className="h-full rounded-xl border border-dashed border-border/70 bg-card/50" />}
         </div>
         <div className="lg:col-span-1">
-          <CaisseMouvementsRecentCard
+          {stats ? <CaisseMouvementsRecentCard
             mouvements={mouvements}
-            caisseStats={stats!}
+            caisseStats={stats}
             maxItems={5}
             isLoading={isLoadingGlobal}
             className="col-span-12 xl:col-span-7 h-full"
-          />
+          /> : <div className="h-full rounded-xl border border-dashed border-border/70 bg-card/50" />}
         </div>
       </div>
 
@@ -263,8 +274,10 @@ export default function CaisseIndexPage(): React.JSX.Element {
         }}
         showDateFilter
         enablePagination
+        pagination={pagination}
+        onPaginationChange={handlePaginationChange}
         enableToolbar
-        defaultPageSize={20}
+        defaultPageSize={pagination.limit}
         onRefresh={handleRefresh}
         isLoading={isLoadingGlobal}
         title="Historique des mouvements"

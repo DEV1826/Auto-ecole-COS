@@ -21,6 +21,8 @@
  * @see {@link prisma.client.js} – Utilitaires génériques Prisma
  */
 
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import { executePrismaOperation, findMany } from './prisma.client.js';
 
 // ===============================
@@ -52,6 +54,19 @@ function buildDateWhereClause({ dateDebut, dateFin }) {
     return { date: dateFilter };
   }
   return {};
+}
+
+async function getCaisseExportDirectory() {
+  const { app } = globalThis.__ELECTRON_MAIN__ ?? {};
+  const baseDir = app ? app.getPath('documents') : process.cwd();
+  const exportDir = path.join(baseDir, 'Auto-Ecole COS', 'exports', 'caisse');
+  await fs.mkdir(exportDir, { recursive: true });
+  return exportDir;
+}
+
+function escapeCsvValue(value) {
+  const normalized = value === null || value === undefined ? '' : String(value);
+  return `"${normalized.replace(/"/g, '""')}"`;
 }
 
 /**
@@ -422,4 +437,55 @@ export async function exportCaisseMouvements(params = {}) {
     `[exportCaisseMouvements] Export de ${Array.isArray(mouvements) ? mouvements.length : mouvements.mouvements?.length || 0} mouvements vers ${filePath}`
   );
   return { success: true, path: filePath, message: 'Export généré (simulation)' };
+}
+export async function exportCaisseMouvementsFile(params = {}) {
+  const rawResult = await getAllMouvements(params);
+  const mouvements = Array.isArray(rawResult) ? rawResult : rawResult.mouvements || [];
+  const exportDir = await getCaisseExportDirectory();
+  const filename = `caisse_export_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-').slice(0, 19)}.csv`;
+  const filePath = path.join(exportDir, filename);
+
+  const headers = [
+    'Date',
+    'Type',
+    'Description',
+    'Reference',
+    'Entree',
+    'Sortie',
+    'Solde',
+    'Candidat',
+    'Vehicule',
+  ];
+
+  const rows = mouvements.map((mouvement) => {
+    const candidat = mouvement.entree?.candidat
+      ? `${mouvement.entree.candidat.prenom} ${mouvement.entree.candidat.nom}`.trim()
+      : '';
+    const vehicule = mouvement.sortie?.vehicule
+      ? `${mouvement.sortie.vehicule.marque} ${mouvement.sortie.vehicule.modele} ${mouvement.sortie.vehicule.immatriculation}`.trim()
+      : '';
+
+    return [
+      new Date(mouvement.date).toLocaleDateString('fr-FR'),
+      mouvement.type,
+      mouvement.description || '',
+      mouvement.reference || '',
+      mouvement.type === 'ENTREE' ? mouvement.montant : '',
+      mouvement.type === 'SORTIE' ? mouvement.montant : '',
+      mouvement.solde ?? '',
+      candidat,
+      vehicule,
+    ]
+      .map(escapeCsvValue)
+      .join(';');
+  });
+
+  const csvContent = [headers.join(';'), ...rows].join('\n');
+  await fs.writeFile(filePath, csvContent, 'utf8');
+
+  return {
+    success: true,
+    path: filePath,
+    message: `Export gÃ©nÃ©rÃ© : ${filePath}`,
+  };
 }

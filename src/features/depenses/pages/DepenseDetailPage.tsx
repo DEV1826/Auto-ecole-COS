@@ -79,7 +79,7 @@ import {
   Tag,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, resolveAssetPath, openDesktopPath } from '@/lib/utils';
 
 import { PROTECTED_ROUTES, route } from '@/config/routes';
 import { PageBreadcrumb } from '@/components/common/PageBreadcrumb';
@@ -318,7 +318,9 @@ function ActionsPanel({ onEdit, onDelete, onAttachReceipt, onPrint, onShare }: A
 function VehiculePanel({ vehicule }: { vehicule?: Vehicule | null }) {
   if (!vehicule) return null;
 
-  const avatarUrl = vehicule.categorie ? `/images/permis/${vehicule.categorie}.png` : '/images/permis/B.png';
+  const avatarUrl = vehicule.categorie
+    ? resolveAssetPath(`/images/permis/${vehicule.categorie}.png`)
+    : resolveAssetPath('/images/permis/B.png');
   return (
     <Card className="border shadow-sm py-0 overflow-hidden">
       <CardHeader className="pb-3 pt-4 px-4 border-b bg-linear-to-r from-blue-50/60 to-transparent dark:from-blue-950/20">
@@ -422,7 +424,7 @@ export default function DepenseDetailPage(): React.JSX.Element {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  const { currentDepense, detailLoading, getById, delete: deleteDepense, attachReceipt, getByVehicule } = useDepenses();
+  const { currentDepense, detailLoading, getById, delete: deleteDepense, attachReceipt, getByVehicule, generatePDF } = useDepenses();
   const { getById: getVehiculeById, currentVehicule, detailLoading: vehiculeLoading } = useVehicules();
 
   const [autresDepenses, setAutresDepenses] = React.useState<Depense[]>([]);
@@ -517,7 +519,20 @@ export default function DepenseDetailPage(): React.JSX.Element {
     };
     input.click();
   };
-  const handlePrint = () => window.print();
+  const handlePrint = async () => {
+    try {
+      const res = await generatePDF(depense.id);
+      if (res?.success && res.path) {
+        await openDesktopPath(res.path);
+        toast.success('PDF généré et ouvert sur le bureau');
+      } else {
+        toast.error(res?.message || 'Erreur lors de la génération du PDF');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Impossible de générer le PDF');
+    }
+  };
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
     toast.success('Lien copié dans le presse-papier');

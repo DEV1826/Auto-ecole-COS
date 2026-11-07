@@ -94,6 +94,17 @@ export interface CaisseTableProps {
     /** Taille de page par défaut si pagination activée (défaut: 10) */
     defaultPageSize?: number;
 
+    /** Pagination serveur courante */
+    pagination?: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
+
+    /** Callback de changement de page/taille pour pagination serveur */
+    onPaginationChange?: (pagination: { pageIndex: number; pageSize: number }) => void;
+
     /** Activer la barre d’outils (recherche + filtres facettés) (défaut: false) */
     enableToolbar?: boolean;
 
@@ -199,6 +210,8 @@ export function CaisseTable({
     maxItems = 5,
     enablePagination = false,
     defaultPageSize = 10,
+    pagination,
+    onPaginationChange,
     enableToolbar = false,
     showViewAll = false,
     onViewAll,
@@ -238,13 +251,15 @@ export function CaisseTable({
         [mouvements, dateRange]
     );
 
+    const usesServerPagination = enablePagination && !!pagination && !!onPaginationChange && !dateRange?.from;
+
     const displayData = React.useMemo(
         () => (enablePagination ? filteredMouvements : filteredMouvements.slice(0, maxItems)),
         [filteredMouvements, enablePagination, maxItems]
     );
 
     // ── Statistiques rapides ──────────────────────────────────────────────
-    const totalCount = filteredMouvements.length;
+    const totalCount = usesServerPagination ? (pagination?.total ?? filteredMouvements.length) : filteredMouvements.length;
     const soldeActuel = getDernierSolde(mouvements);
 
     // ── Colonnes ───────────────────────────────────────────────────────────
@@ -377,6 +392,17 @@ export function CaisseTable({
                 isLoading={isLoading || refreshing}
                 enableRowSelection={false}
                 enablePagination={enablePagination}
+                manualPagination={usesServerPagination}
+                pageCount={usesServerPagination ? pagination?.totalPages : undefined}
+                paginationState={
+                    usesServerPagination && pagination
+                        ? {
+                              pageIndex: Math.max(0, (pagination.page || 1) - 1),
+                              pageSize: pagination.limit,
+                          }
+                        : undefined
+                }
+                onPaginationChange={usesServerPagination ? onPaginationChange : undefined}
                 enableToolbar={enableToolbar}
                 defaultPageSize={defaultPageSize}
                 pageSizeOptions={[5, 10, 20, 50, 100]}

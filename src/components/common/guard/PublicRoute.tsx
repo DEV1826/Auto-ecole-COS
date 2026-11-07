@@ -4,7 +4,7 @@
  * Redirige vers le dashboard si l'utilisateur est déjà connecté.
  */
 
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks';
 import { PROTECTED_ROUTES, PUBLIC_ROUTES } from '@/config/routes';
 
@@ -26,6 +26,7 @@ export interface PublicRouteProps {
  */
 export function PublicRoute({ redirectTo = PROTECTED_ROUTES.DASHBOARD }: PublicRouteProps) {
   const { isAuthenticated } = useAuth();
+  const location = useLocation();
 
   if (location.pathname === PUBLIC_ROUTES.AUTH.LOGOUT) {
     return <Outlet />;

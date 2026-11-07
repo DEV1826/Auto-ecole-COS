@@ -35,6 +35,58 @@ import {
 /** Liste des catégories de permis valides (basée sur le schéma Prisma) */
 const VALID_CATEGORIES = ['A', 'B', 'C', 'D', 'BE'];
 
+async function ensureDefaultFormations() {
+  const formationsCount = await count('formation');
+  if (formationsCount > 0) {
+    return;
+  }
+
+  const defaultFormations = [
+    {
+      nom: 'Permis B (Voiture)',
+      description: "Formation complète pour l'obtention du permis de conduire catégorie B.",
+      prixTotal: 90000,
+      heuresCode: 12,
+      heuresConduite: 20,
+      categorie: 'B',
+      actif: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      nom: 'Permis A (Moto)',
+      description: 'Formation pour le permis moto, incluant plateau et circulation.',
+      prixTotal: 900000,
+      heuresCode: 10,
+      heuresConduite: 18,
+      categorie: 'A',
+      actif: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      nom: 'Permis C (Poids lourd)',
+      description: 'Formation pour conduite de camions et poids lourds.',
+      prixTotal: 900000,
+      heuresCode: 15,
+      heuresConduite: 25,
+      categorie: 'C',
+      actif: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ];
+
+  for (const formationData of defaultFormations) {
+    const formation = await create('formation', formationData);
+    await create('tarif', {
+      formationId: formation.id,
+      prix: formation.prixTotal,
+      dateDebut: new Date(),
+    });
+  }
+}
+
 /**
  * Construit l'objet `where` pour la liste paginée avec filtres.
  * @param {Object} params
@@ -88,6 +140,7 @@ export async function getAllFormations(params = {}) {
     const skip = (Math.max(1, page) - 1) * Math.max(1, limit);
     const take = Math.max(1, limit);
     return executePrismaOperation(async () => {
+      await ensureDefaultFormations();
       const [formations, total] = await Promise.all([
         findMany(
           'formation',
@@ -114,6 +167,7 @@ export async function getAllFormations(params = {}) {
     }, 'Erreur lors de la récupération des formations');
   } else {
     return executePrismaOperation(async () => {
+      await ensureDefaultFormations();
       const formations = await findMany(
         'formation',
         where,

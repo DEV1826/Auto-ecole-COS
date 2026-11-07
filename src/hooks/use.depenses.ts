@@ -140,6 +140,10 @@ export interface UseDepenses {
   getByVehicule: (vehiculeId: number) => Promise<Depense[]>;
   /** Attache un reçu (PDF) à une dépense (stub) */
   attachReceipt: (id: number, filePath: string) => Promise<{ success: boolean; message: string }>;
+  /**
+   * Génère le PDF d'une dépense et retourne le chemin créé sur le bureau.
+   */
+  generatePDF: (id: number) => Promise<{ success: boolean; path?: string; message?: string }>;
 
   // ===== UTILITAIRES =====
   /** Efface toutes les erreurs du store */
@@ -229,6 +233,7 @@ export const useDepenses = (): UseDepenses => {
     // Relations & utilitaires
     getByVehicule: store.getByVehicule,
     attachReceipt: store.attachReceipt,
+      generatePDF: store.generatePDF,
 
     // Utilitaires
     clearErrors: store.clearErrors,

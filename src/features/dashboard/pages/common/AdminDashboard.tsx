@@ -60,7 +60,16 @@ export default function AdminDashboard(): React.JSX.Element {
   const navigate = useNavigate();
 
   // ── Stores Zustand ──────────────────────────────────────────────────────
-  const { user, lastSession: session, getStats: getAuthStats, getTrends: getAuthTrends, getSparklines: getAuthSparklines } = useAuth();
+  const {
+    user,
+    lastSession: session,
+    getStats: getAuthStats,
+    getTrends: getAuthTrends,
+    getSparklines: getAuthSparklines,
+    stats: authStats,
+    trends: authTrends,
+    sparklines: authSparklines,
+  } = useAuth();
   const { candidats, getAll: getAllCandidats, stats: candidatsStats, trends: candidatsTrends, getStats: getCandidatsStats, getTrends: getCandidatsTrends } = useCandidats();
   const { moniteurs, getAll: getAllMoniteurs, stats: moniteursStats, trends: moniteursTrends, sparklines: moniteursSparkline, getStats: getMoniteursStats } = useMoniteurs();
   const { vehicules, getAll: getAllVehicules, stats: vehiculesStats, trends: vehiculesTrends, sparklines: vehiculesSparkline, getStats: getVehiculesStats } = useVehicules();
@@ -254,9 +263,6 @@ export default function AdminDashboard(): React.JSX.Element {
   }), [soldeMap]);
 
   // ── Extraction des sous-états auth ──────────────────────────────────────
-  const authStats = useAuth().stats;
-  const authTrends = useAuth().trends;
-  const authSparklines = useAuth().sparklines;
 
   // ── Mouvements financiers mémorisés ─────────────────────────────────────
   const recentMouvements = React.useMemo(() => {
@@ -390,7 +396,7 @@ export default function AdminDashboard(): React.JSX.Element {
         <div className="lg:col-span-1">
           <CaisseMouvementsRecentCard
             mouvements={recentMouvements}
-            caisseStats={caisseStats!}
+            caisseStats={caisseStats ?? undefined}
             maxItems={5}
             isLoading={isLoading}
             onViewAll={() => navigate(PROTECTED_ROUTES.CAISSE.INDEX)}
@@ -422,8 +428,8 @@ export default function AdminDashboard(): React.JSX.Element {
         </div>
         <div className="lg:col-span-1">
           <FinanceOverviewCard
-            caisseStats={caisseStats!}
-            caisseTrends={caisseTrends!}
+            caisseStats={caisseStats ?? undefined}
+            caisseTrends={caisseTrends ?? undefined}
             entreesJour={entreesJour}
             periode="mois"
             isLoading={isLoading}

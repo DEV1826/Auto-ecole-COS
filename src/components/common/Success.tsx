@@ -35,7 +35,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { GridShape } from '@/components/layout';
 import { PUBLIC_ROUTES } from '@/config/routes';
-import { cn } from '@/lib/utils';
+import { cn, resolveAssetPath } from '@/lib/utils';
 import { Footer } from '../footer';
 
 export interface SuccessProps {
@@ -96,12 +96,12 @@ export function Success({
             className="flex justify-center "
           >
             <img
-              src="/images/error/success.svg"
+              src={resolveAssetPath('/images/error/success.svg')}
               alt="Succès"
               className="block w-full dark:hidden"
             />
             <img
-              src="/images/error/success-dark.svg"
+              src={resolveAssetPath('/images/error/success-dark.svg')}
               alt="Succès"
               className="hidden w-full dark:block"
             />

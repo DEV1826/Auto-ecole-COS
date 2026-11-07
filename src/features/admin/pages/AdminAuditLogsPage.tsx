@@ -40,7 +40,7 @@ import { StatsAuditLogs } from '../components/StatsAuditLogs';
 import { AuditLogsTable } from '../components/AuditLogsTable';
 import { useAdmin } from '@/hooks/use.admin';
 import { useAuth } from '@/hooks/use.auth';
-import { getAvatarUrl } from '@/lib/utils';
+import { getAvatarUrl, saveDesktopCsv } from '@/lib/utils';
 import type { AuditLog } from '@/types/admin.types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -114,6 +114,30 @@ export default function AuditLogsListPage(): React.JSX.Element {
   }, [getAuditLogs, getAdminStats, getAdminTrends, logsPagination.page, logsPagination.limit, periodFilter]);
 
   const handleExport = () => {
+    void (async () => {
+      try {
+        const path = await saveDesktopCsv(
+          'exports/audit-logs',
+          `audit-logs-${new Date().toISOString().slice(0, 10)}`,
+          ['ID', 'Date', 'Statut', 'Action', 'Ressource', 'Description', 'IP', 'Utilisateur', 'Email'],
+          logs.map((log) => [
+            log.id,
+            log.createdAt,
+            log.statut,
+            log.action,
+            log.ressource ?? '',
+            log.description ?? '',
+            log.ipAddress ?? '',
+            enrichments.getNomComplet(log),
+            enrichments.getEmail(log),
+          ])
+        );
+        toast.success(`Export des logs genere: ${path}`);
+      } catch {
+        toast.error("Impossible d'exporter les logs d'audit");
+      }
+    })();
+    return;
     toast.info('Fonction d’export à implémenter');
   };
 

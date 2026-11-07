@@ -38,7 +38,9 @@ import { useVehicules } from '@/hooks/use.vehicules';
 import { useNavigate } from 'react-router-dom';
 import { PROTECTED_ROUTES, route } from '@/config';
 import type { Depense } from '@/types/depenses.types';
+import type { DepensesPeriodFilter } from '../components/DepensesTable';
 import type { Vehicule } from '@/types/vehicules.types';
+import { saveDesktopCsv } from '@/lib/utils';
 
 // ===============================
 // COMPOSANT PRINCIPAL
@@ -58,6 +60,7 @@ export default function DepensesListPage(): React.JSX.Element {
   // Store dépenses
   const {
     depenses,
+    pagination,
     stats,
     trends,
     sparklines,
@@ -77,12 +80,13 @@ export default function DepensesListPage(): React.JSX.Element {
 
   // État local pour les enrichissements (libellé véhicule)
   const [vehiculeMap, setVehiculeMap] = React.useState<Map<number, Vehicule>>(new Map());
+  const [periodFilter, setPeriodFilter] = React.useState<DepensesPeriodFilter>('all');
 
   // ── Chargement initial ──────────────────────────────────────────────
   React.useEffect(() => {
     const loadInitialData = async () => {
       try {
-        await getAll();
+        await getAll({ page: 1, limit: 20, period: periodFilter });
         await getStats();
         await getTrends();
         await getSparklines();
@@ -91,7 +95,8 @@ export default function DepensesListPage(): React.JSX.Element {
       }
     };
     loadInitialData();
-  }, [getAll, getStats, getTrends, getSparklines]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Chargement des véhicules ──────────────────────────────────────
   React.useEffect(() => {
@@ -110,7 +115,7 @@ export default function DepensesListPage(): React.JSX.Element {
   // ── Handlers ──────────────────────────────────────────────────────
   const handleRefresh = async () => {
     try {
-      await getAll();
+      await getAll({ page: pagination.page, limit: pagination.limit, period: periodFilter });
       await getStats();
       await getTrends();
       await getSparklines();
@@ -120,7 +125,53 @@ export default function DepensesListPage(): React.JSX.Element {
     }
   };
 
+  const handlePaginationChange = React.useCallback(
+    async ({ pageIndex, pageSize }: { pageIndex: number; pageSize: number }) => {
+      try {
+        await getAll({ page: pageIndex + 1, limit: pageSize, period: periodFilter });
+      } catch {
+        toast.error('Erreur lors du changement de page');
+      }
+    },
+    [getAll, periodFilter]
+  );
+
+  const handlePeriodFilterChange = React.useCallback(
+    async (period: DepensesPeriodFilter) => {
+      setPeriodFilter(period);
+      try {
+        await getAll({ page: 1, limit: pagination.limit, period });
+      } catch {
+        toast.error('Erreur lors du filtrage des dépenses');
+      }
+    },
+    [getAll, pagination.limit]
+  );
+
   const handleExport = () => {
+    void (async () => {
+      try {
+        const path = await saveDesktopCsv(
+          'exports/depenses',
+          `depenses-${new Date().toISOString().slice(0, 10)}`,
+          ['ID', 'Date', 'Categorie', 'Montant', 'Description', 'Fournisseur', 'Reference', 'Vehicule'],
+          depenses.map((depense) => [
+            depense.id,
+            depense.date,
+            depense.categorie,
+            depense.montant,
+            depense.description ?? '',
+            depense.fournisseur ?? '',
+            depense.reference ?? '',
+            enrichments.getVehiculeLibelle(depense),
+          ])
+        );
+        toast.success(`Export des depenses genere: ${path}`);
+      } catch {
+        toast.error("Impossible d'exporter les depenses");
+      }
+    })();
+    return;
     // TODO: implémenter l'export des dépenses (CSV/Excel/PDF)
     toast.info('Fonction d’export à implémenter');
   };
@@ -218,7 +269,7 @@ export default function DepensesListPage(): React.JSX.Element {
                 variant="outline"
                 className="text-[10px] h-4 px-1.5 border-0 bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
               >
-                {depenses.length} dépenses
+                {pagination.total} dépenses
               </Badge>
             </p>
           </div>
@@ -264,7 +315,10 @@ export default function DepensesListPage(): React.JSX.Element {
         actions={actions}
         defaultPeriodFilter="all"
         showPeriodFilter
+        onPeriodFilterChange={handlePeriodFilterChange}
         enablePagination
+        pagination={pagination}
+        onPaginationChange={handlePaginationChange}
         enableToolbar
         defaultPageSize={20}
         onRefresh={handleRefresh}

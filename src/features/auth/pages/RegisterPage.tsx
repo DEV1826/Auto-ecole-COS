@@ -1,6 +1,8 @@
 import { AuthLayout } from '@/components/layout/AuthLayout';
 import { InitialSetupForm } from '@/features/auth/components';
-import { useLocation } from 'react-router-dom';
+import { useMemo } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
+import { PUBLIC_ROUTES } from '@/config/routes';
 
 /**
  * @module features/auth/pages/RegisterPage
@@ -14,13 +16,55 @@ import { useLocation } from 'react-router-dom';
  */
 export default function RegisterPage() {
   const location = useLocation();
-  const setupAccessToken = (location.state as { setupAccessToken?: string } | null)
-    ?.setupAccessToken;
+  const setupAccess = useMemo(() => {
+    const stateAccess = location.state as
+      | {
+          developerSetupAccess?: boolean;
+          setupAccessToken?: string;
+          expiresAt?: number;
+          timestamp?: number;
+        }
+      | null;
+
+    if (stateAccess?.developerSetupAccess && stateAccess?.setupAccessToken) {
+      return stateAccess;
+    }
+
+    try {
+      const raw = window.sessionStorage.getItem('autoecole.setupAccess');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as {
+        developerSetupAccess?: boolean;
+        setupAccessToken?: string;
+        expiresAt?: number;
+        timestamp?: number;
+      };
+
+      if (
+        parsed?.developerSetupAccess &&
+        typeof parsed.setupAccessToken === 'string' &&
+        typeof parsed.expiresAt === 'number' &&
+        parsed.expiresAt > Date.now()
+      ) {
+        return parsed;
+      }
+
+      window.sessionStorage.removeItem('autoecole.setupAccess');
+      return null;
+    } catch {
+      window.sessionStorage.removeItem('autoecole.setupAccess');
+      return null;
+    }
+  }, [location.state]);
+
+  if (!setupAccess?.setupAccessToken) {
+    return <Navigate to={PUBLIC_ROUTES.AUTH.REGISTER_ACCESS} replace />;
+  }
 
   return (
     <>
       <AuthLayout>
-        <InitialSetupForm accessToken={setupAccessToken ?? ''} />
+        <InitialSetupForm accessToken={setupAccess.setupAccessToken} />
       </AuthLayout>
     </>
   );

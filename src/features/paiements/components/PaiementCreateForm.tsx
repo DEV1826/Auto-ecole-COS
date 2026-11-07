@@ -118,24 +118,42 @@ function CandidatSelector({ value, onChange, onSoldeChange, disabled, isSubmitti
     const [recentPayments, setRecentPayments] = React.useState<any[]>([]);
     const [soldeData, setSoldeData] = React.useState<SoldeCandidat | null>(null);
 
+    const [page, setPage] = React.useState(1);
+    const [totalPages, setTotalPages] = React.useState(1);
+    const limitRef = React.useRef<number>(50);
+    const [search, setSearch] = React.useState('');
+    const debounceRef = React.useRef<number | undefined>(undefined);
+
     const { getAll, getById } = useCandidats();
     const { getSoldeCandidat, getByCandidat } = usePaiements();
 
-    // Charger la liste des candidats au montage
-    React.useEffect(() => {
-        const loadCandidats = async () => {
-            setLoading(true);
-            try {
-                const response = await getAll({});
+    // Chargement paginé des candidats
+    const loadPage = async (p: number, q?: string) => {
+        setLoading(true);
+        try {
+            const response = await getAll({ page: p, limit: limitRef.current, search: q?.trim() });
+            if (p === 1) {
                 setCandidats(response.candidats);
-            } catch (err) {
-                console.error('Erreur chargement candidats', err);
-            } finally {
-                setLoading(false);
+            } else {
+                setCandidats((prev) => [...prev, ...response.candidats]);
             }
-        };
-        loadCandidats();
-    }, [getAll]);
+            setPage(response.page ?? p);
+            setTotalPages(response.totalPages ?? 1);
+        } catch (err) {
+            console.error('Erreur chargement candidats', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Charger la première page quand l'utilisateur ouvre le popover
+    React.useEffect(() => {
+        if (!open) return;
+        if (candidats.length === 0) {
+            void loadPage(1, search);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open]);
 
     // Mettre à jour les détails quand un candidat est pré‑sélectionné
     React.useEffect(() => {
@@ -197,7 +215,17 @@ function CandidatSelector({ value, onChange, onSoldeChange, disabled, isSubmitti
                     </PopoverTrigger>
                     <PopoverContent className="w-100 max-w-[90vw] p-0" align="start">
                         <CommandMenu>
-                            <CommandInput placeholder="Rechercher par nom, prénom, téléphone..." />
+                            <CommandInput
+                                placeholder="Rechercher par nom, prénom, téléphone..."
+                                value={search}
+                                onValueChange={(val) => {
+                                    setSearch(val);
+                                    if (debounceRef.current) window.clearTimeout(debounceRef.current);
+                                    debounceRef.current = window.setTimeout(() => {
+                                        void loadPage(1, val);
+                                    }, 240) as unknown as number;
+                                }}
+                            />
                             <CommandList>
                                 <CommandEmpty>Aucun candidat trouvé.</CommandEmpty>
                                 <CommandGroup>
@@ -223,6 +251,19 @@ function CandidatSelector({ value, onChange, onSoldeChange, disabled, isSubmitti
                                             </Badge>
                                         </CommandItem>
                                     ))}
+                                    {page < totalPages && (
+                                        <CommandItem
+                                            key="__load_more__"
+                                            value="__load_more__"
+                                            onSelect={() => {
+                                                const next = page + 1;
+                                                void loadPage(next, search);
+                                            }}
+                                            className="flex items-center justify-center p-2 text-sm text-muted-foreground"
+                                        >
+                                            Charger plus…
+                                        </CommandItem>
+                                    )}
                                 </CommandGroup>
                             </CommandList>
                         </CommandMenu>

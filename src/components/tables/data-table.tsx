@@ -105,6 +105,10 @@ export function DataTable<TData, TValue>({
   skeletonRows = 5,
   onReorder,
   dragIdKey = 'id' as keyof TData,
+  manualPagination = false,
+  pageCount,
+  paginationState,
+  onPaginationChange,
 }: DataTableProps<TData, TValue>) {
   const [localData, setLocalData] = React.useState(data);
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -210,6 +214,10 @@ export function DataTable<TData, TValue>({
     pageSizeOptions,
     initialColumnVisibility,
     getRowId: enableDragAndDrop ? getRowId : undefined,
+    manualPagination,
+    pageCount,
+    paginationState,
+    onPaginationChange,
   });
 
   // Dans le composant DataTable, après la déclaration de table

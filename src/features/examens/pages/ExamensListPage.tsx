@@ -36,7 +36,7 @@ import { useExamens } from '@/hooks/use.examens';
 import { useCandidats } from '@/hooks/use.candidats';
 import { useNavigate } from 'react-router-dom';
 import { PROTECTED_ROUTES, route } from '@/config';
-import { getAvatarUrl } from '@/lib/utils';
+import { getAvatarUrl, openDesktopPath } from '@/lib/utils';
 import type { Examen } from '@/types/examens.types';
 import type { Candidat } from '@/types/candidats.types';
 
@@ -173,6 +173,22 @@ export default function ExamensListPage(): React.JSX.Element {
     navigate(PROTECTED_ROUTES.EXAMENS.CREATE);
   };
 
+  const handleDesktopExport = async () => {
+    try {
+      const result = await window.api.exports.examens({});
+      if (result.success && result.path) {
+        toast.success(`Export gÃ©nÃ©rÃ© : ${result.path}`);
+        await openDesktopPath(result.path);
+        return;
+      }
+
+      toast.error(result.message || 'Le fichier exportÃ© est introuvable.');
+    } catch (err) {
+      console.error('Erreur export examens:', err);
+      toast.error('Erreur lors de lâ€™export des examens');
+    }
+  };
+
   const handleView = (examen: Examen) => {
     navigate(route(PROTECTED_ROUTES.EXAMENS.DETAIL(examen.id), { id: examen.id }));
   };
@@ -198,7 +214,7 @@ export default function ExamensListPage(): React.JSX.Element {
       const result = await printCertificate(examen.id);
       if (result.success && result.path) {
         toast.success(`Attestation générée : ${result.path}`);
-        window.open(result.path, '_blank');
+        await openDesktopPath(result.path);
       } else {
         toast.error(result.message || 'Erreur lors de la génération');
       }
@@ -314,7 +330,7 @@ export default function ExamensListPage(): React.JSX.Element {
         enableToolbar
         defaultPageSize={10}
         onRefresh={handleRefresh}
-        onExport={(isAdmin || isSecretaire) ? handleExport : undefined}
+        onExport={(isAdmin || isSecretaire) ? handleDesktopExport : undefined}
         isLoading={isLoading}
         title="Liste des examens"
         description="Consultez et gérez l’ensemble des épreuves (code et conduite)"

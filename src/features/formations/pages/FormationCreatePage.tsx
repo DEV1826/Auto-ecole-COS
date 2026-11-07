@@ -38,7 +38,7 @@ import {
 
 import { Badge } from '@/components/ui/badge';
 import { PageBreadcrumb } from '@/components/common/PageBreadcrumb';
-import { cn } from '@/lib/utils';
+import { cn, resolveAssetPath } from '@/lib/utils';
 
 import FormWrapper from '@/components/forms/FormWrapper';
 import FormationCreateForm from '@/features/formations/components/FormationCreateForm';
@@ -152,7 +152,7 @@ function FormationPreviewCard({ data }: FormationPreviewCardProps) {
       <div className="flex flex-col items-center gap-3 pt-2 pb-4 border-b border-border/50">
         <div className="relative flex h-28 w-full items-center justify-center rounded-lg b p-4">
 
-          <img src={`/images/permis/${categorie}.png`} alt={categorie} className='shrink-0 h-auto w-auto' />
+          <img src={resolveAssetPath(`/images/permis/${categorie}.png`)} alt={categorie} className='shrink-0 h-auto w-auto' />
 
         </div>
         <div className="text-center pt-3">

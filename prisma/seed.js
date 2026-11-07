@@ -6,19 +6,17 @@
  * Exécuter avec : `pnpm db:seed`
  */
 
-import { PrismaClient } from '@prisma/client';
-import crypto from 'crypto';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { hashPassword } from '../electron/services/password.js';
 
-const prisma = new PrismaClient();
+// Le client Prisma est généré dans generated-prisma/ (voir schema.prisma).
+const require = createRequire(import.meta.url);
+const { PrismaClient } = require('../generated-prisma');
 
-/**
- * Hash un mot de passe (similaire à la fonction du service auth)
- * @param {string} password - Mot de passe en clair
- * @returns {string} Hash SHA-256
- */
-function hashPassword(password) {
-  return crypto.createHash('sha256').update(password).digest('hex');
-}
+const dbPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'dev.db');
+const prisma = new PrismaClient({ datasources: { db: { url: `file:${dbPath}` } } });
 
 /**
  * Supprime toutes les données existantes (ordre respectant les clés étrangères)
@@ -117,9 +115,9 @@ async function seedFormations() {
  * Crée les utilisateurs (ADMIN, SECRETAIRE, MONITEUR)
  */
 async function seedUsers() {
-  const adminPassword = hashPassword('Admin123!');
-  const secretairePassword = hashPassword('Secret123!');
-  const moniteurPassword = hashPassword('Moniteur123!');
+  const adminPassword = await hashPassword('Admin123!');
+  const secretairePassword = await hashPassword('Secret123!');
+  const moniteurPassword = await hashPassword('Moniteur123!');
 
   const admin = await prisma.utilisateur.create({
     data: {

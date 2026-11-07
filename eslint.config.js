@@ -7,7 +7,18 @@ import prettierConfig from 'eslint-config-prettier';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
-  globalIgnores(['dist', 'coverage', 'build', 'node_modules']),
+  globalIgnores([
+    'dist',
+    'dist_electron',
+    'coverage',
+    'build',
+    'node_modules',
+    'generated',
+    'generated-prisma',
+    '.pnpm-store',
+    '.electron-user-data',
+    '.codex-run',
+  ]),
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
     extends: [
@@ -34,11 +45,33 @@ export default defineConfig([
   },
 
   {
-    files: ['electron/**/*.js', '*.config.js'],
+    files: ['electron/**/*.js', 'prisma/**/*.js', '*.config.js'],
     extends: [js.configs.recommended],
     languageOptions: {
+      ecmaVersion: 2024,
+      sourceType: 'module',
       globals: {
         ...globals.node,
+      },
+    },
+  },
+  {
+    files: ['**/*.cjs'],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      ecmaVersion: 2024,
+      sourceType: 'commonjs',
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+  {
+    // Preload sandboxé : accès au DOM (window, localStorage) + require('electron').
+    files: ['electron/preload.cjs'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
       },
     },
   },

@@ -32,6 +32,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { resolveAssetPath } from '@/lib/utils';
 
 /**
  * Interface définissant les propriétés acceptées par le composant SuccessDialog.
@@ -82,7 +83,7 @@ export function SuccessDialog({
                 window.matchMedia('(prefers-color-scheme: dark)').matches);
 
         const iconName = isDark ? 'success-dark.svg' : 'success.svg';
-        return `/images/error/${iconName}`;
+        return resolveAssetPath(`/images/error/${iconName}`);
     };
 
     // Évaluation de la présence et du format des détails fournis

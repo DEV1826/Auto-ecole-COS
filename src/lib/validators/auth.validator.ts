@@ -32,6 +32,7 @@ import { VALIDATION_ERRORS, AUTH_ERRORS } from '../constants/messages';
  */
 export const emailSchema = z
   .string({ message: VALIDATION_ERRORS.REQUIRED })
+  .trim()
   .email({ message: VALIDATION_ERRORS.INVALID_EMAIL })
   .min(5, VALIDATION_ERRORS.TOO_SHORT(5))
   .max(255, VALIDATION_ERRORS.TOO_LONG(255))

@@ -12,6 +12,7 @@ import { GridShape } from '@/components/layout';
 import { PUBLIC_ROUTES } from '@/config/routes';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { appConfig } from '@/config';
+import { resolveAssetPath } from '@/lib/utils';
 
 export interface UnauthorizedProps {
   /** Message personnalisé */
@@ -50,12 +51,12 @@ export function Unauthorized({
           {/* Illustration d'erreur 403 (claire/sombre) */}
           <div className="flex justify-center">
             <img
-              src="/images/error/403.svg"
+              src={resolveAssetPath('/images/error/403.svg')}
               alt="Accès non autorisé"
               className="block dark:hidden sm:w-sm"
             />
             <img
-              src="/images/error/403-dark.svg"
+              src={resolveAssetPath('/images/error/403-dark.svg')}
               alt="Accès non autorisé"
               className="hidden dark:block sm:w-sm"
             />

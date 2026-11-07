@@ -44,7 +44,7 @@ import { useCandidats } from '@/hooks/use.candidats';
 import { DocumentsStatsCards } from '../components/DocumentsStatsCards';
 import { DocumentsTable } from '../components/DocumentsTable';
 import { DocumentsChart } from '../components/DocumentsChart';
-import { getAvatarUrl } from '@/lib/utils';
+import { getAvatarUrl, openDesktopPath, saveDesktopCsv } from '@/lib/utils';
 import { PROTECTED_ROUTES } from '@/config/routes';
 import type { Document } from '@/types/documents.types';
 import type { Candidat } from '@/types/candidats.types';
@@ -148,7 +148,7 @@ export default function DocumentsListPage(): React.JSX.Element {
         getStats(),
         getTrends(),
         getSparklines(),
-        getAllCandidats({ limit: 200 }),
+        getAllCandidats({ limit: 1000 }),
       ]);
       toast.success('Documents actualisés');
     } catch {
@@ -159,6 +159,29 @@ export default function DocumentsListPage(): React.JSX.Element {
   };
 
   const handleExport = () => {
+    void (async () => {
+      try {
+        const path = await saveDesktopCsv(
+          'exports/documents',
+          `documents-${new Date().toISOString().slice(0, 10)}`,
+          ['ID', 'Nom fichier', 'Type', 'Candidat', 'Email candidat', 'Taille (octets)', 'Date upload', 'Chemin'],
+          documents.map((doc) => [
+            doc.id,
+            doc.nomFichier,
+            doc.type,
+            enrichments.getCandidatNomComplet(doc),
+            enrichments.getCandidatEmail(doc),
+            doc.taille ?? '',
+            doc.uploadedAt,
+            doc.chemin,
+          ])
+        );
+        toast.success(`Export des documents genere: ${path}`);
+      } catch {
+        toast.error("Impossible d'exporter les documents");
+      }
+    })();
+    return;
     // TODO: exporter en CSV/Excel (via l'API ou conversion côté client)
     toast.info('Fonction d’export à implémenter');
   };
@@ -192,8 +215,9 @@ export default function DocumentsListPage(): React.JSX.Element {
       }
     },
     onPrint: (doc: Document) => {
-      // Impression du document (ouvrir et imprimer)
-      window.open(doc.chemin, '_blank');
+      openDesktopPath(doc.chemin).catch(() => {
+        toast.error("Impossible d'ouvrir le document");
+      });
     },
   };
 

@@ -55,7 +55,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DataTableColumnHeader } from '@/components/tables/data-table-column-header';
 import { DataTableRowActions } from '@/components/tables/data-table-row-actions';
-import { cn } from '@/lib/utils';
+import { cn, resolveAssetPath } from '@/lib/utils';
 import type { CategorieDepense } from '@/types/enums';
 import { CATEGORIE_DEPENSE_CONFIG } from '@/types/enums';
 import type { Depense, DepensesEnrichments } from '@/types/depenses.types';
@@ -311,7 +311,7 @@ function colVehicule(getVehiculeLibelle: (d: Depense) => string): ColumnDef<Depe
     accessorKey: 'marque',
     title: 'Véhicule',
     icon: Car,
-    getAvatarUrl: (d) => '/images/brand/car.png',
+    getAvatarUrl: (d) => resolveAssetPath('/images/brand/car.png'),
     getInitials: (d) => `${d.vehicule?.marque[0]}${d.vehicule?.modele[0]}`,
     getPrimaryText: (d) => getVehiculeLibelle(d),
     avatarSize: 'md',

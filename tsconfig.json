@@ -17,9 +17,9 @@
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "baseUrl": ".",
+    
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"] // 👈 TypeScript comprend très bien ce chemin relatif avec le mode 'bundler'
     },
     "types": ["vite/client"]
   },

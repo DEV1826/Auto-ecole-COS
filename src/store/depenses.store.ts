@@ -158,6 +158,12 @@ interface DepensesActions {
   getByVehicule: (vehiculeId: number) => Promise<Depense[]>;
 
   /**
+   * Génère le PDF d'une dépense via l'API Electron et retourne le résultat.
+   * @param id - Identifiant de la dépense
+   */
+  generatePDF: (id: number) => Promise<{ success: boolean; path?: string; message?: string }>;
+
+  /**
    * Joint un reçu (PDF) à une dépense (stub – à implémenter).
    * @param id - Identifiant de la dépense
    * @param filePath - Chemin du fichier PDF
@@ -494,7 +500,7 @@ export const useDepensesStore = create<DepensesStore>()((set, get) => ({
    * @param filePath - Chemin du fichier PDF
    * @returns Résultat de l'opération
    */
-  attachReceipt: async (id, filePath) => {
+  attachReceipt: async (id: number, filePath: string) => {
     if (!id || isNaN(id)) {
       throw new Error('Identifiant dépense invalide');
     }
@@ -505,6 +511,26 @@ export const useDepensesStore = create<DepensesStore>()((set, get) => ({
       return result;
     } catch (error) {
       const message = formatErrorMessage(error, 'Erreur lors de l’attachement du reçu');
+      set({ loading: false, error: message });
+      throw new Error(message);
+    }
+  },
+
+  /**
+   * Génère le PDF d'une dépense via l'API Electron et retourne le résultat.
+   * @param id - Identifiant de la dépense
+   */
+  generatePDF: async (id: number) => {
+    if (!id || isNaN(id)) {
+      throw new Error('Identifiant dépense invalide');
+    }
+    set({ loading: true, error: null });
+    try {
+      const result = await window.api.depenses.generatePDF(id);
+      set({ loading: false });
+      return result;
+    } catch (error) {
+      const message = formatErrorMessage(error, 'Erreur lors de la génération du PDF');
       set({ loading: false, error: message });
       throw new Error(message);
     }

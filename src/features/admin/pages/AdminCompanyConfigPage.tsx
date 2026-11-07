@@ -57,6 +57,8 @@ import { z } from 'zod';
 import { PageBreadcrumb } from '@/components/common/PageBreadcrumb';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn, getAvatarUrl } from '@/lib/utils';
+import { useAdmin } from '@/hooks/use.admin';
+import { useAuth } from '@/hooks/use.auth';
 
 // Composants UI
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -108,7 +110,6 @@ import { ProfileMobileNav } from '@/features/profile/components/ProfileMobileNav
 // Types
 import type { CompanyConfig } from '@/types/admin.types';
 import type { Utilisateur } from '@/types/auth.types';
-import { appConfig } from '@/config';
 
 // ============================================================
 // SCHÉMAS DE VALIDATION ZOD
@@ -148,85 +149,6 @@ const legalSchema = z.object({
 // ─────────────────────────────────────────────────────────────────────────────
 // MOCK DATA & HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
-
-// ============================================================
-// DONNÉES MOCKÉES (à remplacer par des appels API réels)
-// ============================================================
-
-/**
- * Génère une configuration d’entreprise fictive.
- */
-function generateMockCompanyConfig(): CompanyConfig {
-  return {
-    id: 1,
-    nom: 'COS Auto-École',
-    adresse: '123 Avenue de la Conduite, Quartier Omnisport, Yaoundé, Cameroun',
-    telephone: '+237 6 00 00 00 00',
-    email: 'contact@cos-autoecole.com',
-    siteWeb: 'https://www.cos-autoecole.com',
-    numeroFiscal: 'CI-2025-001234',
-    logoPath: appConfig.logo,
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date(),
-  };
-}
-
-/**
- * Génère une liste d’utilisateurs mockés (admins, secrétaires, moniteurs).
- */
-function generateMockSystemUsers(): Utilisateur[] {
-  return [
-    {
-      id: 1,
-      email: 'admin@cos.com',
-      nom: 'Admin',
-      prenom: 'Super',
-      role: 'ADMIN',
-      niveau: 'SUPER_ADMIN',
-      actif: true,
-      createdAt: new Date('2023-01-01'),
-      updatedAt: new Date(),
-      displayName: 'Super Admin',
-    },
-    {
-      id: 2,
-      email: 'secretaire@cos.com',
-      nom: 'Dupont',
-      prenom: 'Marie',
-      role: 'SECRETAIRE',
-      niveau: 'STANDARD',
-      actif: true,
-      createdAt: new Date('2023-02-15'),
-      updatedAt: new Date(),
-      displayName: 'Marie Dupont',
-    },
-    {
-      id: 3,
-      email: 'moniteur1@cos.com',
-      nom: 'Martin',
-      prenom: 'Jean',
-      role: 'MONITEUR',
-      niveau: 'STANDARD',
-      actif: true,
-      createdAt: new Date('2023-03-10'),
-      updatedAt: new Date(),
-      displayName: 'Jean Martin',
-    },
-    {
-      id: 4,
-      email: 'moniteur2@cos.com',
-      nom: 'Dubois',
-      prenom: 'Marc',
-      role: 'MONITEUR',
-      niveau: 'STANDARD',
-      actif: false,
-      createdAt: new Date('2023-04-20'),
-      updatedAt: new Date(),
-      displayName: 'Marc Dubois',
-    },
-  ];
-}
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COMPOSANT : DIALOG D'ÉDITION UNIVERSEL
@@ -518,13 +440,24 @@ function SystemUsersSection({
 
 
 export default function AdminCompanyConfigPage(): React.JSX.Element {
-
   const isDesktop = !useIsMobile();
+  const {
+    companyConfig,
+    configLoading,
+    getCompanyConfig,
+    updateCompanyConfig,
+  } = useAdmin();
+  const {
+    allUsers,
+    usersLoading,
+    user,
+    getAllUsers,
+    updateUser,
+  } = useAuth();
 
   // États principaux
   const [company, setCompany] = React.useState<CompanyConfig | null>(null);
   const [systemUsers, setSystemUsers] = React.useState<Utilisateur[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
   const [activeSection, setActiveSection] = React.useState('general');
   const [uploadingLogo, setUploadingLogo] = React.useState(false);
 
@@ -539,23 +472,36 @@ export default function AdminCompanyConfigPage(): React.JSX.Element {
     onSave: (value: string) => Promise<void>;
   } | null>(null);
 
-  // Chargement des données mockées
+  const isLoading = configLoading || usersLoading;
+
   React.useEffect(() => {
     const loadData = async () => {
-      setIsLoading(true);
-      await new Promise((r) => setTimeout(r, 500));
-      setCompany(generateMockCompanyConfig());
-      setSystemUsers(generateMockSystemUsers());
-      setIsLoading(false);
+      await Promise.allSettled([
+        getCompanyConfig(),
+        getAllUsers(1, 100),
+      ]);
     };
-    loadData();
-  }, []);
+    void loadData();
+  }, [getAllUsers, getCompanyConfig]);
+
+  React.useEffect(() => {
+    if (companyConfig) {
+      setCompany(companyConfig);
+    }
+  }, [companyConfig]);
+
+  React.useEffect(() => {
+    setSystemUsers(allUsers);
+  }, [allUsers]);
 
   // ── Handlers de mise à jour des champs de l’entreprise ──────────────────
   const updateField = async (field: keyof CompanyConfig, value: string) => {
     if (!company) return;
-    const updated = { ...company, [field]: value, updatedAt: new Date() };
-    await new Promise((r) => setTimeout(r, 500));
+    const payload =
+      field === 'nom'
+        ? { [field]: value }
+        : { [field]: value.trim() === '' ? null : value };
+    const updated = await updateCompanyConfig(payload);
     setCompany(updated);
     toast.success(`${field} mis à jour`);
   };
@@ -597,10 +543,8 @@ export default function AdminCompanyConfigPage(): React.JSX.Element {
     toast.info(`Modifier ${usr.displayName}`);
   };
   const handleToggleUserActive = async (usr: Utilisateur) => {
-    await new Promise((r) => setTimeout(r, 600));
-    setSystemUsers((prev) =>
-      prev.map((u) => (u.id === usr.id ? { ...u, actif: !u.actif } : u))
-    );
+    await updateUser(usr.id, { actif: !usr.actif });
+    await getAllUsers(1, 100);
     toast.success(`Utilisateur ${usr.actif ? 'désactivé' : 'activé'}`);
   };
 

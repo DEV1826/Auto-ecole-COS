@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { CountdownTimer } from './CountdownTimer';
 import { GridShape } from '@/components/layout';
 import { appConfig } from '@/config';
+import { resolveAssetPath } from '@/lib/utils';
 
 export interface MaintenancePageProps {
   /** Date de fin estimée (timestamp millisecondes) – défaut +2 jours */
@@ -58,12 +59,12 @@ export function Maintenance({
           {/* Logo */}
           <div className="mb-6 flex justify-center">
             <img
-              src="/images/error/500.svg"
+              src={resolveAssetPath('/images/error/500.svg')}
               alt="Erreur serveur"
               className="block h-20 w-auto dark:hidden"
             />
             <img
-              src="/images/error/500-dark.svg"
+              src={resolveAssetPath('/images/error/500-dark.svg')}
               alt="Erreur serveur"
               className="hidden h-20 w-auto dark:block"
             />
@@ -76,12 +77,12 @@ export function Maintenance({
             </h1>
             <div className="mb-6 flex justify-center">
               <img
-                src="/images/error/500.svg"
+                src={resolveAssetPath('/images/error/500.svg')}
                 alt="Maintenance"
                 className="block h-24 w-auto dark:hidden"
               />
               <img
-                src="/images/error/500-dark.svg"
+                src={resolveAssetPath('/images/error/500-dark.svg')}
                 alt="Maintenance"
                 className="hidden h-24 w-auto dark:block"
               />

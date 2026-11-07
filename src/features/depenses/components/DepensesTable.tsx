@@ -116,6 +116,9 @@ export interface DepensesTableProps {
     /** Afficher le sélecteur de période (défaut: true) */
     showPeriodFilter?: boolean;
 
+    /** Callback du changement de période pour chargement serveur */
+    onPeriodFilterChange?: (period: DepensesPeriodFilter) => void;
+
     /** Nombre maximal d’éléments sans pagination (défaut: 5) */
     maxItems?: number;
 
@@ -124,6 +127,17 @@ export interface DepensesTableProps {
 
     /** Taille de page par défaut si pagination activée (défaut: 10) */
     defaultPageSize?: number;
+
+    /** Pagination serveur courante */
+    pagination?: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
+
+    /** Callback de changement de page/taille pour pagination serveur */
+    onPaginationChange?: (pagination: { pageIndex: number; pageSize: number }) => void;
 
     /** Activer la barre d’outils (recherche + filtres facettés) (défaut: false) */
     enableToolbar?: boolean;
@@ -270,9 +284,12 @@ export function DepensesTable({
     actions = {},
     defaultPeriodFilter = 'month',
     showPeriodFilter = true,
+    onPeriodFilterChange,
     maxItems = 5,
     enablePagination = false,
     defaultPageSize = 10,
+    pagination,
+    onPaginationChange,
     enableToolbar = false,
     showViewAll = false,
     onViewAll,
@@ -304,14 +321,17 @@ export function DepensesTable({
         (value: string) => {
             if (!value || value === periodFilter) return;
             triggerTransition(() => setPeriodFilter(value as DepensesPeriodFilter));
+            onPeriodFilterChange?.(value as DepensesPeriodFilter);
         },
-        [periodFilter, triggerTransition]
+        [onPeriodFilterChange, periodFilter, triggerTransition]
     );
 
     // ── Données filtrées et affichées ─────────────────────────────────────
+    const usesServerPeriodFilter = enablePagination && !!pagination && !!onPaginationChange;
+
     const filteredDepenses = React.useMemo(
-        () => filterByPeriod(depenses, periodFilter),
-        [depenses, periodFilter]
+        () => (usesServerPeriodFilter ? depenses : filterByPeriod(depenses, periodFilter)),
+        [depenses, periodFilter, usesServerPeriodFilter]
     );
 
     const displayData = React.useMemo(
@@ -453,6 +473,17 @@ export function DepensesTable({
                 isLoading={isLoading || refreshing}
                 enableRowSelection={false}
                 enablePagination={enablePagination}
+                manualPagination={usesServerPeriodFilter}
+                pageCount={usesServerPeriodFilter ? pagination?.totalPages : undefined}
+                paginationState={
+                    usesServerPeriodFilter && pagination
+                        ? {
+                              pageIndex: Math.max(0, (pagination.page || 1) - 1),
+                              pageSize: pagination.limit,
+                          }
+                        : undefined
+                }
+                onPaginationChange={usesServerPeriodFilter ? onPaginationChange : undefined}
                 enableToolbar={enableToolbar}
                 defaultPageSize={defaultPageSize}
                 pageSizeOptions={[5, 10, 20, 50]}

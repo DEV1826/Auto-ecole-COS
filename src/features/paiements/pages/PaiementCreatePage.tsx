@@ -67,25 +67,6 @@ import { SuccessDialog } from '@/components/ui/success-dialog';
 
 type FormData = Partial<CreatePaiementInput>;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Constantes pour les modes de paiement (images et icônes)
-// ─────────────────────────────────────────────────────────────────────────────
-
-const MODE_IMAGES: Record<string, string> = {
-  ESPECES: '/payments/especes.png',
-  CHEQUE: '/payments/cheque.png',
-  VIREMENT: '/payments/virement.png',
-  CARTE: '/payments/carte.png',
-  MOBILE_MONEY: '/payments/mobile_money.png',
-};
-
-const MODE_ICONS: Record<string, LucideIcon> = {
-  ESPECES: Banknote,
-  CHEQUE: FileText,
-  VIREMENT: TrendingUp,
-  CARTE: CreditCard,
-  MOBILE_MONEY: Smartphone,
-};
 
 function formatMontant(n: number): string {
   return n.toLocaleString('fr-FR');

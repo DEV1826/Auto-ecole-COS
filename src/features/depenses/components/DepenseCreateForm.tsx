@@ -61,7 +61,7 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
+import { cn, resolveAssetPath } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
     Command as CommandMenu,
@@ -240,7 +240,7 @@ function VehiculeSelector({ value, onChange, disabled, isSubmitting }: VehiculeS
         ? `${selectedVehicule.marque} ${selectedVehicule.modele} - ${selectedVehicule.immatriculation}`
         : 'Sélectionner un véhicule (optionnel)';
 
-    const getVehicleImage = (v: Vehicule) => `/images/permis/${v.categorie}.png`;
+    const getVehicleImage = (v: Vehicule) => resolveAssetPath(`/images/permis/${v.categorie}.png`);
 
     return (
         <Field>

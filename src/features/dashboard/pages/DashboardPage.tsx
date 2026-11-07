@@ -8,7 +8,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/use.auth';
 import { PUBLIC_ROUTES } from '@/config/routes';
-import { lazy, useMemo } from 'react';
+import { lazy, useEffect, useMemo } from 'react';
 import { WelcomeSplash } from '@/features/auth/components/WelcomeSplash';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -36,6 +36,15 @@ export default function DashboardPage() {
 
     setShowWelcome,
   } = useAuth();
+
+  const isDesktopFileRuntime = window.location.protocol === 'file:';
+  const shouldShowWelcome = showWelcome && !isDesktopFileRuntime;
+
+  useEffect(() => {
+    if (showWelcome && isDesktopFileRuntime) {
+      setShowWelcome(false);
+    }
+  }, [showWelcome, isDesktopFileRuntime, setShowWelcome]);
 
   /**
    * Sélection dynamique du composant selon le rôle.
@@ -66,12 +75,12 @@ export default function DashboardPage() {
   return (
     <>
       <AnimatePresence mode="wait">
-        {showWelcome ? (
+        {shouldShowWelcome ? (
           <WelcomeSplash
             key="splash"
-            sessionId={sessionId!}
+            sessionId={sessionId ?? 0}
             user={user}
-            visible={showWelcome}
+            visible={shouldShowWelcome}
             onFinish={() => setShowWelcome(false)}
           />
         ) : (

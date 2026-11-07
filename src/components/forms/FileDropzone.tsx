@@ -39,7 +39,7 @@
 
 import * as React from 'react';
 import { Upload, X, FileText } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, resolveAssetPath } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -68,12 +68,12 @@ export interface FileDropzoneProps {
  * Priorité : image > vidéo > PDF > document générique.
  */
 function getFileIcon(mimeType: string): string {
-  if (mimeType.startsWith('image/')) return '/images/icons/file-image.svg';
-  if (mimeType.startsWith('video/')) return '/images/icons/file-video.svg';
-  if (mimeType === 'application/pdf') return '/images/icons/pdf.svg';
+  if (mimeType.startsWith('image/')) return resolveAssetPath('/images/icons/file-image.svg');
+  if (mimeType.startsWith('video/')) return resolveAssetPath('/images/icons/file-video.svg');
+  if (mimeType === 'application/pdf') return resolveAssetPath('/images/icons/pdf.svg');
   if (mimeType.includes('google') || mimeType.includes('drive'))
-    return '/images/icons/google-drive.svg';
-  return '/images/icons/file-text.svg'; // fallback générique (à créer au besoin)
+    return resolveAssetPath('/images/icons/google-drive.svg');
+  return resolveAssetPath('/images/icons/file-text.svg'); // fallback générique (à créer au besoin)
 }
 
 /**
