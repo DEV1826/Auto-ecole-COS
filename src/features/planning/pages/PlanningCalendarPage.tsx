@@ -41,6 +41,7 @@
  */
 
 import * as React from 'react';
+import { CalendarX2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { usePlanning } from '@/hooks/use.planning';
@@ -50,6 +51,7 @@ import { PROTECTED_ROUTES } from '@/config/routes';
 import { useAuth } from '@/hooks/use.auth';
 import { type Role as RoleType } from '@/types/enums';
 import { AppCalendar } from '@/components/calendar/app-calendar';
+import { useMoniteurConnecte } from '@/features/moniteurs/hooks/useMoniteurConnecte';
 import type {
   CalendarActions,
   CalendarEvent,
@@ -150,10 +152,15 @@ export default function PlanningCalendarPage(): React.JSX.Element {
 
   const role = user?.role as RoleType;
   const config = getRoleCalendarConfig(role);
-  const moniteurId = role === 'MONITEUR' ? user?.id : undefined;
+  // Un moniteur ne voit que les leçons de SA fiche (compte lié à la fiche moniteur).
+  const moniteurConnecte = useMoniteurConnecte();
+  const moniteurId = moniteurConnecte.applicable ? moniteurConnecte.moniteur?.id : undefined;
+  const compteNonLie = moniteurConnecte.applicable && !moniteurConnecte.loading && !moniteurConnecte.moniteur;
 
   const loadEvents = React.useCallback(async () => {
     if (!user) return;
+    // Moniteur : attendre sa fiche ; sans fiche liée, ne rien charger.
+    if (role === 'MONITEUR' && !moniteurId) return;
 
     setIsLoading(true);
     try {
@@ -315,13 +322,26 @@ export default function PlanningCalendarPage(): React.JSX.Element {
     },
   };
 
+  if (compteNonLie) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-6 text-center">
+        <CalendarX2 className="h-10 w-10 text-muted-foreground" />
+        <h1 className="text-lg font-semibold">Aucune fiche moniteur liée à votre compte</h1>
+        <p className="max-w-md text-sm text-muted-foreground">
+          Demandez à un administrateur ou au secrétariat d'ouvrir votre fiche dans Moniteurs › Modifier, puis de
+          choisir votre compte dans « Compte de connexion ». Votre planning s'affichera ensuite ici.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-[calc(100vh-var(--header-height)-2rem)] -m-4 md:-m-6">
       <AppCalendar
         events={events}
         actions={actions}
         defaultView="week"
-        isLoading={isLoading}
+        isLoading={isLoading || moniteurConnecte.loading}
         canCreate={config.canCreate}
         canEdit={config.canEdit}
         canDelete={config.canDelete}

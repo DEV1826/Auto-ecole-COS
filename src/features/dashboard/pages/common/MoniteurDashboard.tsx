@@ -5,13 +5,14 @@ import { MoniteurWelcomeHeader } from '@/features/dashboard/components/moniteurs
 import { MoniteurStatsCards } from '@/features/dashboard/components/moniteurs/MoniteurStatsCards';
 import { CandidatsTable } from '@/features/candidats/components/CandidatsTable';
 import { LeconsTable } from '@/features/planning/components/LeconsTable';
-import { PROTECTED_ROUTES, route } from '@/config/routes';
+import { PROTECTED_ROUTES } from '@/config/routes';
 import { getAvatarUrl } from '@/lib';
 import { usePlanning } from '@/hooks/use.planning';
 import { useExamens } from '@/hooks/use.examens';
 import { useCandidats } from '@/hooks/use.candidats';
 import type { Candidat } from '@/types/candidats.types';
 import type { Lecon } from '@/types/planning.types';
+import { useMoniteurConnecte } from '@/features/moniteurs/hooks/useMoniteurConnecte';
 
 interface MoniteurDashboardProps {
   user: Utilisateur;
@@ -25,6 +26,9 @@ export default function MoniteurDashboard({
   onReady,
 }: MoniteurDashboardProps) {
   const navigate = useNavigate();
+  // Fiche moniteur liée au compte : les leçons sont filtrées sur SON identifiant de moniteur.
+  const { moniteur: maFiche, loading: ficheLoading } = useMoniteurConnecte();
+  const moniteurId = maFiche?.id ?? null;
   const {
     lecons,
     loading: leconsLoading,
@@ -53,13 +57,15 @@ export default function MoniteurDashboard({
 
   useEffect(() => {
     void Promise.allSettled([
-      getLecons({
-        page: 1,
-        limit: 50,
-        moniteurId: user.id,
-        sortBy: 'date',
-        sortOrder: 'asc',
-      }),
+      moniteurId
+        ? getLecons({
+            page: 1,
+            limit: 50,
+            moniteurId,
+            sortBy: 'date',
+            sortOrder: 'asc',
+          })
+        : Promise.resolve(),
       getPlanningStats(),
       getPlanningTrends(),
       getExamens({ page: 1, limit: 100, sortBy: 'date', sortOrder: 'desc' }),
@@ -71,7 +77,7 @@ export default function MoniteurDashboard({
     getPlanningTrends,
     getExamens,
     getCandidats,
-    user.id,
+    moniteurId,
   ]);
 
   const moniteurName = `${user?.prenom ?? ''} ${user?.nom ?? ''}`.trim() || 'Moniteur';
@@ -80,8 +86,8 @@ export default function MoniteurDashboard({
   const avatarFallback = (user?.prenom?.[0] ?? user?.nom?.[0] ?? 'M').toUpperCase();
 
   const mesLecons = useMemo(
-    () => lecons.filter((lecon) => lecon.moniteurId === user.id),
-    [lecons, user.id]
+    () => (moniteurId ? lecons.filter((lecon) => lecon.moniteurId === moniteurId) : []),
+    [lecons, moniteurId]
   );
   const mesCandidats = useMemo(() => {
     const candidatIds = new Set(mesLecons.map((lecon) => lecon.candidatId));
@@ -135,32 +141,23 @@ export default function MoniteurDashboard({
 
   const handleRefreshCandidats = useCallback(async () => {
     await Promise.allSettled([
-      getLecons({
-        page: 1,
-        limit: 50,
-        moniteurId: user.id,
-        sortBy: 'date',
-        sortOrder: 'asc',
-      }),
+      moniteurId
+        ? getLecons({ page: 1, limit: 50, moniteurId, sortBy: 'date', sortOrder: 'asc' })
+        : Promise.resolve(),
       getExamens({ page: 1, limit: 100, sortBy: 'date', sortOrder: 'desc' }),
       getCandidats({ page: 1, limit: 100 }),
     ]);
-  }, [getLecons, getExamens, getCandidats, user.id]);
+  }, [getLecons, getExamens, getCandidats, moniteurId]);
 
   const handleRefreshLecons = useCallback(async () => {
-    await getLecons({
-      page: 1,
-      limit: 50,
-      moniteurId: user.id,
-      sortBy: 'date',
-      sortOrder: 'asc',
-    });
-  }, [getLecons, user.id]);
+    if (!moniteurId) return;
+    await getLecons({ page: 1, limit: 50, moniteurId, sortBy: 'date', sortOrder: 'asc' });
+  }, [getLecons, moniteurId]);
 
   const candidatsActions = {
     onView: (c: Candidat) => navigate(PROTECTED_ROUTES.CANDIDATS.DETAIL(c.id)),
     onAddLesson: (c: Candidat) =>
-      navigate(`${PROTECTED_ROUTES.PLANNING.CREATE}?candidatId=${c.id}&moniteurId=${user.id}`),
+      navigate(`${PROTECTED_ROUTES.PLANNING.CREATE}?candidatId=${c.id}${moniteurId ? `&moniteurId=${moniteurId}` : ''}`),
     onRegisterExam: (c: Candidat) =>
       navigate(`${PROTECTED_ROUTES.EXAMENS.CREATE}?candidatId=${c.id}`),
   };
@@ -191,6 +188,15 @@ export default function MoniteurDashboard({
 
   return (
     <div className="space-y-4 pb-5">
+      {!ficheLoading && !maFiche && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
+          <p className="font-medium">Votre compte n'est lié à aucune fiche moniteur.</p>
+          <p className="mt-0.5 text-amber-800 dark:text-amber-200">
+            Vos leçons ne peuvent pas s'afficher. Demandez à un administrateur ou au secrétariat d'ouvrir votre fiche
+            (Moniteurs › Modifier) et de choisir votre compte dans « Compte de connexion ».
+          </p>
+        </div>
+      )}
       <MoniteurWelcomeHeader
         moniteurName={moniteurName}
         moniteurTitle={moniteurTitle}
@@ -204,7 +210,7 @@ export default function MoniteurDashboard({
         totalHoursThisMonth={totalHoursThisMonth}
         successRate={successRate}
         onManagePlanning={() =>
-          navigate(route(PROTECTED_ROUTES.PLANNING.MONITEUR(user.id), { moniteurId: String(user.id) }))
+          navigate(moniteurId ? PROTECTED_ROUTES.PLANNING.MONITEUR(moniteurId) : PROTECTED_ROUTES.PLANNING.CALENDAR)
         }
         onManageCandidats={() => navigate(PROTECTED_ROUTES.CANDIDATS.LIST)}
         onManageLessons={() => navigate(PROTECTED_ROUTES.PLANNING.CALENDAR)}

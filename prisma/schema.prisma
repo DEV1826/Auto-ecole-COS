@@ -9,6 +9,7 @@ datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
+
 // ===============================
 // ÉNUMÉRATIONS
 // ===============================
@@ -130,6 +131,8 @@ model Utilisateur {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   passwordResetCodes PasswordResetCode[]
+  /// Fiche moniteur associée (comptes de rôle MONITEUR)
+  moniteur           Moniteur?
 
   @@map("utilisateurs")
 }
@@ -257,17 +260,20 @@ model FormationCandidat {
 }
 
 model Moniteur {
-  id           Int       @id @default(autoincrement())
-  nom          String
-  prenom       String
-  email        String?   @unique
-  telephone    String?
-  specialite   String?
-  dateEmbauche DateTime?
-  actif        Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  lecons       Lecon[]
+  id            Int          @id @default(autoincrement())
+  nom           String
+  prenom        String
+  email         String?      @unique
+  telephone     String?
+  specialite    String?
+  dateEmbauche  DateTime?
+  actif         Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  lecons        Lecon[]
+  /// Compte de connexion du moniteur (optionnel, unique)
+  utilisateurId Int?         @unique
+  utilisateur   Utilisateur? @relation(fields: [utilisateurId], references: [id], onDelete: SetNull)
 
   @@map("moniteurs")
 }

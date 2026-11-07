@@ -53,6 +53,7 @@ export default function MoniteurEditPage(): React.JSX.Element {
           specialite: m.specialite ?? null,
           dateEmbauche: m.dateEmbauche ? new Date(m.dateEmbauche).toISOString() : undefined,
           actif: m.actif,
+          utilisateurId: m.utilisateurId ?? null,
         };
         setOriginal(m);
         setInitialData(data);
@@ -120,7 +121,7 @@ export default function MoniteurEditPage(): React.JSX.Element {
         previewTitle="Aperçu de la fiche"
         preview={<MoniteurPreviewCard data={formData} dirty={dirty} />}
       >
-        <MoniteurForm data={initialData} onChange={handleChange} isSubmitting={isSubmitting} />
+        <MoniteurForm data={initialData} onChange={handleChange} isSubmitting={isSubmitting} moniteurId={moniteurId} />
       </FormWrapper>
 
       <ErrorDialog

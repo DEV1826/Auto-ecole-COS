@@ -939,6 +939,12 @@ const api = {
      * @returns {Promise<MoniteursSparklineData>}
      */
     getSparklines: () => invoke('moniteurs:getSparklines'),
+
+    /** Fiche moniteur liée au compte connecté (null si aucune). */
+    getMine: () => invoke('moniteurs:getMine'),
+
+    /** Comptes de rôle MONITEUR disponibles pour être liés à une fiche. */
+    getComptesDisponibles: (moniteurId) => invoke('moniteurs:getComptesDisponibles', moniteurId),
   },
 
   // ═══════════════════════════════════════════════════════════════════════════

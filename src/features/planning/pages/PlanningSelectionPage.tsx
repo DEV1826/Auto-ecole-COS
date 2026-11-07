@@ -8,7 +8,7 @@
  */
 
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { CalendarDays, ChevronRight, GraduationCap, Search, UserRound } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ import { PageHeader, errorMessage } from '@/components/forms/FormPageKit';
 
 import { useMoniteurs } from '@/hooks/use.moniteurs';
 import { useCandidats } from '@/hooks/use.candidats';
+import { useMoniteurConnecte } from '@/features/moniteurs/hooks/useMoniteurConnecte';
 import { PROTECTED_ROUTES } from '@/config';
 import { cn } from '@/lib/utils';
 import { STATUT_CANDIDAT_CONFIG } from '@/types/enums';
@@ -39,6 +40,7 @@ export default function PlanningSelectionPage({ kind }: { kind: 'moniteur' | 'ca
   const navigate = useNavigate();
   const { getAll: getMoniteurs } = useMoniteurs();
   const { getAll: getCandidats } = useCandidats();
+  const moniteurConnecte = useMoniteurConnecte();
 
   const [state, setState] = React.useState<{ kind: string; personnes: Personne[]; error: string | null } | null>(null);
   const [query, setQuery] = React.useState('');
@@ -84,6 +86,11 @@ export default function PlanningSelectionPage({ kind }: { kind: 'moniteur' | 'ca
       cancelled = true;
     };
   }, [kind, getMoniteurs, getCandidats]);
+
+  // Un moniteur connecté va directement à son propre planning.
+  if (kind === 'moniteur' && moniteurConnecte.moniteur) {
+    return <Navigate to={PROTECTED_ROUTES.PLANNING.MONITEUR(moniteurConnecte.moniteur.id)} replace />;
+  }
 
   const current = state?.kind === kind ? state : null;
   const q = normalize(query.trim());

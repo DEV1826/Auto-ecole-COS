@@ -12,7 +12,7 @@ import { useForm, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'framer-motion';
 import { z } from 'zod';
-import { UserRound, Phone, BadgeCheck, CalendarDays, Award } from 'lucide-react';
+import { UserRound, Phone, BadgeCheck, CalendarDays, Award, KeyRound } from 'lucide-react';
 
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -21,6 +21,8 @@ import { Separator } from '@/components/ui/separator';
 import { DatePicker } from '@/components/ui/date-picker';
 import { EmailInput } from '@/components/forms/EmailInput';
 import { SectionHeader } from '@/components/forms/FormPageKit';
+import { EntityCombobox, type EntityOption } from '@/components/forms/EntityCombobox';
+import type { CompteMoniteur } from '@/types/moniteurs.types';
 import type { FormPageProps } from '@/components/forms/FormWrapper';
 
 import { createMoniteurSchema, type CreateMoniteurInput } from '@/lib/validators/moniteurs.validator';
@@ -43,7 +45,25 @@ const toDate = (v: unknown): Date | undefined => {
   return Number.isNaN(d.getTime()) ? undefined : d;
 };
 
-export default function MoniteurForm({ data, onChange, isSubmitting }: FormPageProps<Partial<CreateMoniteurInput>>) {
+export interface MoniteurFormProps extends FormPageProps<Partial<CreateMoniteurInput>> {
+  /** Fiche en cours d'édition : son compte lié reste proposé dans la liste. */
+  moniteurId?: number;
+}
+
+export default function MoniteurForm({ data, onChange, isSubmitting, moniteurId }: MoniteurFormProps) {
+  // Comptes de rôle MONITEUR encore libres (ou celui déjà lié à cette fiche).
+  const [comptes, setComptes] = React.useState<CompteMoniteur[] | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    window.api.moniteurs
+      .getComptesDisponibles(moniteurId)
+      .then((list) => !cancelled && setComptes(list))
+      .catch(() => !cancelled && setComptes([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [moniteurId]);
+
   const {
     control,
     formState: { isValid },
@@ -58,6 +78,7 @@ export default function MoniteurForm({ data, onChange, isSubmitting }: FormPageP
       specialite: data.specialite ?? '',
       dateEmbauche: data.dateEmbauche as any,
       actif: data.actif ?? true,
+      utilisateurId: data.utilisateurId ?? null,
     },
   });
 
@@ -70,6 +91,7 @@ export default function MoniteurForm({ data, onChange, isSubmitting }: FormPageP
         email: values.email ? values.email : null,
         telephone: values.telephone?.trim() || undefined,
         specialite: values.specialite?.trim() || null,
+        utilisateurId: values.utilisateurId ?? null,
       } as Partial<CreateMoniteurInput>,
       isValid
     );
@@ -222,6 +244,50 @@ export default function MoniteurForm({ data, onChange, isSubmitting }: FormPageP
               <Switch id="moniteur-actif" checked={field.value ?? true} onCheckedChange={field.onChange} disabled={isSubmitting} />
             </div>
           )}
+        />
+      </section>
+
+      <Separator className="my-2" />
+
+      <section className="space-y-4">
+        <SectionHeader
+          icon={KeyRound}
+          title="Compte de connexion"
+          description="Compte utilisateur (rôle Moniteur) avec lequel ce moniteur se connecte : son planning et son tableau de bord affichent ses propres leçons."
+          accent="teal"
+        />
+        <Controller
+          name="utilisateurId"
+          control={control}
+          render={({ field, fieldState }) => {
+            const options: EntityOption[] = (comptes ?? []).map((c) => ({
+              id: c.id,
+              label: `${c.prenom} ${c.nom}`,
+              sublabel: c.email,
+            }));
+            return (
+              <Field data-invalid={fieldState.invalid}>
+                <EntityCombobox
+                  id="moniteur-compte"
+                  icon={KeyRound}
+                  options={options}
+                  value={field.value ?? null}
+                  onChange={(id) => field.onChange(id)}
+                  placeholder="Aucun compte lié"
+                  searchPlaceholder="Nom ou e-mail du compte…"
+                  emptyText="Aucun compte de rôle Moniteur disponible."
+                  loading={comptes === null}
+                  disabled={isSubmitting}
+                  clearable
+                />
+                <FieldDescription>
+                  Seuls les comptes actifs de rôle « Moniteur » non liés à une autre fiche sont proposés. Créez le compte
+                  dans Administration › Utilisateurs si besoin.
+                </FieldDescription>
+                {fieldState.invalid && <FieldError className="text-xs!" errors={[fieldState.error]} />}
+              </Field>
+            );
+          }}
         />
       </section>
 

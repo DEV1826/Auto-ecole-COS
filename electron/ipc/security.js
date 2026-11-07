@@ -57,6 +57,7 @@ export const CHANNEL_ROLES = {
   'moniteurs:create': ADMIN_SECRETAIRE,
   'moniteurs:update': ADMIN_SECRETAIRE,
   'moniteurs:delete': ADMIN,
+  'moniteurs:getComptesDisponibles': ADMIN_SECRETAIRE,
 
   'examens:create': ADMIN_SECRETAIRE,
   'examens:update': ADMIN_SECRETAIRE,

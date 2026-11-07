@@ -62,6 +62,14 @@ base existante, stockée dans `%APPDATA%/autoecole-app/database.db`.
 Pour faire évoluer le schéma : modifier `prisma/schema.prisma`, lancer `pnpm db:migrate`, puis
 commiter le dossier de migration généré.
 
+### Comptes moniteurs
+
+Une fiche moniteur peut être liée à un compte utilisateur de rôle **Moniteur**
+(`Moniteur.utilisateurId`, unique). Le lien se fait dans Moniteurs › Modifier ›
+« Compte de connexion ». Un moniteur connecté voit alors **ses** leçons dans le calendrier,
+son tableau de bord et « Planning moniteur ». Sans lien, ces écrans l'indiquent au lieu
+d'afficher des données.
+
 ## Secrets et installation
 
 | Secret | Développement | Application installée |
