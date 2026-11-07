@@ -61,6 +61,18 @@ export const CHANNEL_ROLES = {
   'examens:create': ADMIN_SECRETAIRE,
   'examens:update': ADMIN_SECRETAIRE,
   'examens:delete': ADMIN_SECRETAIRE,
+
+  'rapports:financier': ADMIN_SECRETAIRE,
+  'rapports:kpi': ADMIN,
+  'rapports:export': ADMIN_SECRETAIRE,
+
+  'exports:dashboard': ADMIN_SECRETAIRE,
+  'exports:factures': ADMIN_SECRETAIRE,
+  'exports:paiements': ADMIN_SECRETAIRE,
+  'exports:examens': ADMIN_SECRETAIRE,
+  'export:bilan': ADMIN_SECRETAIRE,
+  'export:excel': ADMIN_SECRETAIRE,
+  'export:recu': ADMIN_SECRETAIRE,
 };
 
 /** Canaux soumis à une limitation des tentatives échouées. */

@@ -163,3 +163,181 @@ export interface RapportsEnrichments {
   formatKm?: (km: number) => string;
   formatHeures?: (heures: number) => string;
 }
+
+// ============================================================
+// RAPPORTS DÉTAILLÉS (service electron/services/rapports.service.js)
+// ============================================================
+
+/** Période d'un rapport (ISO). Par défaut côté service : 12 derniers mois. */
+export interface RapportPeriodeParams {
+  dateDebut?: string;
+  dateFin?: string;
+}
+
+export interface RapportPeriode {
+  debut: string;
+  fin: string;
+}
+
+export interface RapportFinancierDetail {
+  periode: RapportPeriode;
+  totalPaiements: number;
+  totalDepenses: number;
+  benefice: number;
+  margePct: number;
+  nbPaiements: number;
+  nbDepenses: number;
+  panierMoyen: number;
+  variations: { recettes: number; depenses: number };
+  parMode: Array<{ mode: string; montant: number; part: number }>;
+  parCategorie: Array<{ categorie: string; montant: number; part: number }>;
+  serie: Array<{ mois: string; recettes: number; depenses: number; benefice: number }>;
+  facturation: {
+    totalFacture: number;
+    nbFactures: number;
+    tauxRecouvrement: number;
+    parStatut: Record<string, number>;
+  };
+  impayes: {
+    total: number;
+    nbCandidats: number;
+    liste: Array<{
+      candidatId: number;
+      nom: string;
+      telephone: string | null;
+      formation: string | null;
+      montantFormation: number;
+      paye: number;
+      reste: number;
+    }>;
+  };
+}
+
+export interface ExamenTypeStats {
+  passes: number;
+  recus: number;
+  ajournes: number;
+  tauxReussite: number;
+}
+
+export interface RapportCandidatsDetail {
+  periode: RapportPeriode;
+  totalInscrits: number;
+  variationInscrits: number;
+  totalCandidats: number;
+  enCours: number;
+  parStatut: Record<string, number>;
+  parCategorie: Record<string, number>;
+  parFormation: Array<{ nom: string; nombre: number }>;
+  serieInscriptions: Array<{ mois: string; inscriptions: number }>;
+  examens: { total: number; enAttente: number; code: ExamenTypeStats; conduite: ExamenTypeStats };
+  tauxReussite: number;
+  tentativesMoyennesConduite: number;
+  tauxAbandon: number;
+}
+
+export interface RapportLeconsDetail {
+  periode: RapportPeriode;
+  totalLecons: number;
+  totalHeures: number;
+  variationHeures: number;
+  dureeMoyenne: number;
+  parStatut: Record<string, number>;
+  parType: Record<string, number>;
+  tauxRealisation: number;
+  tauxAbsence: number;
+  tauxAnnulation: number;
+  parMoniteur: Array<{
+    moniteurId: number;
+    moniteurNom: string;
+    lecons: number;
+    heures: number;
+    annulees: number;
+    absences: number;
+    planifiees: number;
+  }>;
+  serie: Array<{ mois: string; heures: number }>;
+  parJourSemaine: Array<{ jour: string; lecons: number }>;
+  parHeure: Array<{ heure: string; lecons: number }>;
+}
+
+export interface RapportVehiculeLigne {
+  id: number;
+  immatriculation: string;
+  libelle: string;
+  categorie: string;
+  statut: string;
+  kilometrage: number;
+  heuresLecons: number;
+  nbEntretiens: number;
+  coutEntretiens: number;
+  carburant: number;
+  autresDepenses: number;
+  coutTotal: number;
+  coutParHeure: number | null;
+  kmAvantRevision: number | null;
+  alerteRevision: boolean;
+}
+
+export interface RapportVehiculesDetail {
+  periode: RapportPeriode;
+  totalVehicules: number;
+  disponibles: number;
+  enLecon: number;
+  enEntretien: number;
+  horsService: number;
+  kilometrageMoyen: number;
+  entretiensPeriode: number;
+  coutEntretiens: number;
+  coutCarburant: number;
+  heuresLecons: number;
+  tauxDisponibilite: number;
+  entretiensParType: Array<{ type: string; nombre: number }>;
+  alertes: RapportVehiculeLigne[];
+  parVehicule: RapportVehiculeLigne[];
+}
+
+export interface RapportKPI {
+  periode: RapportPeriode;
+  chiffreAffaires: number;
+  variationCA: number;
+  depenses: number;
+  benefice: number;
+  margePct: number;
+  tauxRecouvrement: number;
+  impayes: number;
+  nouveauxInscrits: number;
+  variationInscrits: number;
+  candidatsEnCours: number;
+  caParInscrit: number;
+  tauxReussite: number;
+  tauxReussiteCode: number;
+  tauxReussiteConduite: number;
+  tentativesMoyennesConduite: number;
+  tauxAbandon: number;
+  heuresDispensees: number;
+  variationHeures: number;
+  heuresParMoniteur: number;
+  tauxAbsence: number;
+  tauxAnnulation: number;
+  coutParHeureConduite: number | null;
+  tauxDisponibiliteFlotte: number;
+  alertesRevision: number;
+  serieFinanciere: RapportFinancierDetail['serie'];
+  serieHeures: RapportLeconsDetail['serie'];
+  serieInscriptions: RapportCandidatsDetail['serieInscriptions'];
+}
+
+export type RapportExportType = 'financier' | 'candidats' | 'lecons' | 'vehicules';
+
+/** API exposée par le preload sous `window.api.rapports`. */
+export interface RapportsApi {
+  financier: (params?: RapportPeriodeParams) => Promise<RapportFinancierDetail>;
+  candidats: (params?: RapportPeriodeParams) => Promise<RapportCandidatsDetail>;
+  lecons: (params?: RapportPeriodeParams) => Promise<RapportLeconsDetail>;
+  vehicules: (params?: RapportPeriodeParams) => Promise<RapportVehiculesDetail>;
+  kpi: (params?: RapportPeriodeParams) => Promise<RapportKPI>;
+  export: (
+    payload: RapportPeriodeParams & { types?: RapportExportType[]; format: 'xlsx' | 'pdf' }
+  ) => Promise<{ success: boolean; path: string }>;
+}

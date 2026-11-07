@@ -60,6 +60,7 @@ import type { ExamensApi } from './examens.types';
 import type { LeconsApi } from './planning.types';
 import type { MoniteursApi } from './moniteurs.types';
 import type { AdminApi } from './admin.types';
+import type { RapportsApi } from './rapports.types';
 import type { GlobalSearchResult, SearchResultItem } from './globalSearch.types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -102,6 +103,7 @@ export interface DesktopExportsApi {
     path?: string;
     message?: string;
   }>;
+  bilan: (payload?: Record<string, unknown>) => Promise<{ filePath?: string; path?: string; status?: string }>;
   openFolder: () => Promise<{ path: string }>;
 }
 
@@ -173,6 +175,9 @@ declare global {
 
       /** @see {@link ExamensApi} */
       examens: ExamensApi;
+
+      /** @see {@link RapportsApi} */
+      rapports: RapportsApi;
 
       /** @see {@link LeconsApi} */
       planning: LeconsApi;

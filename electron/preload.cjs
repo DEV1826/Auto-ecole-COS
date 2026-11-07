@@ -1061,6 +1061,20 @@ const api = {
     updateCompanyConfig: (data) => invoke('admin:updateCompanyConfig', data),
   },
 
+  /**
+   * Rapports (agrégations sur une période `{ dateDebut?, dateFin? }`, ISO).
+   * @see src/types/rapports.types.ts
+   */
+  rapports: {
+    financier: (params) => invoke('rapports:financier', params),
+    candidats: (params) => invoke('rapports:candidats', params),
+    lecons: (params) => invoke('rapports:lecons', params),
+    vehicules: (params) => invoke('rapports:vehicules', params),
+    kpi: (params) => invoke('rapports:kpi', params),
+    /** Export Excel ou PDF : `{ types?, format: 'xlsx' | 'pdf', dateDebut?, dateFin? }`. */
+    export: (payload) => invoke('rapports:export', payload),
+  },
+
   globalSearch: {
     search: (query) => invoke('globalSearch:search', query),
   },
@@ -1070,6 +1084,8 @@ const api = {
     factures: (payload) => invoke('exports:factures', payload),
     paiements: (payload) => invoke('exports:paiements', payload),
     examens: (payload) => invoke('exports:examens', payload),
+    /** Bilan PDF de l'activité (instantané du tableau de bord). */
+    bilan: (payload) => invoke('exports:dashboard', payload),
     openFolder: () => invoke('export:openFolder'),
   },
 };

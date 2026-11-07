@@ -400,3 +400,19 @@ body {
   transform: translateY(-2px);
   border-color: hsl(var(--primary) / 0.4);
 }
+
+/* ── Couleurs des graphiques de rapports (palette validée daltonisme / contraste) ── */
+:root {
+  --viz-1: #2a78d6; /* série 1 — bleu (recettes, valeur principale) */
+  --viz-2: #eb6834; /* série 2 — orange (dépenses) */
+  --viz-3: #1baf7a; /* série 3 — aqua */
+  --viz-seq-weak: #b7d3f6; /* fond de barre (piste) */
+  --viz-good: #0ca30c;
+  --viz-critical: #d03b3b;
+}
+.dark {
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
+  --viz-seq-weak: #184f95;
+}
