@@ -147,6 +147,9 @@ const PlanningMoniteurPage = lazy(() =>
 const PlanningCandidatPage = lazy(() =>
   import('@/features/planning').then((m) => ({ default: m.PlanningCandidatPage }))
 );
+const PlanningSelectionPage = lazy(() =>
+  import('@/features/planning').then((m) => ({ default: m.PlanningSelectionPage }))
+);
 
 // ---- EXAMENS ----
 const ExamensListPage = lazy(() =>
@@ -266,6 +269,7 @@ const NotificationsPage = lazy(() =>
   import('@/features/utils').then((m) => ({ default: m.NotificationsPage }))
 );
 const HelpPage = lazy(() => import('@/features/utils').then((m) => ({ default: m.HelpPage })));
+const ApiDocsPage = lazy(() => import('@/features/utils').then((m) => ({ default: m.ApiDocsPage })));
 
 // ============================================================
 // COMPOSANT PRINCIPAL
@@ -443,6 +447,14 @@ export default function App() {
                     />
                   </Route>
                   <Route
+                    path={PROTECTED_ROUTES.PLANNING.MONITEURS_INDEX}
+                    element={<PlanningSelectionPage kind="moniteur" />}
+                  />
+                  <Route
+                    path={PROTECTED_ROUTES.PLANNING.CANDIDATS_INDEX}
+                    element={<PlanningSelectionPage kind="candidat" />}
+                  />
+                  <Route
                     path={PROTECTED_ROUTES.PLANNING.MONITEUR(':moniteurId')}
                     element={<PlanningMoniteurPage />}
                   />
@@ -560,6 +572,7 @@ export default function App() {
                       path={PROTECTED_ROUTES.ADMIN.COMPANY_CONFIG}
                       element={<AdminCompanyConfigPage />}
                     />
+                    <Route path={PROTECTED_ROUTES.ADMIN.API_DOCS} element={<ApiDocsPage />} />
                   </Route>
 
                   {/* Utilitaires */}

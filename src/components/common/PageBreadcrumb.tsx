@@ -407,10 +407,16 @@ function generateSegmentsFromPath(pathname: string): BreadcrumbSegment[] {
       addSegment('Nouvelle leçon', undefined, undefined, <Calendar className="size-3.5" />);
     } else if (currentPath.match(/\/planning\/\d+\/edit$/)) {
       addSegment('Modifier leçon', undefined, undefined, <FileCheck className="size-3.5" />);
-    } else if (currentPath.match(/\/planning\/moniteur\/\d+$/)) {
+    } else if (currentPath === PROTECTED_ROUTES.PLANNING.MONITEURS_INDEX) {
       addSegment('Planning moniteur', undefined, undefined, <Calendar className="size-3.5" />);
-    } else if (currentPath.match(/\/planning\/candidat\/\d+$/)) {
+    } else if (currentPath === PROTECTED_ROUTES.PLANNING.CANDIDATS_INDEX) {
       addSegment('Planning candidat', undefined, undefined, <Calendar className="size-3.5" />);
+    } else if (currentPath.match(/\/planning\/moniteur\/\d+$/)) {
+      addSegment('Planning moniteur', PROTECTED_ROUTES.PLANNING.MONITEURS_INDEX, undefined, <Calendar className="size-3.5" />);
+      addSegment(':id', undefined, undefined, <Calendar className="size-3.5" />);
+    } else if (currentPath.match(/\/planning\/candidat\/\d+$/)) {
+      addSegment('Planning candidat', PROTECTED_ROUTES.PLANNING.CANDIDATS_INDEX, undefined, <Calendar className="size-3.5" />);
+      addSegment(':id', undefined, undefined, <Calendar className="size-3.5" />);
     }
 
     // Examens

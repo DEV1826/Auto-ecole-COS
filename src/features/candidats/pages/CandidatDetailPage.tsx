@@ -270,13 +270,13 @@ export default function CandidatDetailPage(): React.JSX.Element {
 
   // Actions des boutons d’ajout
   const handleAddPayment = () => {
-    navigate(route(PROTECTED_ROUTES.PAIEMENTS.CREATE, { candidatId: currentCandidat.id }));
+    navigate(`${PROTECTED_ROUTES.PAIEMENTS.CREATE}?candidatId=${currentCandidat.id}`);
   };
   const handleAddLesson = () => {
-    navigate(route(PROTECTED_ROUTES.PLANNING.CREATE, { candidatId: currentCandidat.id }));
+    navigate(`${PROTECTED_ROUTES.PLANNING.CREATE}?candidatId=${currentCandidat.id}`);
   };
   const handleRegisterExam = () => {
-    navigate(route(PROTECTED_ROUTES.EXAMENS.CREATE, { candidatId: currentCandidat.id }));
+    navigate(`${PROTECTED_ROUTES.EXAMENS.CREATE}?candidatId=${currentCandidat.id}`);
   };
   const handleAddDocument = () => {
     navigate(route(PROTECTED_ROUTES.CANDIDATS.DOCUMENTS(currentCandidat.id), { id: currentCandidat.id }));

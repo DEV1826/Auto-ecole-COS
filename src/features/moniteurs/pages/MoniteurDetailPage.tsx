@@ -53,7 +53,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { PROTECTED_ROUTES, route } from '@/config/routes';
+import { PROTECTED_ROUTES } from '@/config/routes';
 import { PageBreadcrumb } from '@/components/common/PageBreadcrumb';
 import { getAvatarUrl } from '@/lib/utils';
 
@@ -72,6 +72,7 @@ import { MoniteursAvailabilityCalendar } from '../components/MoniteursAvailabili
 import type { Lecon } from '@/types/planning.types';
 import { useMoniteurs } from '@/hooks/use.moniteurs';
 import { usePlanning } from '@/hooks/use.planning';
+import { useLeconActions } from '@/features/planning/hooks/useLeconActions';
 
 // ============================================================
 // PAGE PRINCIPALE
@@ -102,6 +103,12 @@ export default function MoniteurDetailPage(): React.JSX.Element {
   const { getByMoniteur } = usePlanning();
   const [lecons, setLecons] = React.useState<Lecon[]>([]);
   const [leconsLoading, setLeconsLoading] = React.useState(true);
+  const handleLeconChanged = React.useCallback(
+    (updated: Lecon) => setLecons((list) => list.map((l) => (l.id === updated.id ? { ...l, ...updated } : l))),
+    []
+  );
+  // Actions du tableau des leçons : navigation + changements de statut réels
+  const leconsActions = useLeconActions(handleLeconChanged);
 
 
   // Chargement des leçons du moniteur
@@ -245,32 +252,6 @@ export default function MoniteurDetailPage(): React.JSX.Element {
     },
   ];
 
-  // Actions des tableaux (redirection vers le détail d’une leçon)
-  const handleViewLecon = (lecon: Lecon) => {
-    navigate(route(PROTECTED_ROUTES.PLANNING.DETAIL(lecon.id), { id: lecon.id }));
-  };
-  const handleEditLecon = (lecon: Lecon) => {
-    navigate(route(PROTECTED_ROUTES.PLANNING.EDIT(lecon.id), { id: lecon.id }));
-  };
-  const handleCancelLecon = async (lecon: Lecon) => {
-    // À implémenter via le store planning
-    toast.info(`Annulation de la leçon #${lecon.id} – à connecter`);
-  };
-  const handleMarkDone = async (lecon: Lecon) => {
-    toast.info(`Marquer comme effectuée – à connecter`);
-  };
-  const handleReportAbsence = async (lecon: Lecon) => {
-    toast.info(`Signaler absence – à connecter`);
-  };
-
-  // Actions du tableau LeconsTable
-  const leconsActions = {
-    onView: handleViewLecon,
-    onEdit: handleEditLecon,
-    onCancel: handleCancelLecon,
-    onMarkDone: handleMarkDone,
-    onReportAbsence: handleReportAbsence,
-  };
 
   // Enrichissements pour LeconsTable (données du moniteur courant)
   const leconsEnrichments = {

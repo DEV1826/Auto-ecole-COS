@@ -172,6 +172,10 @@ export const PROTECTED_ROUTES = {
     MONITEUR: (moniteurId: number | string) => `/planning/moniteur/${moniteurId}`,
     /** Planning d'un candidat */
     CANDIDAT: (candidatId: number | string) => `/planning/candidat/${candidatId}`,
+    /** Choix du moniteur dont on veut voir le planning */
+    MONITEURS_INDEX: '/planning/moniteur',
+    /** Choix du candidat dont on veut voir le planning */
+    CANDIDATS_INDEX: '/planning/candidat',
   } as const,
 
   // ========== EXAMENS ==========
@@ -284,6 +288,8 @@ export const PROTECTED_ROUTES = {
     AUDIT_LOGS: '/admin/audit-logs',
     /** Configuration de l'entreprise (nom, adresse, logo, etc.) */
     COMPANY_CONFIG: '/admin/company',
+    /** Documentation de l'API interne (window.api) */
+    API_DOCS: '/admin/api-docs',
   } as const,
 
   // ========== UTILITAIRES ==========

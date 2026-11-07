@@ -944,7 +944,7 @@ export async function getUserById({ userId, requesterId }) {
       role: user.role,
       niveau: user.niveau,
       actif: user.actif,
-      permissions: user.permissions.map((p) => ({ ressource: p.ressource, action: p.action })),
+      permissions: user.permissions.map((p) => ({ id: p.id, utilisateurId: p.utilisateurId, ressource: p.ressource, action: p.action, actif: p.actif })),
       sessionsActives: user.sessions.length,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -1095,7 +1095,7 @@ export async function getUserPermissions({ userId }) {
       throw new Error('ID utilisateur obligatoire.');
     }
     const permissions = await findMany('permission', { utilisateurId: userId, actif: true });
-    return permissions.map((p) => ({ ressource: p.ressource, action: p.action }));
+    return permissions.map((p) => ({ id: p.id, utilisateurId: p.utilisateurId, ressource: p.ressource, action: p.action, actif: p.actif }));
   }, 'Erreur lors de la récupération des permissions');
 }
 

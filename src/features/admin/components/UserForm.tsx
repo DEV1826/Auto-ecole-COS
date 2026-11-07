@@ -181,7 +181,8 @@ export default function UserForm({ data, onChange, isSubmitting, isEditMode = fa
                                     <Mail className="inline h-3.5 w-3.5 mr-1 text-muted-foreground" />
                                     Email *
                                 </FieldLabel>
-                                <Input {...field} id="user-email" type="email" placeholder="jean.dupont@example.com" className="h-12" disabled={isSubmitting} />
+                                <Input {...field} id="user-email" type="email" placeholder="jean.dupont@example.com" className="h-12" disabled={isSubmitting} readOnly={isEditMode} />
+                                {isEditMode && <FieldDescription>L’e-mail sert d’identifiant de connexion et ne peut pas être modifié.</FieldDescription>}
                                 {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                             </Field>
                         )}
