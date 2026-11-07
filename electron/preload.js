@@ -17,7 +17,7 @@
  * @version 3.0.0
  */
 
-import { contextBridge, ipcRenderer } from 'electron';
+const { contextBridge, ipcRenderer } = globalThis.__ELECTRON_RENDERER__ ?? {};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Utilitaire interne
@@ -222,6 +222,9 @@ const api = {
     /** Ouvre un document avec l'application par défaut du système. */
     open: (chemin) => invoke('documents:open', { chemin }),
 
+    /** Lance l'impression d'un PDF via Electron. */
+    print: (chemin, title) => invoke('documents:print', { chemin, title }),
+
     /** Téléverse un nouveau document (buffer + métadonnées). */
     upload: (data) => invoke('documents:upload', data),
   },
@@ -402,6 +405,12 @@ const api = {
      * @returns {Promise<{ success: boolean; message: string }>}
      */
     attachReceipt: (id, filePath) => invoke('depenses:attachReceipt', { id, filePath }),
+    /**
+     * Génère le PDF d'une dépense et retourne le chemin du fichier.
+     * @param {number} id
+     * @returns {Promise<{ success: boolean; path?: string; message?: string }>}
+     */
+    generatePDF: (id) => invoke('depenses:generatePDF', id),
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1022,6 +1031,14 @@ const api = {
 
   globalSearch: {
     search: (query) => invoke('globalSearch:search', query),
+  },
+
+  exports: {
+    saveFile: (payload) => invoke('exports:saveFile', payload),
+    factures: (payload) => invoke('exports:factures', payload),
+    paiements: (payload) => invoke('exports:paiements', payload),
+    examens: (payload) => invoke('exports:examens', payload),
+    openFolder: () => invoke('export:openFolder'),
   },
 };
 

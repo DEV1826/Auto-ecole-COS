@@ -1,7 +1,7 @@
 // prisma/schema.prisma
 generator client {
   provider      = "prisma-client-js"
-  output        = "../generated"
+  output        = "../generated-prisma"
   binaryTargets = ["native", "windows"]
 }
 

@@ -34,6 +34,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { resolveAssetPath } from '@/lib/utils';
 
 /**
  * Interface définissant les propriétés acceptées par le composant ErrorDialog.
@@ -87,7 +88,7 @@ export function ErrorDialog({
                 window.matchMedia('(prefers-color-scheme: dark)').matches);
 
         const iconName = isDark ? 'error-dark.svg' : 'error.svg';
-        return `/images/error/${iconName}`;
+        return resolveAssetPath(`/images/error/${iconName}`);
     };
 
     // Évaluation de la présence et du format des détails fournis

@@ -28,6 +28,10 @@ import {
   count,
   remove,
 } from './prisma.client.js';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { jsPDF } from 'jspdf';
+const { shell } = globalThis.__ELECTRON_MAIN__ ?? {};
 
 // ===============================
 // CONSTANTES & UTILITAIRES INTERNES
@@ -46,6 +50,22 @@ const DEFAULT_PERIOD_MAP = {
   month: 30,
   all: null,
 };
+
+async function getCertificatesExportDirectory() {
+  const { app } = globalThis.__ELECTRON_MAIN__ ?? {};
+  const baseDir = app ? app.getPath('documents') : process.cwd();
+  const exportDir = path.join(baseDir, 'Auto-Ecole COS', 'exports', 'certificats');
+  await fs.mkdir(exportDir, { recursive: true });
+  return exportDir;
+}
+
+async function getExamensExportDirectory() {
+  const { app } = globalThis.__ELECTRON_MAIN__ ?? {};
+  const baseDir = app ? app.getPath('documents') : process.cwd();
+  const exportDir = path.join(baseDir, 'Auto-Ecole COS', 'exports', 'examens');
+  await fs.mkdir(exportDir, { recursive: true });
+  return exportDir;
+}
 
 /**
  * Convertit une date au format ISO string ou Date en objet Date.
@@ -554,13 +574,185 @@ export async function printCertificate(id) {
     throw new Error('L’attestation n’est disponible que pour les examens réussis.');
   }
 
-  // Simuler la génération d’un PDF
+  const exportDir = await getCertificatesExportDirectory();
   const filename = `attestation_examen_${id}.pdf`;
-  const fakePath = `/exports/${filename}`;
-  console.log(`[printCertificate] Génération de l’attestation pour l’examen #${id} → ${fakePath}`);
+  const filePath = path.join(exportDir, filename);
+
+  const doc = new jsPDF();
+  const examDate = new Date(examen.date);
+  const candidatNom = examen.candidat
+    ? `${examen.candidat.prenom} ${examen.candidat.nom}`.trim()
+    : `Candidat #${examen.candidatId}`;
+
+  doc.setFillColor(49, 46, 129);
+  doc.rect(0, 0, 210, 34, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.text('Attestation de réussite', 14, 18);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text("Auto-école COS", 14, 25);
+
+  doc.setTextColor(31, 41, 55);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(12);
+  doc.text('Ce document atteste que :', 14, 52);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.text(candidatNom, 14, 64);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(12);
+  doc.text(`a réussi l'examen de ${examen.type.toLowerCase()}`, 14, 78);
+  doc.text(
+    `organisé le ${new Intl.DateTimeFormat('fr-FR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    }).format(examDate)}`,
+    14,
+    88
+  );
+  doc.text(`au centre : ${examen.centre || 'Non renseigné'}`, 14, 98);
+
+  if (examen.note !== null && examen.note !== undefined) {
+    doc.text(`Note obtenue : ${examen.note}/20`, 14, 108);
+  }
+
+  doc.setDrawColor(203, 213, 225);
+  doc.line(14, 130, 88, 130);
+  doc.line(122, 130, 196, 130);
+  doc.setFontSize(10);
+  doc.text('Signature du responsable', 14, 136);
+  doc.text('Cachet', 122, 136);
+
+  const buffer = Buffer.from(doc.output('arraybuffer'));
+  await fs.writeFile(filePath, buffer);
+
+  if (shell?.openPath) {
+    const openError = await shell.openPath(filePath);
+    if (openError) {
+      console.warn(`[printCertificate] Impossible d'ouvrir automatiquement ${filePath}: ${openError}`);
+    }
+  }
+
   return {
     success: true,
-    path: fakePath,
+    path: filePath,
     message: `Attestation générée : ${filename}`,
+  };
+}
+export async function exportExamensReport(params = {}) {
+  const examens = await prisma.examen.findMany({
+    where: buildWhereClause(params),
+    include: {
+      candidat: {
+        select: {
+          nom: true,
+          prenom: true,
+        },
+      },
+    },
+    orderBy: [{ date: 'desc' }, { id: 'desc' }],
+  });
+
+  const exportDir = await getExamensExportDirectory();
+  const filePath = path.join(exportDir, `examens-${new Date().toISOString().slice(0, 10)}.pdf`);
+  const doc = new jsPDF();
+
+  doc.setFillColor(49, 46, 129);
+  doc.rect(0, 0, 210, 34, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.text('Registre des examens', 14, 18);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Edition du ${new Intl.DateTimeFormat('fr-FR').format(new Date())}`, 14, 25);
+
+  const total = examens.length;
+  const reussis = examens.filter((examen) => examen.resultat === 'RECU').length;
+  const ajournes = examens.filter((examen) => examen.resultat === 'AJOURNE').length;
+
+  doc.setTextColor(31, 41, 55);
+  doc.setFillColor(238, 242, 255);
+  doc.roundedRect(14, 42, 56, 18, 4, 4, 'FD');
+  doc.roundedRect(74, 42, 56, 18, 4, 4, 'FD');
+  doc.roundedRect(134, 42, 62, 18, 4, 4, 'FD');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.text('Examens', 18, 49);
+  doc.text('Reussis', 78, 49);
+  doc.text('Ajournes', 138, 49);
+  doc.setFontSize(12);
+  doc.text(String(total), 18, 56);
+  doc.text(String(reussis), 78, 56);
+  doc.text(String(ajournes), 138, 56);
+
+  let y = 78;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const drawHeader = () => {
+    doc.setFillColor(238, 242, 255);
+    doc.rect(14, y, 182, 8, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Date', 16, y + 5.5);
+    doc.text('Candidat', 36, y + 5.5);
+    doc.text('Type', 104, y + 5.5);
+    doc.text('Centre', 126, y + 5.5);
+    doc.text('Resultat', 168, y + 5.5);
+    y += 10;
+  };
+
+  drawHeader();
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+
+  for (const examen of examens) {
+    if (y > pageHeight - 18) {
+      doc.addPage();
+      y = 18;
+      drawHeader();
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+    }
+
+    const candidat = examen.candidat
+      ? `${examen.candidat.prenom} ${examen.candidat.nom}`.trim()
+      : `Candidat #${examen.candidatId}`;
+
+    doc.text(
+      new Intl.DateTimeFormat('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }).format(new Date(examen.date)),
+      16,
+      y
+    );
+    doc.text(doc.splitTextToSize(candidat, 62), 36, y);
+    doc.text(examen.type, 104, y);
+    doc.text(doc.splitTextToSize(examen.centre || '-', 36), 126, y);
+    doc.text(examen.resultat, 168, y);
+    doc.setDrawColor(224, 231, 255);
+    doc.line(14, y + 3, 196, y + 3);
+    y += 8;
+  }
+
+  const buffer = Buffer.from(doc.output('arraybuffer'));
+  await fs.writeFile(filePath, buffer);
+
+  if (shell?.openPath) {
+    const openError = await shell.openPath(filePath);
+    if (openError) {
+      console.warn(`[exportExamensReport] Impossible d'ouvrir automatiquement ${filePath}: ${openError}`);
+    }
+  }
+
+  return {
+    success: true,
+    path: filePath,
+    message: `Export gÃ©nÃ©rÃ© : ${filePath}`,
   };
 }

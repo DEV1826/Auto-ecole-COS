@@ -75,6 +75,36 @@ export interface GlobalSearchApi {
   search: (query: string) => Promise<GlobalSearchResult<SearchResultItem>>;
 }
 
+export interface DesktopExportsApi {
+  saveFile: (payload: {
+    folder?: string;
+    baseName?: string;
+    extension?: string;
+    content?: string;
+  }) => Promise<{
+    success: boolean;
+    path?: string;
+    message?: string;
+  }>;
+  factures: (payload?: { format?: 'pdf' | 'xlsx' }) => Promise<{
+    filePath?: string;
+    path?: string;
+    format?: string;
+    status?: string;
+  }>;
+  paiements: (payload?: Record<string, unknown>) => Promise<{
+    success: boolean;
+    path?: string;
+    message?: string;
+  }>;
+  examens: (payload?: Record<string, unknown>) => Promise<{
+    success: boolean;
+    path?: string;
+    message?: string;
+  }>;
+  openFolder: () => Promise<{ path: string }>;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Extension du type global Window
 // ─────────────────────────────────────────────────────────────────────────────
@@ -155,6 +185,9 @@ declare global {
 
       /** @see {@link GlobalSearchApi} */
       globalSearch: GlobalSearchApi;
+
+      /** Exports desktop centralises */
+      exports: DesktopExportsApi;
     };
   }
 }

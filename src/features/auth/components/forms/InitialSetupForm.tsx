@@ -63,6 +63,7 @@ export default function InitialSetupForm({ accessToken }: InitialSetupFormProps)
           password: data.admin.password,
         },
       });
+      window.sessionStorage.removeItem('autoecole.setupAccess');
       toast.success('Initialisation terminée. Connectez-vous avec le compte administrateur.', {
         position: 'top-center',
       });

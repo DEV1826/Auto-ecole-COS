@@ -14,7 +14,7 @@
  */
 
 import { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route } from 'react-router-dom';
 import { appConfig } from '@/config/app.config';
 import { SuspenseFallback } from '@/components/common/SuspenseFallback';
 import { ScrollToTop } from '@/components/common/ScrollToTop';
@@ -271,6 +271,7 @@ const HelpPage = lazy(() => import('@/features/utils').then((m) => ({ default: m
 // ============================================================
 
 const date = Date.now();
+const Router = window.location.protocol === 'file:' ? HashRouter : BrowserRouter;
 /**
  * Application principale avec routage complet.
  * - Vérifie l'état de maintenance avant tout affichage.
@@ -289,7 +290,7 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter>
+    <Router>
       <ScrollToTop />
       <ErrorBoundary>
         <Suspense fallback={<SuspenseFallback message="Chargement..." />}>
@@ -307,35 +308,8 @@ export default function App() {
 
                 <Route path={PUBLIC_ROUTES.AUTH.LOGIN} element={<LoginPage />} />
                 <Route path={PUBLIC_ROUTES.AUTH.REGISTER_ACCESS} element={<RegisterAccessPage />} />
-                <Route
-                  element={
-                    <RequireState
-                      requiredStateKeys={['developerSetupAccess', 'setupAccessToken', 'expiresAt']}
-                      maxAge={10 * 60 * 1000}
-                      redirectTo={PUBLIC_ROUTES.AUTH.REGISTER_ACCESS}
-                      customValidation={(state) => {
-                        const access = state as {
-                          developerSetupAccess?: boolean;
-                          setupAccessToken?: string;
-                          expiresAt?: number;
-                        };
-                        return (
-                          access.developerSetupAccess === true &&
-                          typeof access.setupAccessToken === 'string' &&
-                          access.setupAccessToken.length >= 24 &&
-                          typeof access.expiresAt === 'number' &&
-                          typeof (state as { timestamp?: number }).timestamp === 'number' &&
-                          access.expiresAt > (state as { timestamp: number }).timestamp
-                        );
-                      }}
-                    />
-                  }
-                >
-                  <Route path={PUBLIC_ROUTES.AUTH.REGISTER} element={<RegisterPage />} />
-                </Route>
-                <Route element={<RequireState requiredStateKeys="fromLogout" />}>
-                  <Route path={PUBLIC_ROUTES.AUTH.LOGOUT} element={<LogoutPage />} />
-                </Route>
+                <Route path={PUBLIC_ROUTES.AUTH.REGISTER} element={<RegisterPage />} />
+                <Route path={PUBLIC_ROUTES.AUTH.LOGOUT} element={<LogoutPage />} />
                 <Route
                   element={
                     <RequireState
@@ -352,20 +326,18 @@ export default function App() {
                 <Route path={PUBLIC_ROUTES.STATUS.UNAUTHORIZED} element={<Unauthorized />} />
                 <Route path={PUBLIC_ROUTES.STATUS.NOT_FOUND} element={<NotFound />} />
                 <Route path={PUBLIC_ROUTES.STATUS.ACCOUNT_INACTIVE} element={<AccountInactive />} />
-                <Route element={<RequireState requiredStateKeys="fromLogout" />}>
-                  <Route
-                    path={PUBLIC_ROUTES.AUTH.LOGOUT_SUCCESS}
-                    element={
-                      <Success
-                        title="À bientôt !"
-                        message="Vous avez été déconnecté avec succès."
-                        buttonText="Retour à l'accueil"
-                        redirectTo={PUBLIC_ROUTES.HOME}
-                        showHomeButton={false}
-                      />
-                    }
-                  />
-                </Route>
+                <Route
+                  path={PUBLIC_ROUTES.AUTH.LOGOUT_SUCCESS}
+                  element={
+                    <Success
+                      title="À bientôt !"
+                      message="Vous avez été déconnecté avec succès."
+                      buttonText="Retour à l'accueil"
+                      redirectTo={PUBLIC_ROUTES.HOME}
+                      showHomeButton={false}
+                    />
+                  }
+                />
               </Route>
 
               {/* ============================================================
@@ -603,6 +575,6 @@ export default function App() {
           </PageTransition>
         </Suspense>
       </ErrorBoundary>
-    </BrowserRouter>
+    </Router>
   );
 }

@@ -34,7 +34,8 @@ import { usePaiements } from '@/hooks/use.paiements';
 import { useNavigate } from 'react-router-dom';
 import { PROTECTED_ROUTES, route } from '@/config';
 import type { Paiement } from '@/types/paiements.types';
-import { getAvatarUrl } from '@/lib';
+import type { PaiementsPeriodFilter } from '../components/PaiementsTable';
+import { getAvatarUrl, openDesktopPath } from '@/lib';
 import { useCandidats } from '@/hooks/use.candidats';
 import type { Candidat } from '@/types/candidats.types';
 
@@ -47,6 +48,7 @@ export default function PaiementsListPage(): React.JSX.Element {
   // Store paiements
   const {
     paiements,
+    pagination,
     stats,
     trends,
     sparklines,
@@ -69,12 +71,13 @@ export default function PaiementsListPage(): React.JSX.Element {
 
   // État local pour l’enrichissement (avatar, nom complet, etc.)
   const [candidatMap, setCandidatMap] = React.useState<Map<number, Candidat>>(new Map());
+  const [periodFilter, setPeriodFilter] = React.useState<PaiementsPeriodFilter>('all');
 
-  // Chargement initial : toutes les paiements (sans pagination)
+  // Chargement initial paginé
   React.useEffect(() => {
     const loadInitialData = async () => {
       try {
-        await getAll();
+        await getAll({ page: 1, limit: 20, period: periodFilter });
         await getStats();
         await getTrends();
         await getSparklines();
@@ -83,7 +86,8 @@ export default function PaiementsListPage(): React.JSX.Element {
       }
     };
     loadInitialData();
-  }, [getAll, getStats, getTrends, getSparklines]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Chargement des informations candidats pour enrichir l’affichage
   React.useEffect(() => {
@@ -107,19 +111,44 @@ export default function PaiementsListPage(): React.JSX.Element {
 
   // Handlers
   const handleRefresh = async () => {
-    await getAll();
+    await getAll({ page: pagination.page, limit: pagination.limit, period: periodFilter });
     await getStats();
     await getTrends();
     await getSparklines();
     toast.success('Données actualisées');
   };
 
+  const handlePaginationChange = React.useCallback(
+    async ({ pageIndex, pageSize }: { pageIndex: number; pageSize: number }) => {
+      try {
+        await getAll({ page: pageIndex + 1, limit: pageSize, period: periodFilter });
+      } catch {
+        toast.error('Erreur lors du changement de page');
+      }
+    },
+    [getAll, periodFilter]
+  );
+
+  const handlePeriodFilterChange = React.useCallback(
+    async (period: PaiementsPeriodFilter) => {
+      setPeriodFilter(period);
+      try {
+        await getAll({ page: 1, limit: pagination.limit, period });
+      } catch {
+        toast.error('Erreur lors du filtrage des paiements');
+      }
+    },
+    [getAll, pagination.limit]
+  );
+
   const handleExport = () => {
     printReceipt(0) // 0 ou un ID spécial pour exporter tous les paiements
       .then(result => {
         if (result.success && result.path) {
           toast.success(`Export généré : ${result.path}`);
-          window.open(result.path, '_blank');
+          openDesktopPath(result.path).catch(() => {
+            toast.error("Impossible d'ouvrir le fichier exporté");
+          });
         } else {
           toast.error(result.message || 'Erreur lors de l’export');
         }
@@ -133,6 +162,24 @@ export default function PaiementsListPage(): React.JSX.Element {
     navigate(PROTECTED_ROUTES.PAIEMENTS.CREATE);
   };
 
+  const handleExportDesktop = () => {
+    window.api.exports
+      .paiements({})
+      .then((result) => {
+        if (result.success && result.path) {
+          toast.success(`Export gÃ©nÃ©rÃ© : ${result.path}`);
+          openDesktopPath(result.path).catch(() => {
+            toast.error("Impossible d'ouvrir le fichier exportÃ©");
+          });
+        } else {
+          toast.error(result.message || 'Erreur lors de lâ€™export');
+        }
+      })
+      .catch(() => {
+        toast.error('Erreur lors de lâ€™export');
+      });
+  };
+
   const handleViewPaiement = (paiement: Paiement) => {
     navigate(route(PROTECTED_ROUTES.PAIEMENTS.DETAIL(paiement.id), { id: paiement.id }));
   };
@@ -142,7 +189,7 @@ export default function PaiementsListPage(): React.JSX.Element {
       const result = await printReceipt(paiement.id);
       if (result.success && result.path) {
         toast.success(`Reçu généré : ${result.path}`);
-        window.open(result.path, '_blank');
+        await openDesktopPath(result.path);
       } else {
         toast.error(result.message || 'Erreur lors de la génération du reçu');
       }
@@ -220,7 +267,7 @@ export default function PaiementsListPage(): React.JSX.Element {
                 variant="outline"
                 className="text-[10px] h-4 px-1.5 border-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
               >
-                {paiements.length} transactions
+                {pagination.total} transactions
               </Badge>
             </p>
           </div>
@@ -231,8 +278,8 @@ export default function PaiementsListPage(): React.JSX.Element {
       {/* Bloc supérieur : statistiques (2/3) + paiements récents (1/3) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2">
-          <PaiementsStatsCards
-            stats={stats!}
+          {stats ? <PaiementsStatsCards
+            stats={stats}
             trends={trends || undefined}
             totalEncaissementsSparkline={sparklines?.totalEncaissementsSparkline}
             nombreTransactionsSparkline={sparklines?.nombreTransactionsSparkline}
@@ -246,7 +293,7 @@ export default function PaiementsListPage(): React.JSX.Element {
               else if (id === 'montant-moyen') toast.info('Montant moyen par transaction');
             }}
             className="h-full"
-          />
+          /> : <div className="h-full rounded-xl border border-dashed border-border/70 bg-card/50" />}
         </div>
         <div className="lg:col-span-1">
           <PaiementsRecentCard
@@ -267,7 +314,10 @@ export default function PaiementsListPage(): React.JSX.Element {
         actions={actions}
         defaultPeriodFilter="all"
         showPeriodFilter
+        onPeriodFilterChange={handlePeriodFilterChange}
         enablePagination
+        pagination={pagination}
+        onPaginationChange={handlePaginationChange}
         enableToolbar
         defaultPageSize={20}
         onRefresh={handleRefresh}
@@ -275,7 +325,7 @@ export default function PaiementsListPage(): React.JSX.Element {
         title="Historique des paiements"
         description="Liste de tous les encaissements (espèces, chèque, virement, carte, mobile money)"
         onAddClick={(isAdmin || isSecretaire) ? handleAddPaiement : undefined}
-        onExport={handleExport}
+        onExport={handleExportDesktop}
         asCard
         className="w-full"
         emptyMessage="Aucun paiement trouvé."

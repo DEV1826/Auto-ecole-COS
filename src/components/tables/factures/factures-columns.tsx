@@ -66,7 +66,7 @@ import { Badge } from '@/components/ui/badge';
 import { DataTableColumnHeader } from '@/components/tables/data-table-column-header';
 import { DataTableRowActions } from '@/components/tables/data-table-row-actions';
 import { createAvatarWithTextColumn } from '@/components/tables/factory';
-import { cn } from '@/lib/utils';
+import { cn, resolveAssetPath } from '@/lib/utils';
 import type {
   Facture,
   FacturesEnrichments,
@@ -103,11 +103,11 @@ function formatCurrency(montant: number): string {
 function getDocumentIconPath(theme?: string): string {
   switch (theme) {
     case 'light':
-      return '/images/icons/file-image.svg';
+      return resolveAssetPath('/images/icons/file-image.svg');
     case 'carte_identite':
-      return '/images/icons/file-image-dark.svg';
+      return resolveAssetPath('/images/icons/file-image-dark.svg');
     default:
-      return '/images/icons/file-image.svg';
+      return resolveAssetPath('/images/icons/file-image.svg');
   }
 }
 

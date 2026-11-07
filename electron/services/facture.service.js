@@ -27,6 +27,7 @@ import {
   findMany,
   count,
 } from './prisma.client.js';
+import { generateFacturePDFDesktop } from './facture.pdf.service.js';
 
 // ===============================
 // CONSTANTES & UTILITAIRES INTERNES
@@ -277,7 +278,9 @@ export async function createFacture(data) {
       candidatId: data.candidatId,
     });
     // Génération du PDF en arrière‑plan (stub, ne pas bloquer)
-    generateFacturePDF(facture.id).catch((err) => console.error('Erreur génération PDF:', err));
+    generateFacturePDFDesktop(facture.id).catch((err) =>
+      console.error('Erreur génération PDF:', err)
+    );
     return facture;
   }, 'Erreur lors de la création de la facture');
 }

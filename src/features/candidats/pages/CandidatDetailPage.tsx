@@ -60,7 +60,7 @@ import {
   PlusCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, openDesktopPath } from '@/lib/utils';
 
 import { PROTECTED_ROUTES, route } from '@/config/routes';
 import { PageBreadcrumb } from '@/components/common/PageBreadcrumb';
@@ -295,9 +295,40 @@ export default function CandidatDetailPage(): React.JSX.Element {
   const handleViewFacture = (facture: Facture) => {
     navigate(route(PROTECTED_ROUTES.FACTURES.DETAIL(facture.id), { id: facture.id }));
   };
-  const handleViewDocument = (doc: Document) => {
-    if (doc.chemin) window.open(doc.chemin, '_blank');
-    else toast.info('Aperçu non disponible');
+  const handleViewDocument = async (doc: Document) => {
+    if (!doc.chemin) {
+      toast.info('Aperçu non disponible');
+      return;
+    }
+
+    try {
+      await openDesktopPath(doc.chemin);
+    } catch {
+      toast.error("Impossible d'ouvrir le document");
+    }
+  };
+
+  const handleDownloadDocument = async (doc: Document) => {
+    try {
+      await window.api.documents.download(doc.id);
+      toast.success(`${doc.nomFichier} est prêt`);
+    } catch {
+      toast.error('Erreur lors du téléchargement du document');
+    }
+  };
+
+  const handlePrintDocument = async (doc: Document) => {
+    if (!doc.chemin) {
+      toast.info('Aucun fichier imprimable disponible');
+      return;
+    }
+
+    try {
+      await openDesktopPath(doc.chemin);
+      toast.success("Le document a été ouvert pour impression");
+    } catch {
+      toast.error("Impossible d'ouvrir le document pour impression");
+    }
   };
 
   // Enrichissements pour les tableaux (données du candidat courant)
@@ -501,7 +532,11 @@ export default function CandidatDetailPage(): React.JSX.Element {
             variant="admin"
             defaultPeriodFilter='all'
             enrichments={documentsEnrichments}
-            actions={{ onView: handleViewDocument }}
+            actions={{
+              onView: handleViewDocument,
+              onDownload: handleDownloadDocument,
+              onPrint: handlePrintDocument,
+            }}
             enablePagination
             defaultPageSize={5}
             title="Documents scannés"

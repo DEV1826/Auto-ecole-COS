@@ -530,4 +530,9 @@ export interface DepensesApi {
    * @returns Résultat de l'opération
    */
   attachReceipt: (id: number, filePath: string) => Promise<{ success: boolean; message: string }>;
+  /**
+   * Génère le PDF d'une dépense et retourne le chemin du fichier créé sur le bureau.
+   * @param id - Identifiant de la dépense
+   */
+  generatePDF: (id: number) => Promise<{ success: boolean; path?: string; message?: string }>;
 }

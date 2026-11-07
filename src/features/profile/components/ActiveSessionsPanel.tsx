@@ -31,7 +31,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, resolveAssetPath } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -69,11 +69,11 @@ import type { Session } from '@/types/auth.types';
  * Mapping des ressources images stockées dans /public/images/product/
  */
 const DEVICE_IMAGES = {
-  DESKTOP: '/images/device/Computer.jpg',
-  MOBILE: '/images/device/Phone.jpg',
-  TABLET: '/images/device/Tablet.jpg',
-  WATCH: '/images/device/Watch.jpg',
-  DEFAULT: '/icons/icon.svg',
+  DESKTOP: resolveAssetPath('/images/device/Computer.jpg'),
+  MOBILE: resolveAssetPath('/images/device/Phone.jpg'),
+  TABLET: resolveAssetPath('/images/device/Tablet.jpg'),
+  WATCH: resolveAssetPath('/images/device/Watch.jpg'),
+  DEFAULT: resolveAssetPath('/icons/icon.svg'),
 };
 
 interface ActiveSessionsPanelProps {

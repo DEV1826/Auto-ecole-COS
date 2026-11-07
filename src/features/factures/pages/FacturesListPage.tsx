@@ -51,8 +51,9 @@ import { FacturesStatsCards, type FacturesSparklineData } from '../components/Fa
 import { FacturesTable } from '../components/FacturesTable';
 import { PROTECTED_ROUTES, route } from '@/config/routes';
 import type { Facture } from '@/types/factures.types';
+import type { FacturesPeriodFilter } from '../components/FacturesTable';
 import type { Candidat } from '@/types/candidats.types';
-import { getAvatarUrl } from '@/lib/utils';
+import { getAvatarUrl, openDesktopPath } from '@/lib/utils';
 
 // ============================================================
 // Types pour les enrichissements (montant payé)
@@ -111,17 +112,18 @@ export default function FacturesListPage(): React.JSX.Element {
     message: string;
     details?: string[];
   }>({ open: false, message: '' });
+  const [periodFilter, setPeriodFilter] = React.useState<FacturesPeriodFilter>('all');
 
   // Chargement initial des données
   React.useEffect(() => {
     const loadInitialData = async () => {
       try {
         await Promise.all([
-          getAll({ limit: 20 }),      // première page, 20 éléments
+          getAll({ page: 1, limit: 20, period: periodFilter }),
           getStats(),
           getTrends(),
           getSparklines(),
-          getAllCandidats({ limit: 200 }), // pour les enrichissements
+          getAllCandidats({ limit: 1000 }), // pour les enrichissements (limite augmentée)
         ]);
       } catch (err) {
         console.error('Erreur chargement initial:', err);
@@ -172,7 +174,7 @@ export default function FacturesListPage(): React.JSX.Element {
     setIsRefreshing(true);
     try {
       await Promise.all([
-        getAll({}),
+        getAll({ page: pagination.page, limit: pagination.limit, period: periodFilter }),
         getStats(),
         getTrends(),
         getSparklines(),
@@ -194,12 +196,53 @@ export default function FacturesListPage(): React.JSX.Element {
     }
   };
 
+  const handlePaginationChange = React.useCallback(
+    async ({ pageIndex, pageSize }: { pageIndex: number; pageSize: number }) => {
+      try {
+        await getAll({ page: pageIndex + 1, limit: pageSize, period: periodFilter });
+      } catch {
+        toast.error('Erreur lors du changement de page');
+      }
+    },
+    [getAll, periodFilter]
+  );
+
+  const handlePeriodFilterChange = React.useCallback(
+    async (period: FacturesPeriodFilter) => {
+      setPeriodFilter(period);
+      try {
+        await getAll({ page: 1, limit: pagination.limit, period });
+      } catch {
+        toast.error('Erreur lors du filtrage des factures');
+      }
+    },
+    [getAll, pagination.limit]
+  );
+
   const handleExport = () => {
     toast.info('Fonction d’export à implémenter');
   };
 
   const handleAddFacture = () => {
     navigate(PROTECTED_ROUTES.FACTURES.CREATE);
+  };
+
+  const handleDesktopExport = async () => {
+    try {
+      const result = await window.api.exports.factures({ format: 'pdf' });
+      const exportPath = result.path ?? result.filePath;
+
+      if (exportPath) {
+        toast.success(`Export gÃ©nÃ©rÃ© : ${exportPath}`);
+        await openDesktopPath(exportPath);
+        return;
+      }
+
+      toast.error('Le fichier exportÃ© est introuvable.');
+    } catch (err) {
+      console.error('Erreur export factures:', err);
+      toast.error('Erreur lors de lâ€™export des factures');
+    }
   };
 
   // Actions sur chaque ligne du tableau
@@ -230,7 +273,7 @@ export default function FacturesListPage(): React.JSX.Element {
       const result = await generatePDF(facture.id);
       if (result.success && result.path) {
         toast.success(`PDF généré : ${result.path}`);
-        window.open(result.path, '_blank');
+        await openDesktopPath(result.path);
       } else {
         toast.error(result.message || 'Erreur lors de la génération du PDF');
       }
@@ -389,7 +432,7 @@ export default function FacturesListPage(): React.JSX.Element {
             <RefreshCw className="h-3.5 w-3.5" />
             Actualiser
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExport} className="h-8 gap-1 text-xs">
+          <Button variant="outline" size="sm" onClick={handleDesktopExport} className="h-8 gap-1 text-xs">
             <Download className="h-3.5 w-3.5" />
             Exporter
           </Button>
@@ -420,7 +463,7 @@ export default function FacturesListPage(): React.JSX.Element {
 
       {/* Tableau des factures */}
       <FacturesTable
-        stats={stats!}
+        stats={stats ?? undefined}
         factures={factures}
         variant={variant}
         actions={tableActions}
@@ -428,7 +471,10 @@ export default function FacturesListPage(): React.JSX.Element {
         enablePagination
         enableToolbar
         showPeriodFilter
+        onPeriodFilterChange={handlePeriodFilterChange}
         defaultPeriodFilter="all"
+        pagination={pagination}
+        onPaginationChange={handlePaginationChange}
         defaultPageSize={pagination.limit}
         onRefresh={handleRefresh}
         isLoading={isLoading}

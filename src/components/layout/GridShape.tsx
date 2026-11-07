@@ -3,7 +3,7 @@
  * @description Composant décoratif affichant des grilles SVG en arrière‑plan.
  */
 
-import { cn } from '@/lib/utils';
+import { cn, resolveAssetPath } from '@/lib/utils';
 
 export interface GridShapeProps {
   /** Classes additionnelles */
@@ -39,7 +39,7 @@ export function GridShape({ className, model = 1, position = 'top-right' }: Grid
         className
       )}
     >
-      <img src={`/images/shape/grid-0${model}.svg`} alt="" className="w-full " />
+      <img src={resolveAssetPath(`/images/shape/grid-0${model}.svg`)} alt="" className="w-full " />
     </div>
   );
 }

@@ -474,7 +474,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "/home/stive-junior/Auto-ecole-COS/generated",
+      "value": "C:\\Users\\COMPUTER STORES\\Desktop\\GEEKHUBP\\Auto-ecole-COS\\generated",
       "fromEnvVar": null
     },
     "config": {
@@ -483,7 +483,7 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "debian-openssl-3.0.x",
+        "value": "windows",
         "native": true
       },
       {
@@ -492,12 +492,11 @@ const config = {
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "/home/stive-junior/Auto-ecole-COS/prisma/schema.prisma",
+    "sourceFilePath": "C:\\Users\\COMPUTER STORES\\Desktop\\GEEKHUBP\\Auto-ecole-COS\\prisma\\schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
-    "rootEnvPath": null,
-    "schemaEnvPath": "../.env"
+    "rootEnvPath": null
   },
   "relativePath": "../prisma",
   "clientVersion": "6.19.3",

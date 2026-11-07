@@ -53,7 +53,7 @@ import { Badge } from '@/components/ui/badge';
 import { DataTableColumnHeader } from '@/components/tables/data-table-column-header';
 import { DataTableRowActions } from '@/components/tables/data-table-row-actions';
 import { createAvatarWithTextColumn } from '@/components/tables/factory';
-import { cn } from '@/lib/utils';
+import { cn, resolveAssetPath } from '@/lib/utils';
 import type { Vehicule, VehiculesEnrichments, VehiculesColumnsOptions, VehiculesTableActions } from '@/types/vehicules.types';
 import type { CategoriePermis, StatutVehicule } from '@/types/enums';
 import { CATEGORIE_PERMIS_CONFIG, STATUT_VEHICULE_CONFIG } from '@/types/enums';
@@ -75,7 +75,7 @@ function formatKm(km: number): string {
  * Icône par défaut pour les véhicules (fallback).
  * @internal
  */
-const DEFAULT_VEHICLE_ICON = '/images/brand/car.png';
+const DEFAULT_VEHICLE_ICON = resolveAssetPath('/images/brand/car.png');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // COLONNES FIXES

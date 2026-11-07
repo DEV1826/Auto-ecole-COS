@@ -7,6 +7,8 @@
  * Ce module définit les paramètres généraux de l'application (noms, formats, plages horaires, etc.).
  */
 
+import { resolveAssetPath } from '@/lib';
+
 /**
  * Informations générales sur l'application
  * @constant {Object} appConfig
@@ -24,5 +26,5 @@ export const appConfig = {
   description:
     'Système de gestion complet pour auto-écoles, couvrant les candidatures, formations, plannings, paiements et plus encore.',
   /** Chemin vers le logo de l'application */
-  logo: '/icons/hero.png',
+  logo: resolveAssetPath('/icons/hero.png'),
 } as const;

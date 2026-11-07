@@ -12,12 +12,12 @@ import { toast } from 'sonner';
 
 import { LoadingButton } from '@/components/forms/LoadingButton';
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
 import { PUBLIC_ROUTES } from '@/config/routes';
 import {
   developerSetupCodeSchema,
   type DeveloperSetupCodeInput,
 } from '@/lib/validators/auth.validator';
+import { PasswordInput } from '@/components/forms';
 
 export default function DeveloperSetupAccessForm() {
   const navigate = useNavigate();
@@ -32,14 +32,17 @@ export default function DeveloperSetupAccessForm() {
     setIsLoading(true);
     try {
       const access = await window.api.auth.verifyDeveloperSetupCode(code);
+      const payload = {
+        developerSetupAccess: true,
+        setupAccessToken: access.accessToken,
+        expiresAt: access.expiresAt,
+        timestamp: access.expiresAt - 10 * 60 * 1000,
+      };
+
+      window.sessionStorage.setItem('autoecole.setupAccess', JSON.stringify(payload));
       navigate(PUBLIC_ROUTES.AUTH.REGISTER, {
         replace: true,
-        state: {
-          developerSetupAccess: true,
-          setupAccessToken: access.accessToken,
-          expiresAt: access.expiresAt,
-          timestamp: access.expiresAt - 10 * 60 * 1000,
-        },
+        state: payload,
       });
       toast.success('Accès développeur validé');
     } catch (error) {
@@ -77,7 +80,7 @@ export default function DeveloperSetupAccessForm() {
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor="developer-code">Code d'accès</FieldLabel>
-              <Input
+              <PasswordInput
                 {...field}
                 id="developer-code"
                 type="password"

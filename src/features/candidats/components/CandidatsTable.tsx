@@ -53,6 +53,7 @@
 import * as React from 'react';
 import { Users, RefreshCw, ChevronRight, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import type { ColumnDef } from '@tanstack/react-table';
 
 import { DataTable } from '@/components/tables/data-table';
 import {
@@ -73,6 +74,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useCandidats } from '@/hooks/use.candidats';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -202,6 +204,8 @@ export function CandidatsTable({
   const isMobile = useIsMobile();
   const [refreshing, setRefreshing] = React.useState(false);
 
+  const { pagination, getAll } = useCandidats();
+
   // Limitation des données si pas de pagination
   const displayData = React.useMemo(
     () => (enablePagination ? candidats : candidats.slice(0, maxItems)),
@@ -215,16 +219,38 @@ export function CandidatsTable({
 
   // Génération des colonnes selon la variante
   const columns = React.useMemo(() => {
-    switch (variant) {
-      case 'admin':
-        return getAdminCandidatsColumns(actions, enrichments, columnConfig);
-      case 'secretaire':
-        return getSecretaireCandidatsColumns(actions, enrichments, columnConfig);
-      case 'moniteur':
-        return getMoniteurCandidatsColumns(actions, enrichments, columnConfig);
-      default:
-        return getCandidatsColumns({ variant: 'admin', actions, enrichments, columnConfig });
-    }
+    const searchColumn: ColumnDef<Candidat> = {
+      id: 'fullNameSearch',
+      accessorFn: (candidat) =>
+        [
+          candidat.prenom ?? '',
+          candidat.nom ?? '',
+          candidat.email ?? '',
+          candidat.telephone ?? '',
+        ]
+          .join(' ')
+          .trim()
+          .toLowerCase(),
+      enableHiding: true,
+      enableSorting: false,
+      cell: () => null,
+    };
+
+    const baseColumns =
+      (() => {
+        switch (variant) {
+          case 'admin':
+            return getAdminCandidatsColumns(actions, enrichments, columnConfig);
+          case 'secretaire':
+            return getSecretaireCandidatsColumns(actions, enrichments, columnConfig);
+          case 'moniteur':
+            return getMoniteurCandidatsColumns(actions, enrichments, columnConfig);
+          default:
+            return getCandidatsColumns({ variant: 'admin', actions, enrichments, columnConfig });
+        }
+      })();
+
+    return [searchColumn, ...baseColumns];
   }, [variant, actions, enrichments, columnConfig]);
 
   // ── Options pour les filtres facettés (catégorie, statut) ────────────────
@@ -351,10 +377,22 @@ export function CandidatsTable({
         isLoading={isLoading || refreshing}
         enableRowSelection={false}
         enablePagination={enablePagination}
+        manualPagination={enablePagination}
+        pageCount={pagination.totalPages}
+        paginationState={
+          {
+            pageIndex: Math.max(0, (pagination.page || 1) - 1),
+            pageSize: pagination.limit,
+          }
+        }
+        onPaginationChange={({ pageIndex, pageSize }) => {
+          // pageIndex is 0-based in the table, API uses 1-based pages
+          getAll({ page: pageIndex + 1, limit: pageSize }).catch(() => {});
+        }}
         enableToolbar={enableToolbar}
         defaultPageSize={defaultPageSize}
         pageSizeOptions={enablePagination ? pageSizeOptions : undefined}
-        searchColumn="nom"
+        searchColumn="fullNameSearch"
         onAddClick={onAddClick}
         searchPlaceholder="Rechercher un candidat…"
         extraActions={undefined}

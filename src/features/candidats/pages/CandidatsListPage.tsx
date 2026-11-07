@@ -53,6 +53,7 @@ import { CandidatsStatsCards, type CandidatsSparklineData } from '../components/
 import { CandidatsTable } from '../components/CandidatsTable';
 import { PROTECTED_ROUTES, route } from '@/config/routes';
 import type { Candidat } from '@/types/candidats.types';
+import { saveDesktopCsv } from '@/lib/utils';
 
 // ============================================================
 // Types pour les enrichissements (solde, leçons, examens)
@@ -190,7 +191,31 @@ export default function CandidatsListPage(): React.JSX.Element {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    try {
+      const path = await saveDesktopCsv(
+        'exports/candidats',
+        `candidats-${new Date().toISOString().slice(0, 10)}`,
+        ['ID', 'Nom', 'Prenom', 'Email', 'Telephone', 'Categorie', 'Statut', 'Date inscription', 'Solde', 'Lecons', 'Examens'],
+        candidats.map((candidat) => [
+          candidat.id,
+          candidat.nom,
+          candidat.prenom,
+          candidat.email ?? '',
+          candidat.telephone ?? '',
+          candidat.categorie,
+          candidat.statut,
+          candidat.dateInscription,
+          enrichments.soldeMap.get(candidat.id) ?? 0,
+          enrichments.leconsCountMap.get(candidat.id) ?? 0,
+          enrichments.examensCountMap.get(candidat.id) ?? 0,
+        ])
+      );
+      toast.success(`Export des candidats genere: ${path}`);
+    } catch {
+      toast.error("Impossible d'exporter les candidats");
+    }
+    return;
     // Export CSV ou Excel (simulé pour l’exemple)
     toast.info('Fonction d’export à implémenter');
   };

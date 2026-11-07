@@ -28,6 +28,14 @@ import {
   transaction,
 } from './prisma.client.js';
 import { createPaiementWithCaisse } from './prisma.client.js';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {
+  buildPaiementsReportPdf,
+  buildReceiptPdf,
+  savePdfToFile,
+} from './pdfDocument.service.js';
+const { shell } = globalThis.__ELECTRON_MAIN__ ?? {};
 
 // ===============================
 // CONSTANTES & UTILITAIRES INTERNES
@@ -43,6 +51,22 @@ const DEFAULT_PERIOD_MAP = {
   month: 30,
   all: null,
 };
+
+async function getReceiptsExportDirectory() {
+  const { app } = globalThis.__ELECTRON_MAIN__ ?? {};
+  const baseDir = app ? app.getPath('documents') : process.cwd();
+  const exportDir = path.join(baseDir, 'Auto-Ecole COS', 'exports', 'recus');
+  await fs.mkdir(exportDir, { recursive: true });
+  return exportDir;
+}
+
+async function getPaiementsExportDirectory() {
+  const { app } = globalThis.__ELECTRON_MAIN__ ?? {};
+  const baseDir = app ? app.getPath('documents') : process.cwd();
+  const exportDir = path.join(baseDir, 'Auto-Ecole COS', 'exports', 'paiements');
+  await fs.mkdir(exportDir, { recursive: true });
+  return exportDir;
+}
 
 /**
  * Convertit une date au format ISO string ou Date en objet Date.
@@ -907,19 +931,123 @@ export async function printReceipt(id) {
     throw new Error('Identifiant paiement invalide.');
   }
 
+  if (Number(id) === 0) {
+    throw new Error("L'export global des paiements n'est pas encore disponible.");
+  }
+
   const paiement = await getPaiementById(id);
   if (!paiement) {
     throw new Error('Paiement non trouvé.');
   }
 
-  // Simuler la génération d'un PDF
-  // Dans la réalité, on utiliserait `pdfkit` ou `electron.print`
-  console.log(`[printReceipt] Génération du reçu pour le paiement #${id}`);
-  const fakePath = `/receipts/paiement_${id}.pdf`;
+  const exportDir = await getReceiptsExportDirectory();
+  const receiptNumber = `REC-${new Date(paiement.date).getFullYear()}-${String(paiement.id).padStart(5, '0')}`;
+  const filePath = path.join(exportDir, `${receiptNumber}.pdf`);
+  const brandedReceipt = await buildReceiptPdf({ paiement, receiptNumber });
+  await savePdfToFile(brandedReceipt.doc, filePath);
+
+  if (shell?.openPath) {
+    const openError = await shell.openPath(filePath);
+    if (openError) {
+      console.warn(`[printReceipt] Impossible d'ouvrir automatiquement ${filePath}: ${openError}`);
+    }
+  }
+
   return {
     success: true,
-    path: fakePath,
-    message: `Reçu généré : ${fakePath}`,
+    path: filePath,
+    message: `Recu genere : ${filePath}`,
+  };
+
+  const doc = new jsPDF();
+  doc.setFillColor(72, 45, 27);
+  doc.rect(0, 0, 210, 34, 'F');
+  doc.setTextColor(255, 248, 240);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.text('Reçu de paiement', 14, 16);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Document généré le ${formatReceiptDate(new Date())}`, 14, 24);
+
+  doc.setTextColor(47, 36, 25);
+  doc.setFillColor(255, 250, 243);
+  doc.setDrawColor(218, 201, 182);
+  doc.roundedRect(14, 42, 56, 18, 4, 4, 'FD');
+  doc.roundedRect(74, 42, 42, 18, 4, 4, 'FD');
+  doc.roundedRect(120, 42, 76, 18, 4, 4, 'FD');
+
+  doc.setFontSize(9);
+  doc.setTextColor(115, 97, 77);
+  doc.text('Numéro', 18, 48.5);
+  doc.text('Date', 78, 48.5);
+  doc.text('Montant', 124, 48.5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(47, 36, 25);
+  doc.text(receiptNumber, 18, 55);
+  doc.text(formatReceiptDate(paiement.date), 78, 55);
+  doc.text(formatReceiptCurrency(paiement.montant), 124, 55);
+
+  let y = 78;
+  doc.setFontSize(12);
+  doc.text('Informations du paiement', 14, y);
+  doc.setDrawColor(200, 100, 45);
+  doc.line(14, y + 2, 196, y + 2);
+  y += 12;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  doc.text(
+    `Candidat : ${paiement.candidat ? `${paiement.candidat.prenom} ${paiement.candidat.nom}`.trim() : `#${paiement.candidatId}`}`,
+    14,
+    y
+  );
+  y += 8;
+  doc.text(`Mode de paiement : ${paiement.mode}`, 14, y);
+  y += 8;
+  doc.text(`Référence : ${paiement.reference || '-'}`, 14, y);
+  y += 8;
+  doc.text(`Facture liée : ${paiement.facture?.numero || '-'}`, 14, y);
+
+  if (paiement.note) {
+    y += 14;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text('Observation', 14, y);
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    const noteLines = doc.splitTextToSize(paiement.note, 178);
+    doc.text(noteLines, 14, y);
+    y += noteLines.length * 6;
+  }
+
+  y += 12;
+  doc.setDrawColor(218, 201, 182);
+  doc.line(14, y, 196, y);
+  y += 10;
+  doc.setFontSize(10);
+  doc.text('Cachet et signature', 14, y);
+  doc.line(14, y + 16, 70, y + 16);
+  doc.text('Signature du client', 126, y);
+  doc.line(126, y + 16, 182, y + 16);
+
+  const buffer = Buffer.from(doc.output('arraybuffer'));
+  await fs.writeFile(filePath, buffer);
+
+  if (shell?.openPath) {
+    const openError = await shell.openPath(filePath);
+    if (openError) {
+      console.warn(`[printReceipt] Impossible d'ouvrir automatiquement ${filePath}: ${openError}`);
+    }
+  }
+
+  return {
+    success: true,
+    path: filePath,
+    message: `Reçu généré : ${filePath}`,
   };
 }
 
@@ -952,4 +1080,136 @@ async function updateFactureSolde(tx, factureId) {
     where: { id: factureId },
     data: { statut: nouveauStatut },
   });
+}
+export async function exportPaiementsReport(params = {}) {
+  const paiements = await prisma.paiement.findMany({
+    where: buildWhereClause(params),
+    include: {
+      candidat: {
+        select: {
+          nom: true,
+          prenom: true,
+          email: true,
+        },
+      },
+      facture: {
+        select: {
+          numero: true,
+        },
+      },
+    },
+    orderBy: [{ date: 'desc' }, { id: 'desc' }],
+  });
+
+  const exportDir = await getPaiementsExportDirectory();
+  const filePath = path.join(
+    exportDir,
+    `paiements-${new Date().toISOString().slice(0, 10)}.pdf`
+  );
+  const brandedReport = await buildPaiementsReportPdf({ paiements });
+  await savePdfToFile(brandedReport.doc, filePath);
+
+  if (shell?.openPath) {
+    const openError = await shell.openPath(filePath);
+    if (openError) {
+      console.warn(`[exportPaiementsReport] Impossible d'ouvrir automatiquement ${filePath}: ${openError}`);
+    }
+  }
+
+  return {
+    success: true,
+    path: filePath,
+    message: `Export genere : ${filePath}`,
+  };
+
+  const totalMontant = paiements.reduce((sum, paiement) => sum + Number(paiement.montant || 0), 0);
+  const doc = new jsPDF();
+
+  doc.setFillColor(72, 45, 27);
+  doc.rect(0, 0, 210, 34, 'F');
+  doc.setTextColor(255, 248, 240);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.text('Journal des paiements', 14, 16);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Edition du ${formatReceiptDate(new Date())}`, 14, 24);
+
+  doc.setTextColor(47, 36, 25);
+  doc.setFillColor(255, 250, 243);
+  doc.setDrawColor(218, 201, 182);
+  doc.roundedRect(14, 42, 56, 18, 4, 4, 'FD');
+  doc.roundedRect(74, 42, 56, 18, 4, 4, 'FD');
+  doc.roundedRect(134, 42, 62, 18, 4, 4, 'FD');
+
+  doc.setFontSize(9);
+  doc.setTextColor(115, 97, 77);
+  doc.text('Transactions', 18, 48.5);
+  doc.text('Montant total', 78, 48.5);
+  doc.text('Modes utilises', 138, 48.5);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(47, 36, 25);
+  doc.text(String(paiements.length), 18, 55);
+  doc.text(formatReceiptCurrency(totalMontant), 78, 55);
+  doc.text(String(new Set(paiements.map((paiement) => paiement.mode)).size), 138, 55);
+
+  let y = 78;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const drawHeader = () => {
+    doc.setFillColor(244, 239, 231);
+    doc.rect(14, y, 182, 8, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('Date', 16, y + 5.5);
+    doc.text('Candidat', 36, y + 5.5);
+    doc.text('Mode', 96, y + 5.5);
+    doc.text('Facture', 122, y + 5.5);
+    doc.text('Montant', 154, y + 5.5);
+    y += 10;
+  };
+
+  drawHeader();
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+
+  for (const paiement of paiements) {
+    if (y > pageHeight - 18) {
+      doc.addPage();
+      y = 18;
+      drawHeader();
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+    }
+
+    const candidat = paiement.candidat
+      ? `${paiement.candidat.prenom} ${paiement.candidat.nom}`.trim()
+      : `Candidat #${paiement.candidatId}`;
+
+    doc.text(formatReceiptDate(paiement.date), 16, y);
+    doc.text(doc.splitTextToSize(candidat, 54), 36, y);
+    doc.text(paiement.mode, 96, y);
+    doc.text(paiement.facture?.numero || '-', 122, y);
+    doc.text(formatReceiptCurrency(paiement.montant), 154, y);
+    doc.setDrawColor(235, 227, 215);
+    doc.line(14, y + 3, 196, y + 3);
+    y += 8;
+  }
+
+  const buffer = Buffer.from(doc.output('arraybuffer'));
+  await fs.writeFile(filePath, buffer);
+
+  if (shell?.openPath) {
+    const openError = await shell.openPath(filePath);
+    if (openError) {
+      console.warn(`[exportPaiementsReport] Impossible d'ouvrir automatiquement ${filePath}: ${openError}`);
+    }
+  }
+
+  return {
+    success: true,
+    path: filePath,
+    message: `Export gÃ©nÃ©rÃ© : ${filePath}`,
+  };
 }

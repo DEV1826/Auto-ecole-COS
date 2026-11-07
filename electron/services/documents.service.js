@@ -16,7 +16,6 @@
  * @see {@link prisma.client.js} – Utilitaires génériques Prisma
  */
 
-import { shell } from 'electron';
 import {
   prisma,
   executePrismaOperation,
@@ -28,6 +27,7 @@ import {
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
+const { shell } = globalThis.__ELECTRON_MAIN__ ?? {};
 
 // ===============================
 // CONSTANTES & UTILITAIRES INTERNES
@@ -53,7 +53,7 @@ const DEFAULT_PERIOD_MAP = {
  * @returns {Promise<string>} Chemin absolu
  */
 async function getDocumentsBaseDir() {
-  const { app } = await import('electron');
+  const { app } = globalThis.__ELECTRON_MAIN__ ?? {};
   const userData = app.getPath('userData');
   const baseDir = path.join(userData, DOCUMENTS_BASE_DIR);
   await fs.mkdir(baseDir, { recursive: true });

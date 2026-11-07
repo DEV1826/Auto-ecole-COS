@@ -366,6 +366,11 @@ export interface DocumentsApi {
   open: (chemin: string) => Promise<void>;
 
   /**
+   * Lance l'impression d'un PDF avec la boîte d'impression système.
+   */
+  print: (chemin: string, title?: string) => Promise<{ success: boolean; path?: string }>;
+
+  /**
    * Televerser un document
    */
   upload: (data: {

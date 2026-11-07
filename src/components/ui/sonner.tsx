@@ -3,6 +3,7 @@
 import { useTheme } from 'next-themes';
 import { Toaster as Sonner, type ToasterProps } from 'sonner';
 import { Loader2Icon } from 'lucide-react';
+import { resolveAssetPath } from '@/lib/utils';
 
 /**
  * Toaster configuré pour React.js (Vite)
@@ -27,7 +28,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       maintenance: isDark ? 'maintenance-dark.svg' : 'maintenance.svg',
     };
 
-    return `/images/error/${icons[type]}`;
+    return resolveAssetPath(`/images/error/${icons[type]}`);
   };
 
   return (

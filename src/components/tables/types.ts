@@ -148,6 +148,17 @@ export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   /** Données à afficher */
   data: TData[];
+  /** Active la pagination côté serveur (manual) */
+  manualPagination?: boolean;
+  /** Nombre de pages disponibles (pour pagination manuelle) */
+  pageCount?: number;
+  /** État de pagination piloté par le parent (optionnel) */
+  paginationState?: {
+    pageIndex: number;
+    pageSize: number;
+  };
+  /** Callback appelé lors d'un changement de pagination (pageIndex/pageSize) */
+  onPaginationChange?: (pagination: { pageIndex: number; pageSize: number }) => void;
   /** Classes CSS additionnelles */
   className?: string;
   /** Activer la sélection des lignes */

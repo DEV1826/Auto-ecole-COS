@@ -30,7 +30,7 @@ import { useAuth } from '@/hooks/use.auth';
 import { useMoniteurs } from '@/hooks/use.moniteurs';
 import { useNavigate } from 'react-router-dom';
 import { PROTECTED_ROUTES, route } from '@/config';
-import { getAvatarUrl } from '@/lib/utils';
+import { getAvatarUrl, saveDesktopCsv } from '@/lib/utils';
 import { ErrorDialog } from '@/components/ui/error-dialog';
 
 import { MoniteursStatsCards } from '../components/MoniteursStatsCards';
@@ -108,6 +108,30 @@ export default function MoniteursListPage(): React.JSX.Element {
   };
 
   const handleExport = () => {
+    void (async () => {
+      try {
+        const path = await saveDesktopCsv(
+          'exports/moniteurs',
+          `moniteurs-${new Date().toISOString().slice(0, 10)}`,
+          ['ID', 'Nom', 'Prenom', 'Email', 'Telephone', 'Specialite', 'Actif', 'Lecons', 'Heures estimees'],
+          moniteurs.map((moniteur) => [
+            moniteur.id,
+            moniteur.nom,
+            moniteur.prenom,
+            moniteur.email ?? '',
+            moniteur.telephone ?? '',
+            moniteur.specialite ?? '',
+            moniteur.actif ? 'Oui' : 'Non',
+            enrichments.getLeconsCount(moniteur),
+            enrichments.getHeuresTotales(moniteur),
+          ])
+        );
+        toast.success(`Export des moniteurs genere: ${path}`);
+      } catch {
+        toast.error("Impossible d'exporter les moniteurs");
+      }
+    })();
+    return;
     // TODO: implémenter l'export (CSV/Excel/PDF)
     toast.info('Fonction d’export à implémenter');
   };

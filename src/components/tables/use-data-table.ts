@@ -40,6 +40,17 @@ interface UseDataTableProps<TData, TValue> {
   initialColumnVisibility?: Record<string, boolean>;
   /** Fonction pour générer un identifiant unique pour chaque ligne (utilisé pour le drag & drop) */
   getRowId?: (row: TData) => string;
+  /** Active la pagination côté serveur / manuelle */
+  manualPagination?: boolean;
+  /** Nombre de pages disponibles pour la pagination manuelle */
+  pageCount?: number;
+  /** État de pagination piloté par le parent */
+  paginationState?: {
+    pageIndex: number;
+    pageSize: number;
+  };
+  /** Callback appelé lors d'un changement de pagination */
+  onPaginationChange?: (pagination: { pageIndex: number; pageSize: number }) => void;
 }
 
 /**
@@ -64,16 +75,31 @@ export function useDataTable<TData, TValue>({
   pageSizeOptions = [10, 20, 30, 40, 50],
   initialColumnVisibility = {},
   getRowId,
+  manualPagination = false,
+  pageCount,
+  paginationState,
+  onPaginationChange,
 }: UseDataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>(initialColumnVisibility);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [pagination, setPagination] = React.useState({
-    pageIndex: 0,
-    pageSize: defaultPageSize,
-  });
+  const [pagination, setPagination] = React.useState(() => ({
+    pageIndex: paginationState?.pageIndex ?? 0,
+    pageSize: paginationState?.pageSize ?? defaultPageSize,
+  }));
+
+  // Sync controlled pagination state from parent when provided
+  React.useEffect(() => {
+    if (!paginationState) return;
+    setPagination((prev) => {
+      if (prev.pageIndex === paginationState.pageIndex && prev.pageSize === paginationState.pageSize) {
+        return prev;
+      }
+      return { pageIndex: paginationState.pageIndex, pageSize: paginationState.pageSize };
+    });
+  }, [paginationState?.pageIndex, paginationState?.pageSize]);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -94,7 +120,14 @@ export function useDataTable<TData, TValue>({
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
-    onPaginationChange: setPagination,
+    onPaginationChange: (updater) => {
+      // updater may be a function or value
+      const newState = typeof updater === 'function' ? updater(pagination) : updater;
+      setPagination(newState);
+      if (onPaginationChange) onPaginationChange(newState);
+    },
+    manualPagination,
+    pageCount: manualPagination && pageCount ? pageCount : undefined,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),

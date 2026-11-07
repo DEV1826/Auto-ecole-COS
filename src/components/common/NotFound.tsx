@@ -12,6 +12,7 @@ import { GridShape } from '@/components/layout';
 import { PUBLIC_ROUTES } from '@/config/routes';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { appConfig } from '@/config';
+import { resolveAssetPath } from '@/lib/utils';
 
 /**
  * Page d'erreur 404 – Page introuvable.
@@ -43,8 +44,16 @@ export function NotFound() {
 
           {/* Illustration 404 (thème clair/sombre) */}
           <div className="flex justify-center">
-            <img src="/images/error/404.svg" alt="404" className="block dark:hidden sm:w-sm" />
-            <img src="/images/error/404-dark.svg" alt="404" className="hidden dark:block sm:w-sm" />
+            <img
+              src={resolveAssetPath('/images/error/404.svg')}
+              alt="404"
+              className="block dark:hidden sm:w-sm"
+            />
+            <img
+              src={resolveAssetPath('/images/error/404-dark.svg')}
+              alt="404"
+              className="hidden dark:block sm:w-sm"
+            />
           </div>
 
           {/* Message d'erreur */}

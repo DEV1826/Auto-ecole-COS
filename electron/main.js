@@ -7,10 +7,12 @@
  * @version 1.0.0
  */
 
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { getPrismaClient, disconnectPrisma, initializePrisma } from './services/prisma.client.js';
+const { app, BrowserWindow, dialog, ipcMain, protocol, shell } = globalThis.__ELECTRON_MAIN__ ?? {};
 
 import {
   login,
@@ -100,6 +102,7 @@ import {
   getSoldeCandidat,
   getResumeMensuel,
   printReceipt,
+  exportPaiementsReport,
 } from './services/paiement.service.js';
 
 import {
@@ -121,7 +124,7 @@ import {
   getCaisseStats,
   getCaisseTrends,
   getCaisseSparklines,
-  exportCaisseMouvements,
+  exportCaisseMouvementsFile,
 } from './services/caisse.service.js';
 
 import {
@@ -135,9 +138,9 @@ import {
   getFacturesSparklines,
   getPaiementsByFacture,
   getFacturesByCandidat,
-  generateFacturePDF,
   sendFactureByEmail,
 } from './services/facture.service.js';
+import { generateFacturePDFDesktop } from './services/facture.pdf.service.js';
 
 import {
   createVehicule,
@@ -196,6 +199,7 @@ import {
   getExamensSparklines,
   getExamensByCandidat,
   printCertificate,
+  exportExamensReport,
 } from './services/examen.service.js';
 
 import {
@@ -206,29 +210,220 @@ import {
   updateCompanyConfig,
 } from './services/admin.service.js';
 
-import {
-  exportDashboardSnapshot,
-  exportFactures,
-  getExportDirectory,
-} from './services/exportService.js';
-
-import {
-  exportReceipt,
-  getAll as getAllRecus,
-  getById as getRecuById,
-} from './services/recuService.js';
 import { globalSearch } from './services/globalSearch.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const preloadPath = path.join(__dirname, 'preload.js');
+const preloadPath = path.join(__dirname, 'preload.cjs');
 const isDev = !app.isPackaged;
+let assetProtocolIntercepted = false;
+
+function getStartupLogPath() {
+  try {
+    const baseDir = app?.isPackaged
+      ? app.getPath('userData')
+      : path.join(process.cwd(), '.codex-run');
+    if (!fs.existsSync(baseDir)) {
+      fs.mkdirSync(baseDir, { recursive: true });
+    }
+    return path.join(baseDir, 'electron-startup.log');
+  } catch {
+    return path.join(os.tmpdir(), 'autoecole-cos-startup.log');
+  }
+}
+
+function serializeError(error) {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}\n${error.stack ?? ''}`;
+  }
+  return String(error);
+}
+
+function logStartup(message, error = null) {
+  const timestamp = new Date().toISOString();
+  const content = [`[${timestamp}] ${message}`];
+  if (error) {
+    content.push(serializeError(error));
+  }
+  const line = `${content.join('\n')}\n`;
+
+  console.log(line.trim());
+
+  try {
+    fs.appendFileSync(getStartupLogPath(), line, 'utf8');
+  } catch (writeError) {
+    console.error('Impossible d ecrire le journal de demarrage', writeError);
+  }
+}
+
+function showStartupError(error) {
+  const details = serializeError(error);
+  const logPath = getStartupLogPath();
+
+  logStartup('Echec de demarrage detecte', error);
+
+  try {
+    dialog.showErrorBox(
+      'Auto-Ecole COS - Erreur au demarrage',
+      `L application n a pas pu demarrer.\n\n${details}\n\nJournal: ${logPath}`
+    );
+  } catch (dialogError) {
+    console.error('Impossible d afficher la boite d erreur', dialogError);
+  }
+}
+
+function normalizeFileProtocolPath(pathname) {
+  const decoded = decodeURIComponent(pathname);
+  if (process.platform === 'win32' && decoded.startsWith('/')) {
+    return decoded.slice(1);
+  }
+  return decoded;
+}
+
+function registerFileAssetInterceptor() {
+  if (isDev || assetProtocolIntercepted) return;
+
+  const distRoot = path.resolve(path.join(__dirname, '../dist'));
+  const rootAssetPrefixes = ['/assets/', '/icons/', '/images/', '/favicon.svg'];
+
+  protocol.interceptFileProtocol('file', (request, callback) => {
+    try {
+      const url = new URL(request.url);
+      const requestedPath = decodeURIComponent(url.pathname || '');
+      const shouldResolveFromDist = rootAssetPrefixes.some((prefix) =>
+        requestedPath.startsWith(prefix)
+      );
+
+      if (shouldResolveFromDist) {
+        const relativeAssetPath = requestedPath.replace(/^\/+/, '');
+        const redirectedPath = path.join(distRoot, relativeAssetPath);
+        callback({ path: redirectedPath });
+        return;
+      }
+
+      callback({ path: normalizeFileProtocolPath(url.pathname) });
+    } catch (error) {
+      logStartup('Interception fichier echouee', error);
+      callback({ error: -6 });
+    }
+  });
+
+  assetProtocolIntercepted = true;
+  logStartup(`Interception des assets racine activee vers ${distRoot}`);
+}
+
+async function printPdfFile(filePath, title = 'Document') {
+  if (!filePath) {
+    throw new Error('Chemin de fichier PDF manquant.');
+  }
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Fichier PDF introuvable : ${filePath}`);
+  }
+
+  const printWindow = new BrowserWindow({
+    show: false,
+    title,
+    autoHideMenuBar: true,
+    webPreferences: {
+      sandbox: false,
+    },
+  });
+
+  const cleanup = () => {
+    if (!printWindow.isDestroyed()) {
+      printWindow.close();
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
+
+    printWindow.webContents.once('did-fail-load', (_event, errorCode, errorDescription) => {
+      fail(new Error(`Impossible de charger le PDF (${errorCode}): ${errorDescription}`));
+      cleanup();
+    });
+
+    printWindow.webContents.once('did-finish-load', () => {
+      setTimeout(() => {
+        printWindow.webContents.print(
+          {
+            silent: false,
+            printBackground: true,
+          },
+          (success, failureReason) => {
+            if (!success) {
+              if (failureReason && /cancel/i.test(failureReason)) {
+                finish({
+                  success: false,
+                  cancelled: true,
+                  message: "Impression annulée par l'utilisateur.",
+                  path: filePath,
+                });
+              } else {
+                fail(new Error(failureReason || "L'impression du PDF a échoué."));
+              }
+            } else {
+              finish({ success: true, path: filePath });
+            }
+            cleanup();
+          }
+        );
+      }, 500);
+    });
+
+    const pdfUrl = pathToFileURL(filePath);
+    printWindow.loadURL(pdfUrl.toString()).catch((error) => {
+      fail(error);
+      cleanup();
+    });
+  });
+}
+
+if (isDev) {
+  const localUserDataPath = path.join(os.tmpdir(), 'autoecole-cos-dev-user-data');
+  app.setPath('userData', localUserDataPath);
+}
+
+function ensureProductionDatabase() {
+  if (isDev) return;
+
+  const userDataPath = app.getPath('userData');
+  const targetDbPath = path.join(userDataPath, 'database.db');
+  const bundledDbPath = path.join(process.resourcesPath, 'prisma', 'dev.db');
+
+  if (fs.existsSync(targetDbPath)) return;
+
+  if (!fs.existsSync(userDataPath)) {
+    fs.mkdirSync(userDataPath, { recursive: true });
+  }
+
+  if (!fs.existsSync(bundledDbPath)) {
+    throw new Error(`Base SQLite embarquee introuvable : ${bundledDbPath}`);
+  }
+
+  fs.copyFileSync(bundledDbPath, targetDbPath);
+  logStartup(`Base SQLite copiee vers ${targetDbPath}`);
+}
 
 /**
  * Crée et retourne la fenêtre principale de l'application.
  * @returns {BrowserWindow} La fenêtre créée.
  */
 function createWindow() {
+  logStartup('Creation de la fenetre principale');
+
   const window = new BrowserWindow({
     width: 1440,
     height: 920,
@@ -245,23 +440,27 @@ function createWindow() {
     },
   });
 
+  
   if (isDev && process.env.VITE_DEV_SERVER_URL) {
+    logStartup(`Chargement URL dev ${process.env.VITE_DEV_SERVER_URL}`);
     window.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
-    // En prod : charge le HTML construit par Vite
-    window.loadFile(path.join(__dirname, '../dist/index.html'));
+    const htmlPath = path.join(__dirname, '../dist/index.html');
+    logStartup(`Chargement HTML prod ${htmlPath}`);
+    window.loadFile(htmlPath);
   }
 
   window.webContents.on('did-finish-load', () => {
+    logStartup('Fenetre chargee, affichage');
     window.show();
   });
 
   window.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-    console.error(`❌ Failed to load: ${errorDescription} (${errorCode})`);
+    logStartup(`Chargement echoue: ${errorDescription} (${errorCode})`);
   });
 
   window.webContents.on('crashed', () => {
-    console.error('❌ Renderer process crashed');
+    logStartup('Renderer process crashed');
   });
 
   return window;
@@ -278,6 +477,18 @@ function getClientInfo(event) {
     ip: '127.0.0.1',
     userAgent: event.sender.getUserAgent(),
   };
+}
+
+async function getExportService() {
+  return import('./services/exportService.js');
+}
+
+async function getRecuService() {
+  return import('./services/recuService.js');
+}
+
+function createExportTimestamp() {
+  return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
 /**
@@ -527,6 +738,10 @@ function registerIpcHandlers() {
 
   ipcMain.handle('documents:open', async (event, { chemin }) => {
     return openDocument(chemin);
+  });
+
+  ipcMain.handle('documents:print', async (_event, { chemin, title }) => {
+    return printPdfFile(chemin, title);
   });
 
   // =============================
@@ -837,7 +1052,7 @@ function registerIpcHandlers() {
    * @param {CaisseListParams} params
    */
   ipcMain.handle('caisse:exportMouvements', async (event, params) => {
-    return exportCaisseMouvements(params);
+    return exportCaisseMouvementsFile(params);
   });
 
   // =============================
@@ -938,7 +1153,7 @@ function registerIpcHandlers() {
    * @param {number} id
    */
   ipcMain.handle('factures:generatePDF', async (event, id) => {
-    return generateFacturePDF(id);
+    return generateFacturePDFDesktop(id);
   });
 
   /**
@@ -1329,37 +1544,101 @@ function registerIpcHandlers() {
     return globalSearch(query);
   });
 
-  ipcMain.handle('recu:list', async () => getAllRecus());
-  ipcMain.handle('recu:get', async (_event, id) => getRecuById(id));
-  ipcMain.handle('recu:export', async (_event, id) => exportReceipt(id));
+  ipcMain.handle('recu:list', async () => {
+    const recuService = await getRecuService();
+    return recuService.getAll();
+  });
+  ipcMain.handle('recu:get', async (_event, id) => {
+    const recuService = await getRecuService();
+    return recuService.getById(id);
+  });
+  ipcMain.handle('recu:export', async (_event, id) => {
+    const recuService = await getRecuService();
+    return recuService.exportReceipt(id);
+  });
 
-  ipcMain.handle('export:recu', async (_event, payload) => exportFactures(payload));
-  ipcMain.handle('export:bilan', async (_event, payload) => exportDashboardSnapshot(payload));
-  ipcMain.handle('export:excel', async (_event, payload) => exportFactures(payload));
+  ipcMain.handle('export:recu', async (_event, payload) => {
+    const exportService = await getExportService();
+    return exportService.exportFactures(payload);
+  });
+  ipcMain.handle('export:bilan', async (_event, payload) => {
+    const exportService = await getExportService();
+    return exportService.exportDashboardSnapshot(payload);
+  });
+  ipcMain.handle('export:excel', async (_event, payload) => {
+    const exportService = await getExportService();
+    return exportService.exportFactures(payload);
+  });
   ipcMain.handle('export:openFolder', async () => {
-    const exportDir = await getExportDirectory();
+    const exportService = await getExportService();
+    const exportDir = await exportService.getExportDirectory();
     await shell.openPath(exportDir);
     return { path: exportDir };
   });
-  ipcMain.handle('exports:dashboard', async (_event, payload) => exportDashboardSnapshot(payload));
-  ipcMain.handle('exports:factures', async (_event, payload) => exportFactures(payload));
+  ipcMain.handle('exports:dashboard', async (_event, payload) => {
+    const exportService = await getExportService();
+    return exportService.exportDashboardSnapshot(payload);
+  });
+  ipcMain.handle('exports:saveFile', async (_event, payload = {}) => {
+    const {
+      folder = 'general',
+      baseName = 'export',
+      extension = 'csv',
+      content = '',
+    } = payload;
+
+    const exportDir = path.join(app.getPath('documents'), 'Auto-Ecole COS', 'exports', folder);
+    await fs.promises.mkdir(exportDir, { recursive: true });
+
+    const filePath = path.join(
+      exportDir,
+      `${baseName}-${createExportTimestamp()}.${String(extension).replace(/^\./, '')}`
+    );
+
+    await fs.promises.writeFile(filePath, content, 'utf8');
+    await shell.openPath(filePath);
+
+    return { success: true, path: filePath };
+  });
+  ipcMain.handle('exports:factures', async (_event, payload) => {
+    const exportService = await getExportService();
+    return exportService.exportFactures(payload);
+  });
+  ipcMain.handle('exports:paiements', async (_event, payload) => {
+    return exportPaiementsReport(payload);
+  });
+  ipcMain.handle('exports:examens', async (_event, payload) => {
+    return exportExamensReport(payload);
+  });
 }
 
 // Initialisation au démarrage
+process.on('uncaughtException', (error) => {
+  showStartupError(error);
+});
+
+process.on('unhandledRejection', (reason) => {
+  const error = reason instanceof Error ? reason : new Error(String(reason));
+  showStartupError(error);
+});
+
 app.whenReady().then(async () => {
   try {
+    logStartup('Application prete, debut initialisation');
+    registerFileAssetInterceptor();
+    ensureProductionDatabase();
     await initializePrisma();
-    console.log('✅ Base de données prête.');
+    logStartup('Base de donnees prete');
 
-    // Maintenant seulement, on peut utiliser getPrismaClient()
     const prisma = getPrismaClient();
     await prisma.$connect();
-    console.log('✅ Prisma connecté.');
+    logStartup('Prisma connecte');
 
     registerIpcHandlers();
+    logStartup('Handlers IPC enregistres');
     createWindow();
   } catch (err) {
-    console.error('❌ Échec du démarrage :', err);
+    showStartupError(err);
     app.quit();
   }
 
@@ -1373,7 +1652,7 @@ app.whenReady().then(async () => {
 // Fermeture propre
 app.on('window-all-closed', async () => {
   await disconnectPrisma();
-  console.log('🔌 Prisma déconnecté');
+  logStartup('Prisma deconnecte');
   if (process.platform !== 'darwin') {
     app.quit();
   }

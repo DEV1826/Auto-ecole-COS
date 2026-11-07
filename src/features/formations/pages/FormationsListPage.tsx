@@ -36,6 +36,7 @@ import { PROTECTED_ROUTES, route } from '@/config';
 import { FormationsStatsCards } from '../components/FormationsStatsCards';
 import { FormationsTable } from '../components/FormationsTable';
 import { FormationTrendChart } from '../components/FormationTrendChart';
+import { saveDesktopCsv } from '@/lib/utils';
 
 import type { Formation } from '@/types/formations.types';
 import type { FormationTrendChartProps } from '../components/FormationTrendChart';
@@ -246,7 +247,7 @@ export default function FormationsListPage(): React.JSX.Element {
           {/* Cartes statistiques - 2/3 de la largeur */}
           <div className="lg:col-span-2">
             <FormationsStatsCards
-              stats={stats!}
+              stats={stats}
               trends={trends || undefined}
               formationsActivesSparkline={sparklines?.formationsActivesSparkline}
               prixMoyenSparkline={sparklines?.prixMoyenSparkline}
@@ -260,7 +261,7 @@ export default function FormationsListPage(): React.JSX.Element {
           <div className="lg:col-span-1">
 
             <FormationTrendChart
-              {...trendChartProps!}
+              {...(trendChartProps ?? { type: 'multi', data: [], totalValue: 0 })}
               title="Tendances des inscriptions"
               isLoading={isLoading}
             />

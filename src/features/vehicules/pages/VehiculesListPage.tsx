@@ -30,7 +30,7 @@ import { useAuth } from '@/hooks/use.auth';
 import { useVehicules } from '@/hooks/use.vehicules';
 import { useNavigate } from 'react-router-dom';
 import { PROTECTED_ROUTES, route } from '@/config';
-import { getAvatarUrl } from '@/lib/utils';
+import { getAvatarUrl, resolveAssetPath, saveDesktopCsv } from '@/lib/utils';
 import { VehiculesStatsCards } from '../components/VehiculesStatsCards';
 import { VehiculesTable } from '../components/VehiculesTable';
 import { VehiculesEnLeconCard } from '../components/VehiculesEnLeconCard';
@@ -99,6 +99,30 @@ export default function VehiculesListPage(): React.JSX.Element {
   };
 
   const handleExport = () => {
+    void (async () => {
+      try {
+        const path = await saveDesktopCsv(
+          'exports/vehicules',
+          `vehicules-${new Date().toISOString().slice(0, 10)}`,
+          ['ID', 'Immatriculation', 'Marque', 'Modele', 'Annee', 'Categorie', 'Kilometrage', 'Statut', 'Prochaine revision km'],
+          vehicules.map((vehicule) => [
+            vehicule.id,
+            vehicule.immatriculation,
+            vehicule.marque,
+            vehicule.modele,
+            vehicule.annee,
+            vehicule.categorie,
+            vehicule.kilometrage,
+            vehicule.statut,
+            vehicule.prochaineRevisionKm ?? '',
+          ])
+        );
+        toast.success(`Export des vehicules genere: ${path}`);
+      } catch {
+        toast.error("Impossible d'exporter les vehicules");
+      }
+    })();
+    return;
     // TODO: implémenter l'export des véhicules (CSV/Excel/PDF)
     toast.info('Fonction d’export à implémenter');
   };
@@ -144,7 +168,7 @@ export default function VehiculesListPage(): React.JSX.Element {
   // ── Enrichissements pour le tableau ───────────────────────────────
   const enrichments = {
     getMarqueModeleComplet: (v: Vehicule) => `${v.marque} ${v.modele}`,
-    getAvatarUrl: (v: Vehicule) => `/images/brand/${v.marque.toLowerCase()}.png`,
+    getAvatarUrl: (v: Vehicule) => resolveAssetPath(`/images/brand/${v.marque.toLowerCase()}.png`),
     getInitials: (v: Vehicule) => `${v.marque[0]}${v.modele[0]}`,
     getProchaineRevisionKm: (v: Vehicule) => v.prochaineRevisionKm ?? v.kilometrage + 20000,
     isRevisionDue: (v: Vehicule) => v.kilometrage >= (v.prochaineRevisionKm ?? Infinity),
@@ -257,7 +281,7 @@ export default function VehiculesListPage(): React.JSX.Element {
                 isLoading={isLoading}
                 statusLabel="En leçon"
                 statusColor="bg-emerald-500"
-                illustrationSrc="/images/brand/car.png"
+                illustrationSrc={resolveAssetPath('/images/brand/car.png')}
                 driverInfo={driverInfo}
                 className="h-full"
               />

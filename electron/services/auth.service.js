@@ -171,10 +171,12 @@ export async function login({ email, password, ipAddress, userAgent }) {
       throw new Error('Email et mot de passe obligatoires.');
     }
 
+    const normalizedEmail = String(email).trim().toLowerCase();
+
     // Récupérer l'utilisateur avec ses permissions actives
     const user = await findUnique(
       'utilisateur',
-      { email },
+      { email: normalizedEmail },
       {
         permissions: { where: { actif: true } },
       }
@@ -211,15 +213,23 @@ export async function login({ email, password, ipAddress, userAgent }) {
     const refreshToken = generateRefreshToken(user.id);
     const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
 
-    const session = await create('session', {
-      utilisateurId: user.id,
-      token: accessToken,
-      refreshToken,
-      expiresAt,
-      ipAddress,
-      userAgent,
-      actif: true,
-    });
+    let session = null;
+    try {
+      session = await create('session', {
+        utilisateurId: user.id,
+        token: accessToken,
+        refreshToken,
+        expiresAt,
+        ipAddress,
+        userAgent,
+        actif: true,
+      });
+    } catch (sessionError) {
+      console.warn(
+        "Creation de session persistante impossible, poursuite avec une session locale seulement:",
+        sessionError
+      );
+    }
 
     await logAudit(
       user.id,
@@ -240,7 +250,7 @@ export async function login({ email, password, ipAddress, userAgent }) {
       displayName: `${user.prenom} ${user.nom}`,
       token: accessToken,
       refreshToken,
-      sessionId: session.id,
+      sessionId: session?.id ?? null,
       permissions: user.permissions.map((p) => ({
         ressource: p.ressource,
         action: p.action,
@@ -400,6 +410,52 @@ function consumeSetupAccessToken(accessToken) {
   setupAccessTokens.delete(accessToken);
 }
 
+async function ensureDefaultFormations(tx) {
+  const formationsCount = await tx.formation.count();
+  if (formationsCount > 0) return;
+
+  const defaultFormations = [
+    {
+      nom: 'Permis B (Voiture)',
+      description: "Formation complète pour l'obtention du permis de conduire catégorie B.",
+      prixTotal: 90000,
+      heuresCode: 12,
+      heuresConduite: 20,
+      categorie: 'B',
+      actif: true,
+    },
+    {
+      nom: 'Permis A (Moto)',
+      description: 'Formation pour le permis moto, incluant plateau et circulation.',
+      prixTotal: 900000,
+      heuresCode: 10,
+      heuresConduite: 18,
+      categorie: 'A',
+      actif: true,
+    },
+    {
+      nom: 'Permis C (Poids lourd)',
+      description: 'Formation pour conduite de camions et poids lourds.',
+      prixTotal: 900000,
+      heuresCode: 15,
+      heuresConduite: 25,
+      categorie: 'C',
+      actif: true,
+    },
+  ];
+
+  for (const formationData of defaultFormations) {
+    const formation = await tx.formation.create({ data: formationData });
+    await tx.tarif.create({
+      data: {
+        formationId: formation.id,
+        prix: formation.prixTotal,
+        dateDebut: new Date(),
+      },
+    });
+  }
+}
+
 /**
  * Valide le code développeur et retourne un jeton court pour accéder à l'initialisation.
  * @param {Object} params
@@ -528,6 +584,8 @@ export async function createInitialSetup({ accessToken, company, admin, ipAddres
           actif: true,
         },
       });
+
+      await ensureDefaultFormations(tx);
 
       return { companyConfig, user };
     });
@@ -1264,7 +1322,8 @@ export async function requestPasswordResetByEmail({ email, isAdmin = false }) {
   return executePrismaOperation(async () => {
     if (!email) throw new Error('Email requis.');
 
-    const user = await findUnique('utilisateur', { email });
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const user = await findUnique('utilisateur', { email: normalizedEmail });
     if (!user) {
       // Sécurité : ne pas révéler l'existence de l'email
       return {

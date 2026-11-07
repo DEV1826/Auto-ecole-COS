@@ -12,6 +12,7 @@ import { GridShape } from '@/components/layout';
 import { PUBLIC_ROUTES } from '@/config/routes';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { appConfig } from '@/config/app.config';
+import { resolveAssetPath } from '@/lib/utils';
 
 export interface StatusProps {
   /** Code HTTP (ex: 500, 503, etc.) */
@@ -45,22 +46,22 @@ export function Status({
   const getIllustration = () => {
     if (code === 500) {
       return {
-        light: '/images/error/500.svg',
-        dark: '/images/error/500-dark.svg',
+        light: resolveAssetPath('/images/error/500.svg'),
+        dark: resolveAssetPath('/images/error/500-dark.svg'),
         alt: 'Erreur serveur',
       };
     }
     if (code === 503) {
       return {
-        light: '/images/error/503.svg',
-        dark: '/images/error/503-dark.svg',
+        light: resolveAssetPath('/images/error/503.svg'),
+        dark: resolveAssetPath('/images/error/503-dark.svg'),
         alt: 'Service indisponible',
       };
     }
     // Illustration par défaut (404 ou autre)
     return {
-      light: '/images/error/404.svg',
-      dark: '/images/error/404-dark.svg',
+      light: resolveAssetPath('/images/error/404.svg'),
+      dark: resolveAssetPath('/images/error/404-dark.svg'),
       alt: 'Erreur',
     };
   };

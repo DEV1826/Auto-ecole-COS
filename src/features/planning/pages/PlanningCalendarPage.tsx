@@ -42,22 +42,24 @@
 
 import * as React from 'react';
 import { toast } from 'sonner';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { usePlanning } from '@/hooks/use.planning';
+import { useExamens } from '@/hooks/use.examens';
 import { PUBLIC_ROUTES } from '@/config/routes';
+import { PROTECTED_ROUTES } from '@/config/routes';
 import { useAuth } from '@/hooks/use.auth';
 import { type Role as RoleType } from '@/types/enums';
 import { AppCalendar } from '@/components/calendar/app-calendar';
-import { getAvatarUrl } from '@/lib/utils';
 import type {
   CalendarActions,
   CalendarEvent,
   CalendarEventFormData,
-  CalendarEventType,
+  CalendarEventStatus,
 } from '@/components/calendar/types';
-
-// ============================================================
-// Configuration par rôle
-// ============================================================
+import {
+  convertExamenToCalendarEvent,
+  convertLeconToCalendarEvent,
+} from '@/components/calendar/types';
 
 /**
  * Configuration des permissions et actions selon le rôle.
@@ -68,32 +70,23 @@ function getRoleCalendarConfig(role: RoleType) {
   switch (role) {
     case 'ADMIN':
       return {
-        canCreate: true,
+        canCreate: false,
         canEdit: true,
         canDelete: true,
-        allowedEventTypes: [
-          'lesson',
-          'exam',
-          'payment',
-          'maintenance',
-          'reminder',
-        ] as CalendarEventType[],
         description: 'Gestion complète du planning auto‑école',
       };
     case 'SECRETAIRE':
       return {
-        canCreate: true,
+        canCreate: false,
         canEdit: true,
         canDelete: true,
-        allowedEventTypes: ['lesson', 'exam', 'payment', 'reminder'] as CalendarEventType[],
         description: 'Gestion des leçons, examens, paiements et rappels',
       };
     case 'MONITEUR':
       return {
-        canCreate: true,
+        canCreate: false,
         canEdit: true,
         canDelete: false,
-        allowedEventTypes: ['lesson'] as CalendarEventType[],
         description: 'Consultez votre planning et validez les présences',
       };
     default:
@@ -101,160 +94,22 @@ function getRoleCalendarConfig(role: RoleType) {
         canCreate: false,
         canEdit: false,
         canDelete: false,
-        allowedEventTypes: [] as CalendarEventType[],
         description: 'Calendrier COS',
       };
   }
 }
 
-// ============================================================
-// Données mockées (simulation d’API)
-// ============================================================
-
-/**
- * Génère un ensemble d’événements mockés pour le développement.
- * Ces données seront remplacées par des appels API réels.
- * @returns Tableau d’événements calendrier typés
- */
-function generateMockEvents(): CalendarEvent[] {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  return [
-    {
-      id: 1,
-      title: 'Leçon de conduite - Charles Ndong',
-      type: 'lesson',
-      status: 'CONFIRMED',
-      startDate: new Date(today.getTime() + 9 * 3600000),
-      endDate: new Date(today.getTime() + 10 * 3600000),
-      allDay: false,
-      location: 'Piste 1',
-      description: 'Première leçon de conduite, prise en main du véhicule',
-      notes: 'Candidat sérieux',
-      priority: 'MEDIUM',
-      isUrgent: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      candidat: {
-        id: 1,
-        name: 'Charles Ndong',
-        avatarUrl: getAvatarUrl('Charles Ndong'),
-        role: 'Candidat',
-      },
-      moniteur: {
-        id: 1,
-        name: 'Marc Dubois',
-        avatarUrl: getAvatarUrl('Marc Dubois'),
-        role: 'Moniteur',
-      },
-      vehicule: 'LT-123-AB',
-    },
-    {
-      id: 2,
-      title: 'Examen code - Catherine Mbarga',
-      type: 'exam',
-      status: 'CONFIRMED',
-      startDate: new Date(today.getTime() + 14 * 3600000),
-      endDate: new Date(today.getTime() + 15 * 3600000),
-      allDay: false,
-      location: 'Centre d’examen Ngoa-Ekelle',
-      description: 'Examen du code de la route',
-      notes: 'Résultats attendus dans la semaine',
-      priority: 'HIGH',
-      isUrgent: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      candidat: {
-        id: 2,
-        name: 'Catherine Mbarga',
-        avatarUrl: getAvatarUrl('Catherine Mbarga'),
-        role: 'Candidat',
-      },
-    },
-    {
-      id: 3,
-      title: 'Rappel paiement - Jean Ewolo',
-      type: 'payment',
-      status: 'PLANIFIED',
-      startDate: new Date(today.getTime() + 2 * 24 * 3600000),
-      endDate: new Date(today.getTime() + 2 * 24 * 3600000 + 3600000),
-      allDay: false,
-      description: 'Deuxième versement dû pour la formation',
-      notes: 'Acompte déjà versé, reste 150 000 FCFA',
-      priority: 'MEDIUM',
-      isUrgent: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      montant: 150000,
-      candidat: {
-        id: 3,
-        name: 'Jean Ewolo',
-        avatarUrl: getAvatarUrl('Jean Ewolo'),
-        role: 'Candidat',
-      },
-    },
-    {
-      id: 4,
-      title: 'Entretien véhicule LT-789-EF',
-      type: 'maintenance',
-      status: 'CONFIRMED',
-      startDate: new Date(today.getTime() + 5 * 24 * 3600000),
-      endDate: new Date(today.getTime() + 5 * 24 * 3600000 + 2 * 3600000),
-      allDay: false,
-      location: 'Garage du Centre',
-      description: 'Révision générale + vidange',
-      notes: 'Véhicule Peugeot 208',
-      priority: 'HIGH',
-      isUrgent: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      vehicule: 'LT-789-EF',
-    },
-    {
-      id: 5,
-      title: 'Leçon code - Anne Tchoffo',
-      type: 'lesson',
-      status: 'CONFIRMED',
-      startDate: new Date(today.getTime() + 3 * 24 * 3600000 + 10 * 3600000),
-      endDate: new Date(today.getTime() + 3 * 24 * 3600000 + 12 * 3600000),
-      allDay: false,
-      location: 'Salle de code',
-      description: 'Révision des panneaux',
-      priority: 'LOW',
-      isUrgent: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      candidat: {
-        id: 4,
-        name: 'Anne Tchoffo',
-        avatarUrl: getAvatarUrl('Anne Tchoffo'),
-        role: 'Candidat',
-      },
-      moniteur: {
-        id: 2,
-        name: 'Sophie Martin',
-        avatarUrl: getAvatarUrl('Sophie Martin'),
-        role: 'Moniteur',
-      },
-      vehicule: 'LT-456-CD',
-    },
-    {
-      id: 6,
-      title: 'Rappel administratif - Réunion équipe',
-      type: 'reminder',
-      status: 'CONFIRMED',
-      startDate: new Date(today.getTime() + 4 * 24 * 3600000 + 8 * 3600000),
-      endDate: new Date(today.getTime() + 4 * 24 * 3600000 + 9 * 3600000),
-      allDay: false,
-      location: 'Salle de réunion',
-      description: 'Point hebdomadaire avec les moniteurs',
-      priority: 'MEDIUM',
-      isUrgent: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  ];
+function mapCalendarStatusToLeconStatus(status?: CalendarEventStatus) {
+  switch (status) {
+    case 'DONE':
+      return 'EFFECTUEE';
+    case 'CANCELLED':
+      return 'ANNULEE';
+    case 'MISSED':
+      return 'ABSENCE';
+    default:
+      return 'PLANIFIEE';
+  }
 }
 
 // ============================================================
@@ -270,143 +125,183 @@ function generateMockEvents(): CalendarEvent[] {
  * @returns Élément React de la page
  */
 export default function PlanningCalendarPage(): React.JSX.Element {
+  const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const planning = usePlanning();
+  const examens = useExamens();
 
-  // État des événements
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  // Chargement mocké (à remplacer par appel API réel)
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      setEvents(generateMockEvents());
-      setIsLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
-
   const role = user?.role as RoleType;
   const config = getRoleCalendarConfig(role);
+  const moniteurId = role === 'MONITEUR' ? user?.id : undefined;
 
-  /**
-   * Filtre les événements en fonction du rôle :
-   * - ADMIN → tous les événements
-   * - SECRETAIRE → tous mais sans maintenance (optionnel)
-   * - MONITEUR → uniquement ses propres leçons
-   */
-  const filteredEvents = React.useMemo(() => {
-    if (role === 'MONITEUR' && user?.id) {
-      return events.filter((ev) => ev.type === 'lesson' && ev.moniteur?.id === user?.id);
-    }
-    if (role === 'SECRETAIRE') {
-      // Le secrétaire peut voir les maintenances s’il le faut, mais on les garde
-      return events;
-    }
-    return events;
-  }, [events, role, user?.id]);
+  const loadEvents = React.useCallback(async () => {
+    if (!user) return;
 
-  // Garde d’authentification
+    setIsLoading(true);
+    try {
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 2);
+      const endDate = new Date();
+      endDate.setMonth(endDate.getMonth() + 4);
+
+      const lessonPromise = planning.getBetweenDates(
+        startDate.toISOString(),
+        endDate.toISOString(),
+        moniteurId
+      );
+
+      const examPromise =
+        role === 'MONITEUR'
+          ? Promise.resolve({ examens: [] })
+          : examens.getAll({
+              page: 1,
+              limit: 500,
+              dateDebut: startDate.toISOString(),
+              dateFin: endDate.toISOString(),
+              sortBy: 'date',
+              sortOrder: 'asc',
+            });
+
+      const [lecons, examensResponse] = await Promise.all([lessonPromise, examPromise]);
+      const nextEvents = [
+        ...lecons.map(convertLeconToCalendarEvent),
+        ...(examensResponse.examens ?? []).map(convertExamenToCalendarEvent),
+      ].sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+
+      setEvents(nextEvents);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Impossible de charger le planning réel'
+      );
+      setEvents([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [examens, moniteurId, planning, role, user]);
+
+  React.useEffect(() => {
+    void loadEvents();
+  }, [loadEvents]);
+
   if (!isAuthenticated || !user) {
     return <Navigate to={PUBLIC_ROUTES.AUTH.LOGIN} replace />;
   }
 
-  /**
-   * Actions CRUD du calendrier.
-   * Ces fonctions sont appelées par AppCalendar après validation.
-   */
   const actions: CalendarActions = {
-    onCreate: async (data: CalendarEventFormData) => {
-      // Simulation d’envoi à l’API
-      const newEvent: CalendarEvent = {
-        id: Date.now(),
-        title: data.title,
-        type: data.type,
-        status: data.status,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        allDay: data.allDay,
-        location: data.location,
-        description: data.description,
-        notes: data.notes,
-        priority: data.priority,
-        isUrgent: data.isUrgent,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        // Les relations (candidat, moniteur) devraient être chargées depuis l’API
-      };
-      setEvents((prev) => [...prev, newEvent]);
-      toast.success('Événement créé', {
-        description: `"${data.title}" a été ajouté au planning`,
-      });
+    onCreate: async (_data: CalendarEventFormData) => {
+      toast.info(
+        'Utilisez les formulaires dédiés pour créer une leçon ou un examen. Le calendrier affiche désormais les données réelles.'
+      );
     },
 
     onUpdate: async (id: number, data: Partial<CalendarEventFormData>) => {
-      setEvents((prev) =>
-        prev.map((ev) => (ev.id === id ? { ...ev, ...data, updatedAt: new Date() } : ev))
-      );
-      toast.success('Événement modifié');
+      const target = events.find((event) => event.id === id);
+      if (!target) return;
+
+      if (target.type === 'lesson') {
+        const durationMinutes =
+          data.startDate && data.endDate
+            ? Math.max(
+                30,
+                Math.round((data.endDate.getTime() - data.startDate.getTime()) / 60000)
+              )
+            : undefined;
+
+        await planning.update(id, {
+          date: data.startDate?.toISOString(),
+          duree: durationMinutes,
+          notes: data.notes,
+          statut: mapCalendarStatusToLeconStatus(data.status),
+        });
+      } else if (target.type === 'exam') {
+        await examens.update(id, {
+          date: data.startDate?.toISOString(),
+          centre: data.location,
+          notes: data.notes,
+        });
+      }
+
+      await loadEvents();
+      toast.success('Événement mis à jour');
     },
 
     onDelete: async (id: number) => {
-      setEvents((prev) => prev.filter((ev) => ev.id !== id));
+      const target = events.find((event) => event.id === id);
+      if (!target) return;
+
+      if (target.type === 'lesson') {
+        await planning.delete(id);
+      } else if (target.type === 'exam') {
+        await examens.delete(id);
+      } else {
+        toast.info("Ce type d'événement n'est pas supprimable depuis le calendrier.");
+        return;
+      }
+
+      await loadEvents();
       toast.success('Événement supprimé');
     },
 
     onConfirm: async (event: CalendarEvent) => {
-      setEvents((prev) =>
-        prev.map((ev) =>
-          ev.id === event.id
-            ? {
-                ...ev,
-                status: 'CONFIRMED',
-                notes: `${ev.notes || ''} [confirmée le ${new Date().toLocaleDateString('fr-FR')}]`,
-                updatedAt: new Date(),
-              }
-            : ev
-        )
-      );
-      toast.success('Confirmation enregistrée', {
-        description: `"${event.title}" a été confirmé`,
+      if (event.type !== 'lesson') {
+        toast.info("La confirmation dédiée n'est disponible que pour les leçons.");
+        return;
+      }
+
+      await planning.update(event.id, {
+        statut: 'PLANIFIEE',
+        notes: event.notes,
       });
+      await loadEvents();
+      toast.success('Leçon confirmée');
     },
 
     onCancel: async (event: CalendarEvent) => {
-      setEvents((prev) =>
-        prev.map((ev) =>
-          ev.id === event.id ? { ...ev, status: 'CANCELLED', updatedAt: new Date() } : ev
-        )
-      );
-      toast.info('Annulation enregistrée', {
-        description: `"${event.title}" a été annulé`,
-      });
+      if (event.type !== 'lesson') {
+        toast.info("L'annulation depuis le calendrier est gérée uniquement pour les leçons.");
+        return;
+      }
+
+      await planning.update(event.id, { statut: 'ANNULEE' });
+      await loadEvents();
+      toast.info('Leçon annulée');
     },
 
     onComplete: async (event: CalendarEvent) => {
-      setEvents((prev) =>
-        prev.map((ev) =>
-          ev.id === event.id ? { ...ev, status: 'DONE', updatedAt: new Date() } : ev
-        )
-      );
-      toast.success('Événement marqué comme effectué', {
-        description: `"${event.title}" a été terminé`,
-      });
+      if (event.type !== 'lesson') {
+        toast.info("La validation d'achèvement est réservée aux leçons.");
+        return;
+      }
+
+      await planning.update(event.id, { statut: 'EFFECTUEE' });
+      await loadEvents();
+      toast.success('Leçon marquée comme effectuée');
     },
 
     onReschedule: (event: CalendarEvent) => {
-      toast.info('Reprogrammation', {
-        description: `Ouvrir le formulaire pour reprogrammer "${event.title}"`,
+      toast.info('Astuce', {
+        description: `Ouvrez "${event.title}" puis utilisez la modification pour reprogrammer ce créneau.`,
       });
     },
 
     onView: (event: CalendarEvent) => {
-      console.log('Voir détails', event);
+      if (event.type === 'lesson') {
+        navigate(PROTECTED_ROUTES.PLANNING.DETAIL(event.id));
+        return;
+      }
+      if (event.type === 'exam') {
+        navigate(PROTECTED_ROUTES.EXAMENS.DETAIL(event.id));
+      }
     },
   };
 
   return (
     <div className="h-[calc(100vh-var(--header-height)-2rem)] -m-4 md:-m-6">
       <AppCalendar
-        events={filteredEvents}
+        events={events}
         actions={actions}
         defaultView="week"
         isLoading={isLoading}

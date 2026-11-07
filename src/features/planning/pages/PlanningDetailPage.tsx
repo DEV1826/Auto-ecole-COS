@@ -60,7 +60,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, resolveAssetPath } from '@/lib/utils';
 
 import { PROTECTED_ROUTES, route } from '@/config/routes';
 import { PageBreadcrumb } from '@/components/common/PageBreadcrumb';
@@ -417,7 +417,7 @@ export default function PlanningDetailPage(): React.JSX.Element {
               <>
                 <div className="flex items-center gap-3">
                   <Avatar className="h-12 w-12 border">
-                    <AvatarImage src={`/images/brand/${currentVehicule.marque.toLowerCase()}.png`} />
+                    <AvatarImage src={resolveAssetPath(`/images/brand/${currentVehicule.marque.toLowerCase()}.png`)} />
                     <AvatarFallback className="bg-blue-700 text-white text-sm">
                       {currentVehicule.marque[0]}{currentVehicule.modele[0]}
                     </AvatarFallback>

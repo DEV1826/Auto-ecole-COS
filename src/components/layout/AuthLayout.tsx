@@ -23,6 +23,7 @@
 import { motion } from 'framer-motion';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { appConfig } from '@/config/app.config';
+import { resolveAssetPath } from '@/lib';
 
 import { Footer } from '@/components/footer';
 import { ThemeToggle } from '../theme';
@@ -48,8 +49,8 @@ interface AuthLayoutProps {
  */
 export function AuthLayout({ children, imageUrl, overlayText }: AuthLayoutProps) {
   const isMobile = useIsMobile();
-  const defaultImage = appConfig.logo || '/images/driving-school.jpg';
-  const finalImageUrl = imageUrl || defaultImage;
+  const defaultImage = appConfig.logo || resolveAssetPath('/images/logo/auth-logo.svg');
+  const finalImageUrl = resolveAssetPath(imageUrl || defaultImage);
 
   return (
     <div className="relative min-h-svh  bg-blue-50/70  dark:bg-blue-50/5 z-0 ">
