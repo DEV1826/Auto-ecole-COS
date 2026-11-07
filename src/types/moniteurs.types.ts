@@ -74,9 +74,21 @@ export interface Moniteur {
   actif: boolean;
   createdAt: Date | string;
   updatedAt: Date | string;
+  /** Compte de connexion lié (rôle MONITEUR), s'il existe. */
+  utilisateurId?: number | null;
 
-  // Relation
+  // Relations
   lecons?: Lecon[];
+  utilisateur?: CompteMoniteur | null;
+}
+
+/** Compte utilisateur pouvant être lié à une fiche moniteur. */
+export interface CompteMoniteur {
+  id: number;
+  email: string;
+  nom: string;
+  prenom: string;
+  actif?: boolean;
 }
 
 // ============================================================
@@ -390,4 +402,10 @@ export interface MoniteursApi {
    * @returns Sparklines (actifs, heures, moyenne)
    */
   getSparklines: () => Promise<MoniteursSparklineData>;
+
+  /** Fiche moniteur liée au compte connecté (null si aucune). */
+  getMine: () => Promise<Moniteur | null>;
+
+  /** Comptes de rôle MONITEUR liables à une fiche (`moniteurId` : fiche en cours d'édition). */
+  getComptesDisponibles: (moniteurId?: number) => Promise<CompteMoniteur[]>;
 }

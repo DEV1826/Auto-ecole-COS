@@ -76,7 +76,12 @@ import type {
 import type { StatutFacture } from '@/types/enums';
 import { STATUT_FACTURE_CONFIG } from '@/types/enums';
 import type { RowActionsConfig, CustomRowAction } from '@/components/tables/types';
-import { useTheme } from 'next-themes';
+
+/** Thème courant lu sur le document (pas de hook : ces colonnes sont construites dans un useMemo). */
+function currentTheme(): 'dark' | 'light' {
+  return typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UTILITAIRES
@@ -132,8 +137,7 @@ function colDocumentInfo(): ColumnDef<Facture> {
 
 
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { resolvedTheme } = useTheme();
+  const resolvedTheme = currentTheme();
 
   return createAvatarWithTextColumn<Facture>({
     accessorKey: 'nomFichier',

@@ -20,6 +20,7 @@
 
 import {
   prisma,
+  getPrismaClient,
   executePrismaOperation,
   create,
   update,
@@ -142,6 +143,68 @@ export async function getAllMoniteurs(params = {}) {
  * @returns {Promise<Object>} Moniteur avec ses leçons
  * @throws {Error} Si le moniteur n'existe pas
  */
+/**
+ * Normalise et vérifie le compte utilisateur à lier à une fiche moniteur.
+ * Le compte doit exister, être actif, avoir le rôle MONITEUR et ne pas être
+ * déjà lié à une autre fiche.
+ *
+ * @param {unknown} value - Identifiant reçu (number, string, null ou undefined)
+ * @param {number|null} [moniteurId] - Fiche en cours de modification (exclue du contrôle)
+ * @returns {Promise<number|null|undefined>} undefined = champ absent (pas de changement)
+ */
+async function resolveCompteMoniteur(value, moniteurId = null) {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  const utilisateurId = Number(value);
+  if (!Number.isInteger(utilisateurId) || utilisateurId <= 0) {
+    throw new Error('Compte utilisateur invalide.');
+  }
+  const prisma = getPrismaClient();
+  const compte = await prisma.utilisateur.findUnique({
+    where: { id: utilisateurId },
+    select: { id: true, role: true, actif: true, moniteur: { select: { id: true } } },
+  });
+  if (!compte) throw new Error('Compte utilisateur introuvable.');
+  if (!compte.actif) throw new Error('Ce compte utilisateur est désactivé.');
+  if (compte.role !== 'MONITEUR') {
+    throw new Error('Seul un compte de rôle « Moniteur » peut être lié à une fiche moniteur.');
+  }
+  if (compte.moniteur && compte.moniteur.id !== moniteurId) {
+    throw new Error('Ce compte est déjà lié à une autre fiche moniteur.');
+  }
+  return utilisateurId;
+}
+
+const COMPTE_SELECT = { select: { id: true, email: true, nom: true, prenom: true, actif: true } };
+
+/**
+ * Comptes de rôle MONITEUR actifs non liés à une fiche (ou liés à `moniteurId`).
+ * @param {number} [moniteurId]
+ */
+export async function getComptesMoniteurDisponibles(moniteurId) {
+  return executePrismaOperation(async () => {
+    const prisma = getPrismaClient();
+    const id = Number(moniteurId);
+    const lieA = Number.isInteger(id) && id > 0 ? [{ moniteur: { id } }] : [];
+    return prisma.utilisateur.findMany({
+      where: { role: 'MONITEUR', actif: true, OR: [{ moniteur: null }, ...lieA] },
+      select: { id: true, email: true, nom: true, prenom: true },
+      orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
+    });
+  }, 'Erreur lors de la récupération des comptes moniteurs');
+}
+
+/**
+ * Fiche moniteur liée à un compte utilisateur (ou null).
+ * @param {number} utilisateurId
+ */
+export async function getMoniteurByUtilisateur(utilisateurId) {
+  return executePrismaOperation(async () => {
+    if (!utilisateurId) return null;
+    return getPrismaClient().moniteur.findUnique({ where: { utilisateurId: Number(utilisateurId) } });
+  }, 'Erreur lors de la récupération de la fiche moniteur');
+}
+
 export async function getMoniteurById(id) {
   if (!id || isNaN(id)) {
     throw new Error('Identifiant moniteur invalide.');
@@ -159,6 +222,7 @@ export async function getMoniteurById(id) {
         _count: {
           select: { lecons: true },
         },
+        utilisateur: COMPTE_SELECT,
       }
     );
     if (!moniteur) {
@@ -207,6 +271,8 @@ export async function createMoniteur(data) {
   };
 
   return executePrismaOperation(async () => {
+    const utilisateurId = await resolveCompteMoniteur(data.utilisateurId);
+    if (utilisateurId !== undefined) moniteurData.utilisateurId = utilisateurId;
     const newMoniteur = await create('moniteur', moniteurData);
     return newMoniteur;
   }, 'Erreur lors de la création du moniteur');
@@ -265,6 +331,8 @@ export async function updateMoniteur(id, data) {
   updateData.updatedAt = new Date();
 
   return executePrismaOperation(async () => {
+    const utilisateurId = await resolveCompteMoniteur(data.utilisateurId, Number(id));
+    if (utilisateurId !== undefined) updateData.utilisateurId = utilisateurId;
     const updated = await update('moniteur', { id }, updateData);
     return updated;
   }, 'Erreur lors de la mise à jour du moniteur');

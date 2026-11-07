@@ -19,7 +19,7 @@
  */
 
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -253,10 +253,13 @@ function ExamenPreviewCard({ data }: ExamenPreviewCardProps) {
  */
 export default function ExamenCreatePage(): React.JSX.Element {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const candidatIdParam = Number(searchParams.get('candidatId'));
   const { create } = useExamens();
 
   const [formData, setFormData] = React.useState<FormData>({
     date: new Date().toISOString(),
+    ...(Number.isInteger(candidatIdParam) && candidatIdParam > 0 ? { candidatId: candidatIdParam } : {}),
   });
   const [isFormValid, setIsFormValid] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);

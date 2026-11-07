@@ -15,6 +15,8 @@ import {
   getMoniteursStats,
   getMoniteursTrends,
   getMoniteursSparklines,
+  getComptesMoniteurDisponibles,
+  getMoniteurByUtilisateur,
 } from '../../services/moniteur.service.js';
 
 /**
@@ -31,6 +33,16 @@ export function registerMoniteursHandlers(handle) {
    */
   handle('moniteurs:getAll', async (event, params) => {
     return getAllMoniteurs(params);
+  });
+
+  /** Fiche moniteur liée au compte connecté (null si aucune). */
+  handle('moniteurs:getMine', async (event) => {
+    return getMoniteurByUtilisateur(event.auth?.userId);
+  });
+
+  /** Comptes de rôle MONITEUR pouvant être liés à une fiche (moniteurId = fiche en cours d'édition). */
+  handle('moniteurs:getComptesDisponibles', async (event, moniteurId) => {
+    return getComptesMoniteurDisponibles(moniteurId);
   });
 
   /**

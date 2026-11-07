@@ -83,6 +83,8 @@ export const createMoniteurSchema = z.object({
   dateEmbauche: dateSchema.optional(),
   /** Statut actif (défaut: true) */
   actif: z.boolean().default(true).optional(),
+  /** Compte de connexion lié (rôle MONITEUR), optionnel */
+  utilisateurId: positiveIntSchema.optional().nullable(),
 });
 
 /**
@@ -99,6 +101,7 @@ export const updateMoniteurSchema = z.object({
   specialite: specialiteSchema,
   dateEmbauche: dateSchema.optional().nullable(),
   actif: z.boolean().optional(),
+  utilisateurId: positiveIntSchema.optional().nullable(),
 });
 
 /**

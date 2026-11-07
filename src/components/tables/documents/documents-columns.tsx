@@ -67,7 +67,12 @@ import { cn, resolveAssetPath } from '@/lib/utils';
 import type { Document, DocumentsEnrichments } from '@/types/documents.types';
 import type { DocumentsTableActions, DocumentsColumnsOptions } from '@/types/documents.types';
 import type { RowActionsConfig, CustomRowAction } from '@/components/tables/types';
-import { useTheme } from 'next-themes';
+
+/** Thème courant lu sur le document (pas de hook : ces colonnes sont construites dans un useMemo). */
+function currentTheme(): 'dark' | 'light' {
+  return typeof document !== 'undefined' && document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+}
+
 
 
 
@@ -157,8 +162,7 @@ function getDocumentTypeConfig(type: string) {
 function colDocumentInfo(): ColumnDef<Document> {
 
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { resolvedTheme } = useTheme();
+  const resolvedTheme = currentTheme();
 
 
   const isDark = resolvedTheme === 'dark';

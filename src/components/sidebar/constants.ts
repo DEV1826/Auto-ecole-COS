@@ -154,12 +154,12 @@ export const MAIN_NAV_ITEMS: Record<Role, NavItem[]> = {
 
         {
           title: 'Planning moniteur',
-          url: '#',
+          url: PROTECTED_ROUTES.PLANNING.MONITEURS_INDEX,
           icon: Calendar,
         },
         {
           title: 'Planning candidat',
-          url: '#',
+          url: PROTECTED_ROUTES.PLANNING.CANDIDATS_INDEX,
           icon: Calendar,
         },
       ],

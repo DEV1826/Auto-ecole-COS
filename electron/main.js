@@ -26,6 +26,7 @@ import { registerPlanningHandlers } from './ipc/handlers/planning.js';
 import { registerMoniteursHandlers } from './ipc/handlers/moniteurs.js';
 import { registerExamensHandlers } from './ipc/handlers/examens.js';
 import { registerAdminHandlers } from './ipc/handlers/admin.js';
+import { registerRapportsHandlers } from './ipc/handlers/rapports.js';
 import { validateToken } from './services/auth.service.js';
 
 const { app, BrowserWindow, dialog, ipcMain, protocol, shell } = globalThis.__ELECTRON_MAIN__ ?? {};
@@ -355,6 +356,7 @@ function registerIpcHandlers() {
   registerMoniteursHandlers(handle, helpers);
   registerExamensHandlers(handle, helpers);
   registerAdminHandlers(handle, helpers);
+  registerRapportsHandlers(handle);
 }
 
 // Initialisation au démarrage

@@ -27,8 +27,24 @@ export function registerDocumentsHandlers(handle, { printPdfFile } = {}) {
   // DOCUMENTS
   // =============================
 
-  handle('documents:upload', async (event, payload) => {
-    return uploadDocument(payload);
+  // Le renderer envoie un ArrayBuffer (clonage IPC) : le service attend un Buffer Node.
+  const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+  handle('documents:upload', async (event, payload = {}) => {
+    const raw = payload.buffer;
+    let buffer;
+    if (Buffer.isBuffer(raw)) buffer = raw;
+    else if (raw instanceof ArrayBuffer) buffer = Buffer.from(raw);
+    else if (ArrayBuffer.isView(raw)) buffer = Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength);
+    else throw new Error('Contenu du fichier invalide ou vide.');
+    if (buffer.length === 0) throw new Error('Le fichier est vide.');
+    if (buffer.length > MAX_UPLOAD_BYTES) throw new Error('Fichier trop volumineux (15 Mo maximum).');
+    return uploadDocument({
+      candidatId: Number(payload.candidatId),
+      type: payload.type,
+      buffer,
+      originalName: String(payload.originalName ?? ''),
+      mimeType: payload.mimeType,
+    });
   });
   handle('documents:getAll', async (event, params) => {
     return getAllDocuments(params);
