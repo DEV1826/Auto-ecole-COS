@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/rules-of-hooks */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // src/features/moniteurs/components/MoniteursResumeCard.tsx
 
@@ -114,6 +113,25 @@ export function MoniteursResumeCard({
     onMoniteurClick,
     className,
 }: MoniteursResumeCardProps): React.JSX.Element {
+    // Hooks appelés avant tout return (règle des hooks).
+    const actifsMemo = stats?.actifs ?? 0;
+    const inactifsMemo = stats?.inactifs ?? 0;
+    const pieData = React.useMemo(
+        () => [
+            { name: 'Actifs', value: actifsMemo, color: '#10B981' },
+            { name: 'Inactifs', value: inactifsMemo, color: '#E4E7EC' },
+        ],
+        [actifsMemo, inactifsMemo]
+    );
+
+    // Top moniteurs par leçons (uniquement actifs, triés par nombre de leçons)
+    const topMoniteurs = React.useMemo(() => {
+        return [...moniteurs]
+            .filter((m) => m.actif)
+            .sort((a, b) => getLeconsCount(b) - getLeconsCount(a))
+            .slice(0, topMoniteursCount);
+    }, [moniteurs, topMoniteursCount]);
+
     // Affichage du squelette de chargement
     if (isLoading || !stats) {
         return (
@@ -149,21 +167,6 @@ export function MoniteursResumeCard({
     const evolutionActifs = stats.evolutionActifs;
     const isPositive = evolutionActifs >= 0;
 
-    const pieData = React.useMemo(
-        () => [
-            { name: 'Actifs', value: actifsCount, color: '#10B981' },
-            { name: 'Inactifs', value: inactifsCount, color: '#E4E7EC' },
-        ],
-        [actifsCount, inactifsCount]
-    );
-
-    // Top moniteurs par leçons (uniquement actifs, triés par nombre de leçons)
-    const topMoniteurs = React.useMemo(() => {
-        return [...moniteurs]
-            .filter((m) => m.actif)
-            .sort((a, b) => getLeconsCount(b) - getLeconsCount(a))
-            .slice(0, topMoniteursCount);
-    }, [moniteurs, topMoniteursCount]);
 
     // Tendance formatée
     const trendValue = Math.abs(evolutionActifs);

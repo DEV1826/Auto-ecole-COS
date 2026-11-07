@@ -127,8 +127,23 @@ function mapCalendarStatusToLeconStatus(status?: CalendarEventStatus) {
 export default function PlanningCalendarPage(): React.JSX.Element {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  const planning = usePlanning();
-  const examens = useExamens();
+  // On ne garde que les fonctions du store (références stables) : l'objet
+  // renvoyé par usePlanning()/useExamens() est recréé à chaque rendu, ce qui
+  // relançait le chargement en boucle.
+  const {
+    getBetweenDates: getLeconsBetweenDates,
+    update: updateLecon,
+    delete: deleteLecon,
+  } = usePlanning();
+  const { getAll: getAllExamens, update: updateExamen, delete: deleteExamen } = useExamens();
+  const planning = React.useMemo(
+    () => ({ update: updateLecon, delete: deleteLecon }),
+    [updateLecon, deleteLecon]
+  );
+  const examens = React.useMemo(
+    () => ({ update: updateExamen, delete: deleteExamen }),
+    [updateExamen, deleteExamen]
+  );
 
   const [events, setEvents] = React.useState<CalendarEvent[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -147,7 +162,7 @@ export default function PlanningCalendarPage(): React.JSX.Element {
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + 4);
 
-      const lessonPromise = planning.getBetweenDates(
+      const lessonPromise = getLeconsBetweenDates(
         startDate.toISOString(),
         endDate.toISOString(),
         moniteurId
@@ -156,9 +171,9 @@ export default function PlanningCalendarPage(): React.JSX.Element {
       const examPromise =
         role === 'MONITEUR'
           ? Promise.resolve({ examens: [] })
-          : examens.getAll({
+          : getAllExamens({
               page: 1,
-              limit: 500,
+              limit: 200,
               dateDebut: startDate.toISOString(),
               dateFin: endDate.toISOString(),
               sortBy: 'date',
@@ -180,10 +195,12 @@ export default function PlanningCalendarPage(): React.JSX.Element {
     } finally {
       setIsLoading(false);
     }
-  }, [examens, moniteurId, planning, role, user]);
+  }, [getLeconsBetweenDates, getAllExamens, moniteurId, role, user]);
 
   React.useEffect(() => {
-    void loadEvents();
+    // Chargement asynchrone : aucun setState synchrone dans l'effet.
+    const timer = setTimeout(() => void loadEvents(), 0);
+    return () => clearTimeout(timer);
   }, [loadEvents]);
 
   if (!isAuthenticated || !user) {

@@ -119,13 +119,28 @@ export function registerAdminHandlers(
   handle('exports:saveFile', async (_event, payload = {}) => {
     const { folder = 'general', baseName = 'export', extension = 'csv', content = '' } = payload;
 
-    const exportDir = path.join(app.getPath('documents'), 'Auto-Ecole COS', 'exports', folder);
+    // Le fichier est ensuite ouvert avec l'application associée : on n'autorise
+    // que des formats de données et des noms sans séparateur de chemin.
+    const ALLOWED_EXTENSIONS = new Set(['csv', 'txt', 'json', 'tsv']);
+    const ext = String(extension).replace(/^\./, '').toLowerCase();
+    if (!ALLOWED_EXTENSIONS.has(ext)) {
+      throw new Error(`Format d'export non autorisé : ${ext}`);
+    }
+    const safe = (value, fallback) =>
+      String(value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Za-z0-9_-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 60) || fallback;
+    if (typeof content !== 'string' || content.length > 20 * 1024 * 1024) {
+      throw new Error("Contenu d'export invalide.");
+    }
+
+    const exportDir = path.join(app.getPath('documents'), 'Auto-Ecole COS', 'exports', safe(folder, 'general'));
     await fs.promises.mkdir(exportDir, { recursive: true });
 
-    const filePath = path.join(
-      exportDir,
-      `${baseName}-${createExportTimestamp()}.${String(extension).replace(/^\./, '')}`
-    );
+    const filePath = path.join(exportDir, `${safe(baseName, 'export')}-${createExportTimestamp()}.${ext}`);
 
     await fs.promises.writeFile(filePath, content, 'utf8');
     await shell.openPath(filePath);

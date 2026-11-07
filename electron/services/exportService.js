@@ -20,8 +20,12 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
+// Documents/Auto-Ecole COS/exports : le dossier d'installation n'est pas
+// accessible en écriture dans l'application installée.
 async function ensureExportDir() {
-  const exportDir = path.join(process.cwd(), 'exports');
+  const { app } = globalThis.__ELECTRON_MAIN__ ?? {};
+  const baseDir = app ? app.getPath('documents') : process.cwd();
+  const exportDir = path.join(baseDir, 'Auto-Ecole COS', 'exports');
   await fs.mkdir(exportDir, { recursive: true });
   return exportDir;
 }
