@@ -198,7 +198,10 @@ export function createSecureIpc({ ipcMain, validateToken, isTrustedUrl, log = ()
 
       if (!PUBLIC_CHANNELS.has(channel)) {
         if (!auth) {
-          throw new IpcAuthError('AUTH_REQUIRED', 'Session expirée ou invalide. Veuillez vous reconnecter.');
+          throw new IpcAuthError(
+            'AUTH_REQUIRED',
+            'Session expirée ou invalide. Veuillez vous reconnecter.'
+          );
         }
         const roles = CHANNEL_ROLES[channel];
         if (roles && !roles.includes(auth.role)) {
