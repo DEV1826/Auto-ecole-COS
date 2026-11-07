@@ -46,6 +46,26 @@ process.on('unhandledRejection', (reason) => {
 
 writeBootstrapLog('Bootstrap start');
 
+// En développement uniquement : charge .env (JWT_SECRET, AUTO_ECOLE_SETUP_CODE, ...).
+// L'application installée n'embarque pas de .env : les secrets JWT sont générés par
+// poste (voir electron/services/secrets.js).
+if (!electronMain.app.isPackaged) {
+  const envPath = path.join(process.cwd(), '.env');
+  if (fs.existsSync(envPath)) {
+    try {
+      // Les variables VITE_* et DATABASE_URL sont ignorées : elles concernent Vite
+      // ou sont calculées par prisma.client.js.
+      const parsed = require('node:util').parseEnv(fs.readFileSync(envPath, 'utf8'));
+      for (const [key, value] of Object.entries(parsed)) {
+        if (key.startsWith('VITE_') || key === 'DATABASE_URL') continue;
+        if (process.env[key] === undefined) process.env[key] = value;
+      }
+    } catch (error) {
+      writeBootstrapLog('Lecture de .env impossible', error);
+    }
+  }
+}
+
 import('./main.js').then(
   () => writeBootstrapLog('main.js imported successfully'),
   (error) => {

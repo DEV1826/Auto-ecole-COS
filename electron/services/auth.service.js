@@ -18,21 +18,21 @@ import {
   findMany,
   count,
 } from './prisma.client.js';
+import { hashPassword, verifyPassword } from './password.js';
+import {
+  getJwtSecret,
+  getJwtRefreshSecret,
+  getDeveloperSetupCode,
+  safeEqual,
+} from './secrets.js';
 
 // ===============================
 // VARIABLES D'ENVIRONNEMENT
 // ===============================
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default-jwt-secret-change-me-please';
-const JWT_REFRESH_SECRET =
-  process.env.JWT_REFRESH_SECRET || 'default-refresh-secret-change-me-please';
 const SESSION_DURATION_HOURS = parseInt(process.env.SESSION_DURATION_HOURS, 10) || 24;
 const TOKEN_EXPIRATION_HOURS = parseInt(process.env.TOKEN_EXPIRATION_HOURS, 10) || 24;
 const REFRESH_TOKEN_EXPIRATION_DAYS = parseInt(process.env.REFRESH_TOKEN_EXPIRATION_DAYS, 10) || 7;
-const DEVELOPER_SETUP_CODE =
-  process.env.AUTO_ECOLE_SETUP_CODE ||
-  process.env.DEVELOPER_REGISTER_CODE ||
-  (process.env.NODE_ENV !== 'production' ? 'COS-DEV-SETUP-2026' : '');
 const SETUP_ACCESS_TOKEN_TTL_MS = 10 * 60 * 1000;
 const SESSION_DURATION_MS = SESSION_DURATION_HOURS * 60 * 60 * 1000;
 const setupAccessTokens = new Map();
@@ -42,25 +42,6 @@ const setupAccessTokens = new Map();
 // ===============================
 
 /**
- * Hache un mot de passe avec SHA-256
- * @param {string} password - Mot de passe en clair
- * @returns {string} Hash hexadécimal
- */
-function hashPassword(password) {
-  return crypto.createHash('sha256').update(password).digest('hex');
-}
-
-/**
- * Vérifie un mot de passe par rapport à son hash
- * @param {string} password - Mot de passe en clair
- * @param {string} hash - Hash stocké
- * @returns {boolean}
- */
-function verifyPassword(password, hash) {
-  return hashPassword(password) === hash;
-}
-
-/**
  * Génère un token JWT d'accès
  * @param {number} userId - ID utilisateur
  * @param {string} role - Rôle
@@ -68,7 +49,7 @@ function verifyPassword(password, hash) {
  * @returns {string} Token JWT
  */
 function generateAccessToken(userId, role, niveau) {
-  return jwt.sign({ userId, role, niveau, type: 'access' }, JWT_SECRET, {
+  return jwt.sign({ userId, role, niveau, type: 'access' }, getJwtSecret(), {
     expiresIn: `${TOKEN_EXPIRATION_HOURS}h`,
   });
 }
@@ -79,7 +60,7 @@ function generateAccessToken(userId, role, niveau) {
  * @returns {string} Refresh token
  */
 function generateRefreshToken(userId) {
-  return jwt.sign({ userId, type: 'refresh' }, JWT_REFRESH_SECRET, {
+  return jwt.sign({ userId, type: 'refresh' }, getJwtRefreshSecret(), {
     expiresIn: `${REFRESH_TOKEN_EXPIRATION_DAYS}d`,
   });
 }
@@ -91,7 +72,7 @@ function generateRefreshToken(userId) {
  */
 function verifyAccessToken(token) {
   try {
-    return jwt.verify(token, JWT_SECRET);
+    return jwt.verify(token, getJwtSecret());
   } catch (error) {
     console.error('Erreur lors de la vérification du token JWT (access):', error);
     return null;
@@ -105,7 +86,7 @@ function verifyAccessToken(token) {
  */
 function verifyRefreshToken(token) {
   try {
-    return jwt.verify(token, JWT_REFRESH_SECRET);
+    return jwt.verify(token, getJwtRefreshSecret());
   } catch (error) {
     console.error('Erreur lors de la vérification du refresh token JWT:', error);
     return null;
@@ -195,7 +176,8 @@ export async function login({ email, password, ipAddress, userAgent }) {
       throw new Error('Utilisateur introuvable ou inactif.');
     }
 
-    if (!verifyPassword(password, user.passwordHash)) {
+    const passwordCheck = await verifyPassword(password, user.passwordHash);
+    if (!passwordCheck.valid) {
       await logAudit(
         user.id,
         'LOGIN_FAILED',
@@ -206,6 +188,14 @@ export async function login({ email, password, ipAddress, userAgent }) {
         'FAILED'
       );
       throw new Error('Identifiants invalides.');
+    }
+
+    if (passwordCheck.needsRehash) {
+      try {
+        await update('utilisateur', { id: user.id }, { passwordHash: await hashPassword(password) });
+      } catch (rehashError) {
+        console.warn('Mise à jour du hash de mot de passe impossible :', rehashError);
+      }
     }
 
     // Créer la session
@@ -306,6 +296,12 @@ export async function validateToken(token) {
     if (!session || !session.actif) {
       return { valid: false, error: 'Session inexistante ou désactivée' };
     }
+    if (!session.utilisateur?.actif) {
+      return { valid: false, error: 'Utilisateur désactivé' };
+    }
+    if (session.expiresAt && new Date(session.expiresAt) < new Date()) {
+      return { valid: false, error: 'Session expirée' };
+    }
 
     // Mettre à jour le dernier accès
     await update('session', { id: session.id }, { dernierAcces: new Date() });
@@ -315,6 +311,8 @@ export async function validateToken(token) {
       user: {
         id: session.utilisateur.id,
         email: session.utilisateur.email,
+        nom: session.utilisateur.nom,
+        prenom: session.utilisateur.prenom,
         role: session.utilisateur.role,
         niveau: session.utilisateur.niveau,
         permissions: session.utilisateur.permissions.map((p) => ({
@@ -354,6 +352,9 @@ export async function refreshToken({ refreshToken }) {
 
     if (!session || !session.actif) {
       throw new Error('Session inexistante ou désactivée.');
+    }
+    if (!session.utilisateur?.actif) {
+      throw new Error('Utilisateur désactivé.');
     }
 
     // Générer un nouveau token d'accès et un nouveau refresh token
@@ -465,11 +466,12 @@ async function ensureDefaultFormations(tx) {
  */
 export async function verifyDeveloperSetupCode({ code, ipAddress }) {
   return executePrismaOperation(async () => {
-    if (!DEVELOPER_SETUP_CODE) {
+    const expectedCode = getDeveloperSetupCode();
+    if (!expectedCode) {
       throw new Error("Le code développeur n'est pas configuré pour cette installation.");
     }
 
-    if (!code || String(code).trim() !== DEVELOPER_SETUP_CODE) {
+    if (!code || !safeEqual(String(code).trim(), expectedCode)) {
       await logAudit(
         null,
         'SETUP_CODE_FAILED',
@@ -548,7 +550,7 @@ export async function createInitialSetup({ accessToken, company, admin, ipAddres
       throw new Error('Un utilisateur avec cet email existe déjà.');
     }
 
-    const passwordHash = hashPassword(admin.password);
+    const passwordHash = await hashPassword(admin.password);
     const result = await prisma.$transaction(async (tx) => {
       const companyConfig = await tx.companyConfig.upsert({
         where: { id: 1 },
@@ -652,9 +654,10 @@ export async function createUser({
     }
 
     // Vérifier les permissions du créateur
-    if (creeParId) {
-      await verifyPermissionToCreateUser(creeParId, niveau);
+    if (!creeParId) {
+      throw new Error('Créateur non identifié.');
     }
+    await verifyPermissionToCreateUser(creeParId, niveau);
 
     // Vérifier l'unicité de l'email
     const existing = await findUnique('utilisateur', { email });
@@ -662,7 +665,7 @@ export async function createUser({
       throw new Error('Un utilisateur avec cet email existe déjà.');
     }
 
-    const passwordHash = hashPassword(password);
+    const passwordHash = await hashPassword(password);
     const user = await create('utilisateur', {
       email,
       nom,
@@ -971,7 +974,7 @@ export async function changePassword({ userId, oldPassword, newPassword, ipAddre
     if (!user) {
       throw new Error('Utilisateur non trouvé.');
     }
-    if (!verifyPassword(oldPassword, user.passwordHash)) {
+    if (!(await verifyPassword(oldPassword, user.passwordHash)).valid) {
       await logAudit(
         userId,
         'CHANGE_PASSWORD_FAILED',
@@ -984,7 +987,7 @@ export async function changePassword({ userId, oldPassword, newPassword, ipAddre
       throw new Error('Ancien mot de passe incorrect.');
     }
 
-    const newHash = hashPassword(newPassword);
+    const newHash = await hashPassword(newPassword);
     await update('utilisateur', { id: userId }, { passwordHash: newHash });
 
     await logAudit(
@@ -1308,7 +1311,7 @@ async function assignDefaultPermissions(userId, role, niveau) {
  * @returns {string} Code à 6 chiffres
  */
 function generateOtpCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 1000000).toString();
 }
 
 /**
@@ -1424,7 +1427,7 @@ export async function resetPassword({ code, newPassword }) {
     const user = await findUnique('utilisateur', { id: resetCode.utilisateurId });
 
     // 3. Hacher le nouveau mot de passe
-    const newHash = hashPassword(newPassword);
+    const newHash = await hashPassword(newPassword);
 
     // 4. Mettre à jour l'utilisateur
     await update('utilisateur', { id: user.id }, { passwordHash: newHash });
