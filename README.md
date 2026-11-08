@@ -70,12 +70,7 @@ Une fiche moniteur peut être liée à un compte utilisateur de rôle **Moniteur
 son tableau de bord et « Planning moniteur ». Sans lien, ces écrans l'indiquent au lieu
 d'afficher des données.
 
-## Secrets et installation
 
-| Secret | Développement | Application installée |
-| --- | --- | --- |
-| Clés JWT | `JWT_SECRET`, `JWT_REFRESH_SECRET` dans `.env` | Générées au premier lancement dans `secrets.json` (userData), propres à chaque poste |
-| Code d'installation | `AUTO_ECOLE_SETUP_CODE` dans `.env` (sinon `COS-DEV-SETUP-2026`) | Contenu de `build/setup-code.txt` au moment du packaging, ou variable `AUTO_ECOLE_SETUP_CODE` |
 
 Le code d'installation permet de créer l'entreprise et le premier administrateur sur une base
 vide (écran « Accès développeur »). Une fois qu'un administrateur existe, il n'a plus d'effet.
